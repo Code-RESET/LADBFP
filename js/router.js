@@ -1,52 +1,118 @@
 // ============================================================
 // router.js
-// Router simple por hash (#/ruta). No recarga la página.
-// Cada módulo nuevo del proyecto se registra en MODULES abajo:
-// eso es lo único que hay que tocar para agregar una sección.
+// Router por hash (#/ruta?param=valor). No recarga la página.
+// Cada módulo nuevo se registra en MODULES: es lo único que hay
+// que tocar para agregar una sección (aparece sola en la barra
+// inferior / sidebar y en el routing).
+//
+// Contrato de un módulo (js/modules/<nombre>/index.js):
+//   export function render(container, ctx) { ...; return cleanup }
+//   ctx = { user, params: URLSearchParams, segmentos: [], navegar(ruta) }
+//   cleanup() cancela listeners al salir de la pantalla.
 // ============================================================
 
-import { renderDashboard } from "./modules/dashboard.js";
+import { html, render } from "./core/dom.js";
+import { icon } from "./components/icons.js";
+import { cerrarTodas } from "./components/modal.js";
+import { estadoError, skeletonLista } from "./components/states.js";
 
-// Registro de módulos: agregar aquí cada módulo nuevo del proyecto.
-// path   -> texto después del # en la URL
-// label  -> texto que aparece en el menú de navegación
-// render -> función que recibe (container, user) y pinta la vista
-const MODULES = [
-  { path: "dashboard", label: "Inicio", render: renderDashboard },
-  // { path: "clientes", label: "Clientes", render: renderClientes },
-  // { path: "reportes", label: "Reportes", render: renderReportes },
+// path   -> texto después de #/ en la URL
+// label  -> texto del menú
+// nav    -> movil: 'tab' (barra inferior) | 'mas' (menú Más) | null; desktop: true/false (sidebar)
+// load   -> import dinámico: el código del módulo se descarga solo al abrirlo
+export const MODULES = [
+  { path: "dashboard", label: "Inicio", icon: "inicio", nav: { movil: "tab", desktop: true }, load: () => import("./modules/dashboard/index.js") },
+  { path: "movimientos", label: "Movimientos", icon: "movimientos", nav: { movil: "tab", desktop: true }, load: () => import("./modules/movimientos/index.js") },
+  { path: "plan", label: "Plan", icon: "plan", nav: { movil: "tab", desktop: true }, load: () => import("./modules/plan/index.js") },
+  { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cajas/index.js") },
+  { path: "cuentas", label: "Cuentas", icon: "cuentas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cuentas/index.js") },
+  { path: "configuracion", label: "Configuración", icon: "config", nav: { movil: "mas", desktop: true }, load: () => import("./modules/configuracion/index.js") },
+  { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: false }, load: () => import("./modules/mas/index.js") },
 ];
 
-const nav = document.getElementById("app-nav");
-const content = document.getElementById("app-content");
+const RUTA_INICIAL = "dashboard";
 
-let currentUser = null;
+let ctxBase = null;
+let cleanupActual = null;
+let renderId = 0;
 
-function buildNav() {
-  nav.innerHTML = MODULES.map(
-    (m) => `<a href="#/${m.path}" data-path="${m.path}">${m.label}</a>`
-  ).join("");
+export function parseHash(hash = location.hash) {
+  const limpio = hash.replace(/^#\/?/, "");
+  const [ruta, qs = ""] = limpio.split("?");
+  const segmentos = ruta.split("/").filter(Boolean).map(decodeURIComponent);
+  return { path: segmentos[0] || RUTA_INICIAL, segmentos: segmentos.slice(1), params: new URLSearchParams(qs) };
 }
 
-function setActiveLink(path) {
-  nav.querySelectorAll("a").forEach((a) => {
-    a.classList.toggle("active", a.dataset.path === path);
-  });
+export function navegar(ruta) {
+  cerrarTodas({ mantenerHistorial: true });
+  location.hash = `#/${ruta.replace(/^#?\/?/, "")}`;
 }
 
-function renderRoute() {
-  const path = (location.hash.replace("#/", "") || MODULES[0]?.path);
-  const mod = MODULES.find((m) => m.path === path) || MODULES[0];
-  if (!mod) return;
-
-  setActiveLink(mod.path);
-  content.innerHTML = "";
-  mod.render(content, currentUser);
+/** Cambia los parámetros de la URL sin agregar historial ni re-renderizar. */
+export function reemplazarParams(params) {
+  const { path, segmentos } = parseHash();
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "")).toString();
+  const ruta = [path, ...segmentos].map(encodeURIComponent).join("/");
+  history.replaceState(history.state, "", `#/${ruta}${qs ? `?${qs}` : ""}`);
 }
 
-export function initRouter(user) {
-  currentUser = user;
-  buildNav();
-  window.addEventListener("hashchange", renderRoute);
-  renderRoute();
+function pintarNav(actual) {
+  const tab = (m) => html`<a href="#/${m.path}" class="tabbar__item ${m.path === actual ? "activo" : ""}"
+      ${m.path === actual ? html`aria-current="page"` : ""}>${icon(m.icon)}<span>${m.label}</span></a>`;
+  const tabs = MODULES.filter((m) => m.nav.movil === "tab");
+  const masActivo = MODULES.find((m) => m.path === actual)?.nav.movil === "mas";
+  render(document.getElementById("tabbar"), html`
+    ${tabs.slice(0, 2).map(tab)}
+    <button type="button" class="tabbar__nuevo" data-accion="nuevo-movimiento" aria-label="Nuevo movimiento">${icon("plus", { size: 28 })}</button>
+    ${tabs.slice(2).map((m) => m.path === "mas" && masActivo
+      ? html`<a href="#/mas" class="tabbar__item activo">${icon(m.icon)}<span>${m.label}</span></a>`
+      : tab(m))}`);
+
+  render(document.getElementById("sidebar-nav"), html`${MODULES.filter((m) => m.nav.desktop).map((m) => html`
+    <a href="#/${m.path}" class="sidebar__item ${m.path === actual ? "activo" : ""}">${icon(m.icon, { size: 20 })}<span>${m.label}</span></a>`)}`);
+}
+
+async function renderRuta() {
+  const id = ++renderId;
+  const { path, segmentos, params } = parseHash();
+  const mod = MODULES.find((m) => m.path === path);
+  if (!mod) { navegar(RUTA_INICIAL); return; }
+
+  cerrarTodas({ mantenerHistorial: true }); // p. ej. un enlace dentro de una hoja
+  cleanupActual?.();
+  cleanupActual = null;
+  pintarNav(mod.path);
+  document.getElementById("titulo-pantalla").textContent = mod.label;
+  document.title = `${mod.label} · Finanzas Reset`;
+
+  const contenedor = document.getElementById("app-content");
+  render(contenedor, skeletonLista(4));
+  window.scrollTo(0, 0);
+
+  try {
+    const modulo = await mod.load();
+    if (id !== renderId) return; // el usuario ya navegó a otra pantalla
+    contenedor.innerHTML = "";
+    const ctx = { ...ctxBase, params, segmentos, navegar };
+    cleanupActual = modulo.render(contenedor, ctx) || null;
+  } catch (err) {
+    console.error(err);
+    if (id !== renderId) return;
+    render(contenedor, estadoError("No se pudo abrir esta sección. Revisa tu conexión."));
+    contenedor.querySelector('[data-accion="reintentar"]')?.addEventListener("click", renderRuta);
+  }
+}
+
+export function initRouter(ctx) {
+  ctxBase = ctx;
+  window.addEventListener("hashchange", renderRuta);
+  renderRuta();
+}
+
+export function detenerRouter() {
+  window.removeEventListener("hashchange", renderRuta);
+  cleanupActual?.();
+  cleanupActual = null;
+  ctxBase = null;
+  renderId++;
 }

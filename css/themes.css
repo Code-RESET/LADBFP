@@ -1,0 +1,122 @@
+/* ============================================================
+   themes.css — Tokens de diseño claro / oscuro.
+   Ningún componente usa colores literales: todo sale de aquí.
+   - Sin data-theme: sigue al sistema (prefers-color-scheme).
+   - data-theme="light" | "dark": elección manual.
+   En oscuro la jerarquía se da por elevación (superficies más
+   claras), no por sombras; sin negro puro.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --bg-primary: #F2F2F7;
+  --bg-secondary: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #F2F2F7;
+  --text-primary: #111114;
+  --text-secondary: #6B6B73;
+  --text-tertiary: #9A9AA2;
+  --border: #E3E3E8;
+  --separator: rgba(60, 60, 67, 0.14);
+  --success: #1E8E3E;
+  --success-soft: rgba(30, 142, 62, 0.12);
+  --warning: #B26A00;
+  --warning-soft: rgba(178, 106, 0, 0.12);
+  --danger: #D70015;
+  --danger-soft: rgba(215, 0, 21, 0.10);
+  --accent: #4D7C0F;          /* lima Code-Reset oscurecido: contraste AA sobre blanco */
+  --accent-soft: rgba(77, 124, 15, 0.12);
+  --on-accent: #FFFFFF;
+  --neutral: #0A84FF;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.18);
+  --overlay: rgba(0, 0, 0, 0.32);
+  --skeleton: #E5E5EA;
+  --skeleton-shine: #F2F2F7;
+}
+
+/* Oscuro manual */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-primary: #0B0B0D;
+  --bg-secondary: #151518;
+  --surface: #1C1C1F;
+  --surface-elevated: #26262A;
+  --surface-muted: #151518;
+  --text-primary: #F2F2F5;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+  --border: #2E2E33;
+  --separator: rgba(255, 255, 255, 0.08);
+  --success: #34C759;
+  --success-soft: rgba(52, 199, 89, 0.16);
+  --warning: #FFB340;
+  --warning-soft: rgba(255, 179, 64, 0.16);
+  --danger: #FF6961;
+  --danger-soft: rgba(255, 105, 97, 0.16);
+  --accent: #9ACD32;          /* lima Code-Reset original */
+  --accent-soft: rgba(154, 205, 50, 0.16);
+  --on-accent: #0B0B0D;
+  --neutral: #64D2FF;
+  --shadow: none;
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --skeleton: #26262A;
+  --skeleton-shine: #303035;
+}
+
+/* Oscuro automático (sistema), salvo que se haya elegido claro */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg-primary: #0B0B0D;
+    --bg-secondary: #151518;
+    --surface: #1C1C1F;
+    --surface-elevated: #26262A;
+    --surface-muted: #151518;
+    --text-primary: #F2F2F5;
+    --text-secondary: #A1A1AA;
+    --text-tertiary: #71717A;
+    --border: #2E2E33;
+    --separator: rgba(255, 255, 255, 0.08);
+    --success: #34C759;
+    --success-soft: rgba(52, 199, 89, 0.16);
+    --warning: #FFB340;
+    --warning-soft: rgba(255, 179, 64, 0.16);
+    --danger: #FF6961;
+    --danger-soft: rgba(255, 105, 97, 0.16);
+    --accent: #9ACD32;
+    --accent-soft: rgba(154, 205, 50, 0.16);
+    --on-accent: #0B0B0D;
+    --neutral: #64D2FF;
+    --shadow: none;
+    --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
+    --overlay: rgba(0, 0, 0, 0.55);
+    --skeleton: #26262A;
+    --skeleton-shine: #303035;
+  }
+}
+
+/* Constantes que no cambian con el tema */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Orbitron", var(--font-ui);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --gap: 16px;
+  --tabbar-h: 64px;
+  --topbar-h: 52px;
+  --sidebar-w: 248px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Identidad Code-Reset (solo login / splash) */
+  --brand-bg: #000000;
+  --brand-card: #0d0d0d;
+  --brand-accent: #9ACD32;
+  --brand-border: #1f1f1f;
+  --brand-text-dim: #9a9a9a;
+}

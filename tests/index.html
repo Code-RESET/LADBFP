@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pruebas · Finanzas Reset</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; background: #F2F2F7; color: #111; }
+  @media (prefers-color-scheme: dark) { body { background: #0B0B0D; color: #F2F2F5; } }
+  h1 { font-size: 1.3rem; }
+  li { margin: 4px 0; }
+  .ok { color: #1E8E3E; } .falla { color: #D70015; }
+  pre { white-space: pre-wrap; font-size: 0.8rem; margin: 2px 0 8px 20px; }
+  #resumen { font-weight: 700; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+<h1>Pruebas de lógica financiera</h1>
+<p>Corren en el navegador, sin instalar nada. Abre este archivo desde un servidor local (p. ej. <code>python3 -m http.server</code>) en <code>/tests/</code>.</p>
+<p id="resumen">Ejecutando…</p>
+<ul id="lista"></ul>
+<script type="module">
+  import { ejecutar } from "./lib.js";
+  import "./core.test.js";
+  import "./finanzas.test.js";
+
+  const lista = document.getElementById("lista");
+  const r = await ejecutar(({ nombre, ok, error }) => {
+    const li = document.createElement("li");
+    li.className = ok ? "ok" : "falla";
+    li.textContent = `${ok ? "✓" : "✗"} ${nombre}`;
+    if (error) { const pre = document.createElement("pre"); pre.textContent = error; li.appendChild(pre); }
+    lista.appendChild(li);
+  });
+  const resumen = document.getElementById("resumen");
+  resumen.textContent = `${r.ok} de ${r.total} pruebas correctas`;
+  resumen.className = r.fallas.length ? "falla" : "ok";
+</script>
+</body>
+</html>
