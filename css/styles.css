@@ -1,0 +1,192 @@
+/* ============================================================
+   Code-Reset — Identidad de marca (heredada de RESET Alarmas/GPS)
+   Ajustar --accent y --accent-soft si el cliente pide su propia
+   paleta; el resto de la estructura no cambia entre proyectos.
+   ============================================================ */
+
+:root {
+  --bg: #000000;
+  --bg-card: #0d0d0d;
+  --accent: #9ACD32;       /* verde neón lima */
+  --accent-soft: #8CC63F;
+  --text: #ffffff;
+  --text-dim: #9a9a9a;
+  --danger: #ff5555;
+  --border: #1f1f1f;
+
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius: 10px;
+  --gap: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100dvh;
+}
+
+.screen { min-height: 100dvh; }
+
+/* ---------- Login ---------- */
+#login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.login-logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+}
+
+.login-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+  color: var(--accent);
+}
+
+.login-subtitle {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin: 0 0 24px;
+}
+
+.field {
+  display: block;
+  text-align: left;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.field span { display: block; margin-bottom: 6px; }
+
+.field input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.78rem;
+  margin: -6px 0 12px;
+}
+
+.login-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.login-footer strong { color: var(--text); }
+
+/* ---------- App shell ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.header-logo { width: 28px; height: 28px; }
+
+.app-nav {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+}
+
+.app-nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.app-nav a.active {
+  color: #000;
+  background: var(--accent);
+}
+
+.app-content {
+  padding: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ---------- Responsive ---------- */
+@media (min-width: 768px) {
+  .login-card { padding: 40px 32px; }
+  .app-content { padding: 24px; }
+}
