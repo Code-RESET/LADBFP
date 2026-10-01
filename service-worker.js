@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.0.0";
+const CACHE_VERSION = "finanzas-reset-v1.0.1";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [

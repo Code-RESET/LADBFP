@@ -24,12 +24,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const DEFAULT_FB_CONFIG = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxx"
+  apiKey: "AIzaSyCTYyrjGrpDc_HCaPeG0s4emgd4rTcHb-c",
+  authDomain: "f-p-ladb.firebaseapp.com",
+  projectId: "f-p-ladb",
+  storageBucket: "f-p-ladb.firebasestorage.app",
+  messagingSenderId: "437802758972",
+  appId: "1:437802758972:web:d0b66fda5d2571f9fa2439"
 };
 
 // Solo para desarrollo: http://localhost:PUERTO/?emulador usa los
