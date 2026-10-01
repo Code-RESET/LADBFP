@@ -1,0 +1,159 @@
+rules_version = '2';
+
+// ============================================================
+// Reglas de seguridad — Finanzas Reset
+// 1) Cada usuario solo puede leer y escribir bajo users/{suUid}.
+// 2) Los datos se validan en el servidor: no se confía solo en
+//    el JavaScript de la app.
+// 3) Los movimientos NUNCA se borran (se anulan) y un anulado
+//    ya no se puede modificar. El historial es inmutable.
+// 4) Todo lo que no esté listado aquí está cerrado.
+//
+// Lección NEXORA: cada regla llama explícitamente a esDueno();
+// tests/rules/ incluye pruebas de que otro usuario no puede
+// leer ni escribir nada.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funciones base ----------
+    function esDueno(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function d() { return request.resource.data; }
+    function txt(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function txtOpc(m, k, max) { return !(k in m) || m[k] == null || (m[k] is string && m[k].size() <= max); }
+    function boolOpc(m, k) { return !(k in m) || m[k] is bool; }
+    function idOpc(m, k) { return !(k in m) || m[k] == null || txt(m[k], 100); }
+    function centavos(v) { return v is int && v > 0 && v <= 100000000000; }
+    function fecha(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function marcas(m) {
+      return (!('updatedAt' in m) || m.updatedAt is timestamp)
+        && (!('createdAt' in m) || m.createdAt is timestamp)
+        && (!('schemaVersion' in m) || m.schemaVersion is int);
+    }
+
+    // ---------- Validaciones por entidad ----------
+    function cajaValida(m) {
+      return m.keys().hasOnly(['nombre', 'tipo', 'color', 'descripcion', 'cuentaPredeterminadaId',
+          'disponibleParaGasto', 'activa', 'orden', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && txt(m.nombre, 40)
+        && m.tipo in ['operativa', 'ahorro', 'crecimiento']
+        && txtOpc(m, 'color', 20) && txtOpc(m, 'descripcion', 200)
+        && idOpc(m, 'cuentaPredeterminadaId')
+        && boolOpc(m, 'disponibleParaGasto') && boolOpc(m, 'activa')
+        && (!('orden' in m) || m.orden is int)
+        && marcas(m);
+    }
+
+    function cuentaValida(m) {
+      return m.keys().hasOnly(['nombre', 'institucion', 'tipo', 'cajaPredeterminadaId', 'credito',
+          'activa', 'orden', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && txt(m.nombre, 40)
+        && m.tipo in ['debito', 'monedero', 'efectivo', 'credito']
+        && txtOpc(m, 'institucion', 40)
+        && idOpc(m, 'cajaPredeterminadaId')
+        && (!('credito' in m) || m.credito is map)
+        && boolOpc(m, 'activa')
+        && (!('orden' in m) || m.orden is int)
+        && marcas(m);
+    }
+
+    function categoriaValida(m) {
+      return m.keys().hasOnly(['nombre', 'tipo', 'activa', 'sistema', 'esFinanciamiento', 'orden',
+          'createdAt', 'updatedAt', 'schemaVersion'])
+        && txt(m.nombre, 40)
+        && m.tipo in ['ingreso', 'gasto']
+        && boolOpc(m, 'activa') && boolOpc(m, 'sistema') && boolOpc(m, 'esFinanciamiento')
+        && (!('orden' in m) || m.orden is int)
+        && marcas(m);
+    }
+
+    // Integridad de movimientos (sección 37 del prompt maestro)
+    function movimientoValido(m) {
+      return m.keys().hasOnly(['tipo', 'fecha', 'mes', 'montoCentavos', 'cajaId', 'cuentaId',
+          'cajaDestinoId', 'cuentaDestinoId', 'categoriaId', 'direccion', 'nota', 'estado', 'anulacion',
+          'cajaIds', 'cuentaIds', 'ts', 'origen', 'obligacionId', 'obligacionPeriodo', 'deudaId', 'metaId',
+          'recurrenteId', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && m.tipo in ['ingreso', 'gasto', 'transferencia', 'apertura', 'ajuste']
+        && centavos(m.montoCentavos)                                   // monto entero > 0
+        && fecha(m.fecha)
+        && m.mes is string && m.mes.matches('^[0-9]{4}-[0-9]{2}$')
+        && m.fecha.matches('^' + m.mes + '-[0-9]{2}$')                 // mes coherente con la fecha
+        && txt(m.cajaId, 100)                                           // nunca sin caja
+        && txt(m.cuentaId, 100)
+        && m.cajaIds is list && m.cajaId in m.cajaIds
+        && m.cuentaIds is list && m.cuentaId in m.cuentaIds
+        && m.estado in ['activo', 'anulado']
+        && m.ts is int
+        && txtOpc(m, 'nota', 500)
+        // Transferencia: con origen y destino, y no al mismo par (caja, cuenta)
+        && (m.tipo != 'transferencia' || (
+              txt(m.cajaDestinoId, 100) && txt(m.cuentaDestinoId, 100)
+              && !(m.cajaDestinoId == m.cajaId && m.cuentaDestinoId == m.cuentaId)
+              && m.cajaDestinoId in m.cajaIds && m.cuentaDestinoId in m.cuentaIds))
+        && (m.tipo == 'transferencia' || (!('cajaDestinoId' in m) && !('cuentaDestinoId' in m)))
+        // Ingreso y gasto siempre con categoría; los demás tipos sin categoría
+        && ((m.tipo in ['ingreso', 'gasto']) == ('categoriaId' in m))
+        && (!('categoriaId' in m) || txt(m.categoriaId, 100))
+        // Ajuste: con dirección y motivo
+        && (m.tipo != 'ajuste' || (m.direccion in ['entrada', 'salida'] && txt(m.nota, 500)))
+        // Anulado: con motivo
+        && (m.estado != 'anulado' || (m.anulacion is map && txt(m.anulacion.motivo, 300)))
+        && marcas(m);
+    }
+
+    // ---------- Rutas ----------
+    match /users/{uid} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['config', 'updatedAt', 'createdAt'])
+        && (!('config' in request.resource.data) || request.resource.data.config is map);
+      allow delete: if false;
+
+      match /cajas/{id} {
+        allow read: if esDueno(uid);
+        allow create, update: if esDueno(uid) && cajaValida(d());
+        allow delete: if esDueno(uid);
+      }
+
+      match /cuentas/{id} {
+        allow read: if esDueno(uid);
+        allow create, update: if esDueno(uid) && cuentaValida(d());
+        allow delete: if esDueno(uid);
+      }
+
+      match /categorias/{id} {
+        allow read: if esDueno(uid);
+        allow create, update: if esDueno(uid) && categoriaValida(d());
+        allow delete: if false; // se desactivan, no se borran
+      }
+
+      match /movimientos/{id} {
+        allow read: if esDueno(uid);
+        allow create: if esDueno(uid) && movimientoValido(d()) && d().estado == 'activo';
+        // Un movimiento anulado queda congelado; editar no puede "des-anular".
+        allow update: if esDueno(uid) && resource.data.estado == 'activo' && movimientoValido(d());
+        allow delete: if false; // nunca borrar: se anula con motivo
+
+        match /historial/{h} {
+          allow read: if esDueno(uid);
+          allow create: if esDueno(uid)
+            && d().accion in ['crear', 'editar', 'anular'] && d().ts is int;
+          allow update, delete: if false; // auditoría inmutable
+        }
+      }
+
+      // Totales derivados de los movimientos (los escribe la app en el mismo batch).
+      match /agregados/{mes} {
+        allow read: if esDueno(uid);
+        allow create, update: if esDueno(uid)
+          && mes.matches('^[0-9]{4}-[0-9]{2}$')
+          && d().keys().hasOnly(['mes', 'porCaja', 'porCuenta', 'porCajaCuenta', 'porCategoria', 'n', 'updatedAt'])
+          && d().mes == mes;
+        allow delete: if false;
+      }
+    }
+  }
+}

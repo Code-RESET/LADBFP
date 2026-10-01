@@ -1,0 +1,8 @@
+{
+  "name": "finanzas-reset-e2e",
+  "private": true,
+  "description": "Solo desarrollo: prueba de punta a punta con Chromium + emuladores. La app no usa npm.",
+  "type": "module",
+  "scripts": { "test": "node e2e.mjs" },
+  "devDependencies": { "playwright-core": "^1.48.0" }
+}

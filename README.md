@@ -1,25 +1,67 @@
-# Code-Reset Boilerplate
+# Finanzas Reset
 
-Esqueleto base para arrancar cualquier proyecto nuevo de Code-Reset: PWA en HTML/JS puro (ES6 modules), sin build, con Firebase Auth + Firestore, login con firma de desarrollador, router por hash y estructura modular.
+Centro de control financiero personal y de negocios. PWA en HTML + CSS + JS puro (ES modules), sin build ni npm para correr, con Firebase Auth + Firestore. Basada en el boilerplate Code-Reset.
 
-## Cómo usar este repo
+Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET**
 
-1. Sube esta carpeta a GitHub como repo nuevo (ej. `code-reset-boilerplate`).
-2. En **Settings → Template repository**, activa la casilla. Esto habilita el botón "Use this template".
-3. Para cada proyecto nuevo: "Use this template" → nombra el repo del cliente → clona.
-4. Edita `js/firebase-config.js` con el `firebaseConfig` real del proyecto (Firebase Console → Configuración del proyecto → Tus apps → SDK config).
-5. Cambia `<p id="app-name-slot">` en `index.html` por el nombre real de la app.
-6. Reemplaza `assets/logo.svg`, `icon-192.png` e `icon-512.png` si el cliente pide su propia marca (por default se usa la identidad Code-Reset).
-7. Activa GitHub Pages (Settings → Pages → rama `main`, carpeta `/root`).
-8. Sube el cambio de `CACHE_VERSION` en `service-worker.js` cada vez que actualices archivos base, para que los teléfonos ya instalados jalen la versión nueva.
+- Arquitectura y decisiones: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
+- Publicar en Firebase + GitHub Pages: [`docs/PUBLICACION.md`](docs/PUBLICACION.md)
 
-## Cómo agregar un módulo nuevo
+## Estado
 
-1. Copia `js/modules/dashboard.js` y renómbralo (ej. `clientes.js`).
-2. Escribe su lógica y su propio `render(container, user)`.
-3. Regístralo en `js/router.js` dentro del arreglo `MODULES`.
-4. Listo — aparece solo en el menú y en el routing, sin tocar nada más.
+| Fase | Contenido | Estado |
+|---|---|---|
+| 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
+| 2 | Obligaciones, deudas, presupuesto, alertas, próximos pagos, flujo proyectado, disponible real | Pendiente |
+| 3 | Metas, escenarios, reportes, Excel, CSV, PDF, backup e importación | Pendiente |
 
-## Reglas de Firestore (pendiente por proyecto)
+## Estructura
 
-Este boilerplate no trae `firestore.rules` porque los permisos dependen de los roles de cada cliente. Escribirlas antes de entregar — recordar el bug real detectado en NEXORA: la función `puede()` de permisos existía pero nunca se llamaba, y todos los usuarios terminaban con acceso de admin.
+```
+index.html            shell + login obligatorio
+service-worker.js     precache de todo (incluido el SDK de Firebase) → abre sin conexión
+firestore.rules       seguridad y validación en el servidor
+firestore.indexes.json
+css/                  themes (tokens claro/oscuro) · base · components · responsive
+js/
+  app.js              arranque
+  firebase-config.js  ← pegar aquí la config del proyecto Firebase
+  router.js           ← registro MODULES (rutas + menús)
+  core/               dinero (centavos), fechas, DOM seguro, tema, estado, errores, paginación
+  domain/             LÓGICA FINANCIERA PURA (sin Firebase ni DOM) — probada en tests/
+  data/               ÚNICO acceso a Firestore (repositorios, paginador, siembra inicial)
+  components/         hoja inferior, confirmación, toast, paginación, formulario de movimiento…
+  modules/            una carpeta por pantalla: dashboard, movimientos, cajas, cuentas, plan, mas, configuracion
+tests/
+  index.html          pruebas de lógica en el navegador (sin instalar nada)
+  run.mjs             las mismas pruebas en Node + chequeo del service worker
+  rules/              (dev) pruebas de firestore.rules con el emulador
+  e2e/                (dev) prueba de punta a punta con Chromium + emuladores
+```
+
+## Cómo agregar un módulo
+
+1. Crear `js/modules/<nombre>/index.js` con `export function render(container, ctx)` que devuelva una función de limpieza (cancelar listeners). Usar `js/modules/plan/index.js` como plantilla mínima.
+2. Lógica financiera → `js/domain/` (funciones puras + prueba en `tests/`). Acceso a Firestore → un repositorio en `js/data/`.
+3. Registrarlo en `MODULES` de `js/router.js` (`nav.movil: 'tab' | 'mas'`, `nav.desktop`).
+4. Agregar sus archivos a `CORE_ASSETS` en `service-worker.js` y subir `CACHE_VERSION` (`node tests/run.mjs` avisa si falta alguno).
+5. Si crea una colección nueva, agregar su `match` en `firestore.rules` (todo lo no declarado está cerrado) y su prueba en `tests/rules/`.
+
+## Pruebas
+
+| Qué | Cómo | Resultado actual |
+|---|---|---|
+| Lógica financiera, fechas, dinero, paginación | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 40/40 |
+| Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 40/40 |
+| Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
+
+Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
+
+## Desarrollo local
+
+```bash
+python3 -m http.server 5173        # desde la raíz
+# http://localhost:5173/            → Firebase real (requiere config)
+# http://localhost:5173/?emulador   → emuladores locales de Firebase
+# agrega &nosw para desactivar el service worker mientras desarrollas
+```

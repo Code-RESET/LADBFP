@@ -14,10 +14,12 @@ Desarrollador: Ing. Luis Ángel Díaz Bernal. Empresa: CODE-RESET.
 ## Pantalla de login obligatoria
 Logo pequeño + "Desarrollado por: Ing. Luis Ángel Díaz Bernal" + "Compañía: CODE-RESET".
 
-## Cómo agregar un módulo nuevo
-1. Copiar js/modules/dashboard.js y renombrar.
-2. Escribir su render(container, user).
-3. Registrarlo en el arreglo MODULES de js/router.js.
+## Cómo agregar un módulo nuevo (Finanzas Reset)
+1. Crear js/modules/<nombre>/index.js (plantilla mínima: js/modules/plan/index.js).
+2. Escribir su render(container, ctx) — ctx.user es el usuario — y devolver una función de limpieza.
+3. Lógica financiera en js/domain/ (pura, con prueba en tests/); acceso a Firestore solo en js/data/.
+4. Registrarlo en el arreglo MODULES de js/router.js.
+5. Agregarlo a CORE_ASSETS de service-worker.js (node tests/run.mjs lo verifica) y subir CACHE_VERSION.
 
 ## Antes de dar por terminado un proyecto
 - Probar en Chrome, Safari iOS, Samsung Internet.

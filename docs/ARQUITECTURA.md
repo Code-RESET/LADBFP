@@ -1,7 +1,14 @@
-# FINANZAS RESET — Propuesta de arquitectura (v0.1, pendiente de aprobación)
+# FINANZAS RESET — Arquitectura (v1.0, aprobada)
 
-> Documento previo a la implementación, según la sección 48 del prompt maestro.
-> No se ha escrito código de la app todavía. Las decisiones marcadas con **❓ DECISIÓN** necesitan la confirmación de Angel antes de empezar la Fase 1.
+> Aprobada por Angel el 2026-10-01 con todas las propuestas por defecto del anexo
+> (decisiones 1–6). **Fase 1 implementada** — ver estado y pruebas en el README.
+> Pendiente: datos de la decisión 7 (montos de deudas y gastos IMSS) para la Fase 2.
+
+**Ajustes durante la implementación de la Fase 1** (no cambian la arquitectura):
+- Paginación de movimientos con filtro por mes: se usa rango sobre `fecha` en vez del campo `mes`, así bastan 6 índices compuestos en lugar de 12.
+- Agregados mensuales incluyen `porCajaCuenta` (desglose "BBVA como hub") y conteos `n`, que dan el total de la paginación sin consultar al servidor.
+- `historial` de cada movimiento guarda solo los campos que cambiaron, con `ts` del cliente (funciona offline).
+- "Verificar saldos" se adelantó a la Fase 1 (recalcula desde movimientos y repara).
 
 Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset)
 
