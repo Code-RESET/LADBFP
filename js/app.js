@@ -15,6 +15,7 @@ import { toast, toastError } from "./components/toast.js";
 import { cerrarTodas } from "./components/modal.js";
 import { abrirFormularioMovimiento } from "./components/movimientoForm.js";
 import { confirmar } from "./components/confirmation.js";
+import { registrarServiceWorker } from "./services/actualizacion.js";
 
 initTheme();
 
@@ -111,22 +112,11 @@ alCambiarSesion((user) => {
   }
 });
 
-// ---------- Service worker ----------
+// ---------- Service worker y actualizaciones ----------
 // En desarrollo se puede desactivar con ?nosw en la URL.
-if ("serviceWorker" in navigator && !new URLSearchParams(location.search).has("nosw")) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch((err) => {
-      console.warn("Service worker no registrado:", err);
-    });
-  });
-  // Cuando una versión nueva toma el control, ofrecer recargar.
-  let recargando = false;
-  const habiaControlador = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!habiaControlador || recargando) return;
-    toast("Hay una versión nueva de la app", {
-      duracion: 0,
-      accion: { label: "Actualizar", onClick: () => { recargando = true; location.reload(); } },
-    });
-  });
-}
+registrarServiceWorker({
+  onNuevaVersion: (recargar) => toast("Hay una versión nueva de la app", {
+    duracion: 0,
+    accion: { label: "Actualizar", onClick: recargar },
+  }),
+});

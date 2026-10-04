@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.0.2";
+const CACHE_VERSION = "finanzas-reset-v1.0.3";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -49,6 +49,7 @@ const CORE_ASSETS = [
   "./js/data/perfilRepo.js",
   "./js/data/seed.js",
   "./js/data/sync.js",
+  "./js/services/actualizacion.js",
   "./js/components/confirmation.js",
   "./js/components/fields.js",
   "./js/components/icons.js",
@@ -90,6 +91,13 @@ self.addEventListener("activate", (event) => {
       Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+// La app pregunta qué versión está instalada (Configuración → Aplicación).
+self.addEventListener("message", (event) => {
+  if (event.data?.tipo === "version") {
+    event.ports[0]?.postMessage({ version: CACHE_VERSION.replace("finanzas-reset-", "") });
+  }
 });
 
 self.addEventListener("fetch", (event) => {
