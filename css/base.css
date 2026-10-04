@@ -83,7 +83,7 @@ a { color: var(--accent); }
   padding: 32px 24px;
   text-align: center;
 }
-.login-logo { width: 56px; height: 56px; margin-bottom: 12px; }
+.login-logo { width: 64px; height: 64px; margin-bottom: 12px; border-radius: 22%; }
 .login-title {
   font-family: var(--font-display); font-weight: 900;
   letter-spacing: 2px; font-size: 1.4rem;
