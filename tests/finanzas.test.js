@@ -246,3 +246,47 @@ test("categorías: el nombre puede repetirse entre ingreso y gasto, no dentro de
   assert.ok(validarCategoria({ nombre: "Otros", tipo: "ingreso" }, existentes).ok);
   assert.no(validarCategoria({ nombre: "otros", tipo: "gasto" }, existentes).ok);
 });
+
+// ---------- Métricas del Dashboard ----------
+import { flujoDelMes, serieMensual, variacion, primerMesConDatos, saldoAlCierre } from "../js/domain/metricas.js";
+import { escalaLimpia, montoCompacto } from "../js/components/charts.js";
+
+test("métricas: flujo del mes excluye transferencias, aperturas, ajustes y préstamos recibidos", () => {
+  const ag = {};
+  const cats = [{ id: "i-prestamo", tipo: "ingreso", esFinanciamiento: true }];
+  aplicar(ag, null, mov({ tipo: "apertura", montoCentavos: 500000, cajaId: "A" }));
+  aplicar(ag, null, mov({ tipo: "ingreso", montoCentavos: 1000000, cajaId: "A", categoriaId: "i-cobranza" }));
+  aplicar(ag, null, mov({ tipo: "ingreso", montoCentavos: 300000, cajaId: "A", categoriaId: "i-prestamo" }));
+  aplicar(ag, null, mov({ tipo: "gasto", montoCentavos: 250000, cajaId: "A", categoriaId: "g-casa" }));
+  aplicar(ag, null, mov({ tipo: "transferencia", montoCentavos: 350000, cajaId: "A", cajaDestinoId: "B", cuentaDestinoId: "nu" }));
+  aplicar(ag, null, mov({ tipo: "ajuste", direccion: "salida", montoCentavos: 100, cajaId: "A", nota: "comisión" }));
+  assert.eq(flujoDelMes(ag["2026-10"], cats), { ingresos: 1000000, gastos: 250000, neto: 750000 });
+});
+
+test("métricas: serie de 6 meses con saldo acumulado al cierre", () => {
+  const ag = {};
+  aplicar(ag, null, mov({ tipo: "apertura", fecha: "2026-08-15", montoCentavos: 1000000, cajaId: "A" }));
+  aplicar(ag, null, mov({ tipo: "gasto", fecha: "2026-09-02", montoCentavos: 200000, cajaId: "A", categoriaId: "g-casa" }));
+  aplicar(ag, null, mov({ tipo: "ingreso", fecha: "2026-10-01", montoCentavos: 50000, cajaId: "A", categoriaId: "i-cobranza" }));
+  const s = serieMensual(ag, [], "2026-10", 6);
+  assert.eq(s.map((p) => p.mes), ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
+  assert.eq(s.map((p) => p.saldo), [0, 0, 0, 1000000, 800000, 850000]);
+  assert.eq(s.at(-2).gastos, 200000);
+  assert.eq(primerMesConDatos(ag), "2026-08");
+  assert.eq(saldoAlCierre(ag, "2026-09"), 800000);
+});
+
+test("métricas: variación porcentual y sin base", () => {
+  assert.eq(variacion(1200, 1000), 20);
+  assert.eq(variacion(800, 1000), -20);
+  assert.eq(variacion(500, 0), null);
+});
+
+test("gráficas: escala con números limpios y montos compactos", () => {
+  assert.eq(escalaLimpia(1_843_000).ticks, [0, 500_000, 1_000_000, 1_500_000, 2_000_000]);
+  assert.eq(escalaLimpia(0).max > 0, true);
+  assert.eq(montoCompacto(1_250_000), "$12.5k");
+  assert.eq(montoCompacto(2_000_000), "$20k");
+  assert.eq(montoCompacto(85_000), "$850");
+  assert.eq(montoCompacto(150_000_000), "$1.5M");
+});

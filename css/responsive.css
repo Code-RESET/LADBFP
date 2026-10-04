@@ -13,7 +13,9 @@
 @media (min-width: 768px) {
   .tabbar { display: none; }
 
-  .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; }
+  /* El fondo de la columna lateral llega hasta abajo aunque la página sea larga. */
+  .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr;
+    background: linear-gradient(to right, var(--bg-secondary) var(--sidebar-w), var(--bg-primary) var(--sidebar-w)); }
   .sidebar {
     display: flex; flex-direction: column; gap: 16px;
     position: sticky; top: 0; height: 100dvh;

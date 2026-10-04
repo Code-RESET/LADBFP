@@ -34,6 +34,10 @@
   --overlay: rgba(0, 0, 0, 0.32);
   --skeleton: #E5E5EA;
   --skeleton-shine: #F2F2F7;
+  /* Gráficas: paleta categórica validada (CVD ΔE 24.7, contraste ≥ 3:1) */
+  --serie-1: #2a78d6;   /* Ingresos (azul) */
+  --serie-2: #eb6834;   /* Gastos (naranja) */
+  --viz-rejilla: #EBEBF0;
 }
 
 /* Oscuro manual */
@@ -64,6 +68,9 @@
   --overlay: rgba(0, 0, 0, 0.55);
   --skeleton: #26262A;
   --skeleton-shine: #303035;
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --viz-rejilla: #2A2A2E;
 }
 
 /* Oscuro automático (sistema), salvo que se haya elegido claro */
@@ -95,6 +102,9 @@
     --overlay: rgba(0, 0, 0, 0.55);
     --skeleton: #26262A;
     --skeleton-shine: #303035;
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+    --viz-rejilla: #2A2A2E;
   }
 }
 
