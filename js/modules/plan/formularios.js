@@ -18,6 +18,7 @@ import { confirmar } from "../../components/confirmation.js";
 import { toast, toastError } from "../../components/toast.js";
 import { campo, opciones, mostrarErrores, segmentado } from "../../components/fields.js";
 import { camposRegla, leerRegla, activarRegla } from "../../components/reglaFields.js";
+import { FORMAS_PAGO } from "../../domain/mes.js";
 
 const uid = () => getState().user.uid;
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
@@ -73,33 +74,61 @@ function accionesSecundarias(form, capa, item, repo, { nombre, puedeEliminar = (
   });
 }
 
-// ---------------- Obligación ----------------
+// ---------------- Gasto fijo (obligación) ----------------
+// Mismos campos que la hoja "Gastos del Mes" de la plantilla:
+// Gasto · Categoría · Monto · Día de vencimiento · Forma de pago · Notas.
+// Frecuencia distinta a mensual, monto variable y caja/cuenta van en "Más opciones".
+
+function cajaPorDefecto() {
+  const ultimo = (() => { try { return JSON.parse(localStorage.getItem("fr.ultimo.gasto")) || {}; } catch { return {}; } })();
+  const caja = cajasActivas().find((c) => c.id === ultimo.cajaId) || cajasActivas().find((c) => c.tipo === "operativa") || cajasActivas()[0];
+  return { cajaId: caja?.id || "", cuentaId: caja?.cuentaPredeterminadaId || ultimo.cuentaId || "" };
+}
 
 export function abrirObligacion(item = {}) {
   const editando = !!item.id;
-  const o = { variable: false, activa: true, ...item };
+  const o = { variable: false, activa: true, ...(item.cajaId ? {} : cajaPorDefecto()), ...item };
+  const regla = o.regla || { frecuencia: "mensual", diaMes: Number(new Date().getDate()), desde: `${new Date().toISOString().slice(0, 7)}-01` };
   const capa = abrirCapa({
-    titulo: editando ? o.nombre : "Nueva obligación",
+    titulo: editando ? o.nombre : "Nuevo gasto fijo",
     contenido: html`<form class="form" novalidate data-variable="${o.variable ? "si" : "no"}">
-      <p class="campo__ayuda">Pagos fijos que no son deuda: trabajadora, colegiatura, celular, cuota de casa…</p>
-      ${campo({ label: "Nombre", nombre: "nombre", control: html`<input name="nombre" maxlength="60" value="${o.nombre || ""}" />` })}
-      ${campo({ label: "Monto presupuestado", nombre: "montoCentavos", control: inputMonto("monto", o.montoCentavos) })}
-      <label class="interruptor"><input type="checkbox" name="variable" ${o.variable ? "checked" : ""} /> <span>El monto varía (mínimo / máximo)</span></label>
-      <div class="fila-2 solo-variable">
-        ${campo({ label: "Mínimo", nombre: "minimoCentavos", control: inputMonto("minimo", o.minimoCentavos) })}
-        ${campo({ label: "Máximo", nombre: "maximoCentavos", control: inputMonto("maximo", o.maximoCentavos) })}
+      ${campo({ label: "Gasto", nombre: "nombre", control: html`<input name="nombre" maxlength="60" value="${o.nombre || ""}" placeholder="Ej. Hipoteca casa, Internet, Tarjeta BBVA" />` })}
+      <div class="fila-2">
+        ${campo({ label: "Monto", nombre: "montoCentavos", control: inputMonto("monto", o.montoCentavos) })}
+        <div class="solo-mensual">${campo({ label: "Día de vencimiento", nombre: "diaVence",
+          control: html`<input name="diaVence" type="number" inputmode="numeric" min="1" max="31" value="${regla.diaMes || ""}" placeholder="1–31" />` })}</div>
       </div>
-      ${camposRegla(o.regla, { etiquetaDesde: "Primer pago desde" })}
-      ${camposCajaCuenta(o)}
-      ${campo({ label: "Categoría", nombre: "categoriaId", control: html`<select name="categoriaId">${opciones(categoriasActivas("gasto"), o.categoriaId, { vacio: "Elige…" })}</select>` })}
-      ${pie(o, editando ? "Guardar cambios" : "Crear obligación")}
+      <div class="fila-2">
+        ${campo({ label: "Categoría", nombre: "categoriaId", control: html`<select name="categoriaId">${opciones(categoriasActivas("gasto"), o.categoriaId, { vacio: "Elige…" })}</select>` })}
+        ${campo({ label: "Forma de pago", nombre: "formaPago", control: html`<select name="formaPago"><option value="">—</option>${FORMAS_PAGO.map((f) => html`<option value="${f}" ${f === o.formaPago ? "selected" : ""}>${f}</option>`)}</select>` })}
+      </div>
+      ${campo({ label: "Notas", nombre: "nota", control: html`<input name="nota" maxlength="200" value="${o.nota || ""}" placeholder="Opcional" />` })}
+      <details class="mas-detalles" ${editando && (o.variable || regla.frecuencia !== "mensual") ? "open" : ""}>
+        <summary>Más opciones <span class="texto-sec">(monto variable, otra frecuencia, caja)</span></summary>
+        <div class="form">
+          <label class="interruptor"><input type="checkbox" name="variable" ${o.variable ? "checked" : ""} /> <span>El monto varía (mínimo / máximo)</span></label>
+          <div class="fila-2 solo-variable">
+            ${campo({ label: "Mínimo", nombre: "minimoCentavos", control: inputMonto("minimo", o.minimoCentavos) })}
+            ${campo({ label: "Máximo", nombre: "maximoCentavos", control: inputMonto("maximo", o.maximoCentavos) })}
+          </div>
+          ${camposRegla(regla, { etiquetaDesde: "Desde" })}
+          ${camposCajaCuenta(o)}
+        </div>
+      </details>
+      ${pie(o, editando ? "Guardar cambios" : "Agregar gasto fijo")}
     </form>`,
   });
   const form = capa.cuerpo.querySelector("form");
   activarRegla(form);
   sugerirCuenta(form);
+  // "Día de vencimiento" es el día del mes de la frecuencia mensual (los dos campos van sincronizados).
+  const syncDia = () => { form.closest(".capa").dataset.frecuencia = form.frecuencia.value; };
+  form.diaVence.addEventListener("input", () => { form.diaMes.value = form.diaVence.value; form.diaMes.dispatchEvent(new Event("input", { bubbles: true })); });
+  form.diaMes.addEventListener("input", () => { form.diaVence.value = form.diaMes.value; });
+  form.frecuencia.addEventListener("change", syncDia);
+  syncDia();
   form.variable.addEventListener("change", () => { form.dataset.variable = form.variable.checked ? "si" : "no"; });
-  accionesSecundarias(form, capa, o, obligacionesRepo, { nombre: "Obligación" });
+  accionesSecundarias(form, capa, o, obligacionesRepo, { nombre: "Gasto fijo" });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -109,12 +138,21 @@ export function abrirObligacion(item = {}) {
       regla: leerRegla(form), cajaId: form.cajaId.value, cuentaId: form.cuentaId.value, categoriaId: form.categoriaId.value,
       activa: o.activa !== false,
     };
+    if (form.formaPago.value) datos.formaPago = form.formaPago.value;
+    if (form.nota.value.trim()) datos.nota = form.nota.value.trim();
     if (variable) { datos.minimoCentavos = parseMonto(form.minimo.value); datos.maximoCentavos = parseMonto(form.maximo.value); }
     const { ok, errores } = validarObligacion(datos);
-    if (!ok) { mostrarErrores(form, errores); return; }
+    if (!ok) {
+      if (["cajaId", "cuentaId", "minimoCentavos", "maximoCentavos", "frecuencia", "desde", "hasta", "diaSemana", "mes", "cadaNDias"].some((k) => errores[k])) {
+        form.querySelector(".mas-detalles").open = true;
+      }
+      if (errores.diaMes) errores.diaVence = errores.diaMes;
+      mostrarErrores(form, errores);
+      return;
+    }
     obligacionesRepo.guardar(uid(), datos, { anterior: editando ? o : null, onError });
     capa.cerrar();
-    toast(editando ? "✓ Obligación actualizada" : "✓ Obligación creada");
+    toast(editando ? "✓ Gasto fijo actualizado" : "✓ Gasto fijo agregado");
   });
 }
 

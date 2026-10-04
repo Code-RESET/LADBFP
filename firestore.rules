@@ -82,8 +82,8 @@ service cloud.firestore {
     // Obligación: nunca sin caja (sección 37)
     function obligacionValida(m) {
       return m.keys().hasOnly(['nombre', 'montoCentavos', 'variable', 'minimoCentavos', 'maximoCentavos', 'regla',
-          'cajaId', 'cuentaId', 'categoriaId', 'nota', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
-        && txt(m.nombre, 60) && centavos(m.montoCentavos) && reglaValida(m.regla)
+          'cajaId', 'cuentaId', 'categoriaId', 'nota', 'formaPago', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && txt(m.nombre, 60) && centavos(m.montoCentavos) && reglaValida(m.regla) && txtOpc(m, 'formaPago', 20)
         && txt(m.cajaId, 100) && txt(m.cuentaId, 100) && txt(m.categoriaId, 100)
         && boolOpc(m, 'variable') && boolOpc(m, 'activa') && txtOpc(m, 'nota', 200)
         && centavosOpc(m, 'minimoCentavos') && centavosOpc(m, 'maximoCentavos')
@@ -93,18 +93,18 @@ service cloud.firestore {
     // Deuda: nunca sin caja (sección 37)
     function deudaValida(m) {
       return m.keys().hasOnly(['acreedor', 'descripcion', 'saldoInicialCentavos', 'pagoCentavos', 'regla',
-          'cajaId', 'cuentaId', 'categoriaId', 'tasaAnual', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
+          'cajaId', 'cuentaId', 'categoriaId', 'tasaAnual', 'formaPago', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
         && txt(m.acreedor, 60) && txtOpc(m, 'descripcion', 200)
         && centavos(m.saldoInicialCentavos) && centavos(m.pagoCentavos) && reglaValida(m.regla)
         && txt(m.cajaId, 100) && txt(m.cuentaId, 100) && idOpc(m, 'categoriaId')
-        && (!('tasaAnual' in m) || m.tasaAnual is number) && boolOpc(m, 'activa')
+        && (!('tasaAnual' in m) || m.tasaAnual is number) && boolOpc(m, 'activa') && txtOpc(m, 'formaPago', 20)
         && marcas(m);
     }
 
     // Ingreso esperado o transferencia programada
     function recurrenteValido(m) {
       return m.keys().hasOnly(['nombre', 'tipo', 'montoCentavos', 'regla', 'cajaId', 'cuentaId',
-          'cajaDestinoId', 'cuentaDestinoId', 'categoriaId', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
+          'cajaDestinoId', 'cuentaDestinoId', 'categoriaId', 'formaPago', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
         && txt(m.nombre, 60) && m.tipo in ['ingreso', 'transferencia'] && centavos(m.montoCentavos) && reglaValida(m.regla)
         && txt(m.cajaId, 100) && txt(m.cuentaId, 100) && boolOpc(m, 'activa')
         && (m.tipo != 'ingreso' || txt(m.categoriaId, 100))
@@ -128,8 +128,9 @@ service cloud.firestore {
       return m.keys().hasOnly(['tipo', 'fecha', 'mes', 'montoCentavos', 'cajaId', 'cuentaId',
           'cajaDestinoId', 'cuentaDestinoId', 'categoriaId', 'direccion', 'nota', 'estado', 'anulacion',
           'cajaIds', 'cuentaIds', 'ts', 'origen', 'obligacionId', 'obligacionPeriodo', 'deudaId', 'deudaPeriodo', 'metaId',
-          'recurrenteId', 'recurrentePeriodo', 'createdAt', 'updatedAt', 'schemaVersion'])
+          'recurrenteId', 'recurrentePeriodo', 'formaPago', 'createdAt', 'updatedAt', 'schemaVersion'])
         && m.tipo in ['ingreso', 'gasto', 'transferencia', 'apertura', 'ajuste']
+        && txtOpc(m, 'formaPago', 20)
         && centavos(m.montoCentavos)                                   // monto entero > 0
         && fecha(m.fecha)
         && m.mes is string && m.mes.matches('^[0-9]{4}-[0-9]{2}$')

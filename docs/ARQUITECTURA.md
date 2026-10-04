@@ -14,6 +14,15 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Modo simple (v1.2.0)
+
+A pedido de Angel («la app es muy complicada»; lo que más confundía eran los números del Inicio) y tomando como base su plantilla de Excel:
+- **Inicio = Balance del mes** (hoja "Balance"): Ingresos − todos los gastos del mes (pagados + pendientes). Un solo número grande, tres cifras y «¿Cómo se calcula?».
+- **Gastos** (hoja "Gastos del Mes") e **Ingresos** (hoja "Ingresos") por mes, con selector de mes. Los gastos fijos son las obligaciones/deudas de la Fase 2 vistas mes por mes (`domain/mes.js`).
+- Campo **forma de pago** (Efectivo, Transferencia, Tarjeta, Domiciliado, Depósito) en movimientos y gastos fijos; categorías Vivienda y Honorarios (se agregan solas a usuarios existentes).
+- La cuenta se elige sola según la caja; cuenta, fecha, nota, saldo inicial y ajuste quedan en «Más detalles».
+- «Puedes gastar» (disponible real), deudas y presupuesto siguen existiendo en Más → Planeación. No se perdió ninguna función ni dato.
+
 ## Fase 2 — implementada (v1.1.0)
 
 - **Datos:** colecciones `obligaciones`, `deudas`, `recurrentes` (ingresos esperados y transferencias programadas) y `presupuestos`, con reglas de validación en servidor (sin caja → rechazado).

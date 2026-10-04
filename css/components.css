@@ -492,3 +492,60 @@ button.pag-num:hover { background: var(--surface-muted); }
 .resumen-presupuesto > div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 .resumen-presupuesto .aviso { margin: 4px 0 0; }
 .segmentado--bloqueado { opacity: 0.6; pointer-events: none; }
+
+/* ---------- Modo simple: formulario de movimiento ---------- */
+.form-mov .solo-gasto, .form-mov .solo-ingreso, .form-mov span.solo-transfer { display: none; }
+.form-mov[data-tipo="gasto"] .solo-gasto, .form-mov[data-tipo="ingreso"] .solo-ingreso { display: inline; }
+.form-mov[data-tipo="transferencia"] span.solo-transfer { display: inline; }
+.form-mov[data-tipo="transferencia"] .solo-no-transfer { display: none; }
+.mas-detalles { border-top: 0.5px solid var(--separator); padding-top: 4px; }
+.mas-detalles > summary { cursor: pointer; padding: 10px 0; color: var(--accent); font-weight: 600; font-size: 0.92rem; list-style: none; }
+.mas-detalles > summary::-webkit-details-marker { display: none; }
+.mas-detalles > summary::before { content: "＋ "; }
+.mas-detalles[open] > summary::before { content: "－ "; }
+.otro-tipo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-muted); font-size: 0.88rem; }
+.otro-tipo input { width: 18px; height: 18px; accent-color: var(--accent); }
+.capa:not([data-frecuencia="mensual"]) .solo-mensual { display: none; }
+
+/* ---------- Modo simple: Balance, Gastos e Ingresos del mes ---------- */
+.hero__frase { margin: 4px 0 0; font-size: 0.92rem; color: var(--text-secondary); line-height: 1.45; }
+.hero__frase strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.hero__ayuda { display: inline-block; margin-top: 10px; padding: 4px 0; font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+.tres-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.tres-cifras a {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--surface-muted); text-decoration: none; color: var(--text-primary); min-width: 0;
+}
+.tres-cifras span { font-size: 0.75rem; color: var(--text-secondary); }
+.tres-cifras strong { font-size: 0.98rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.selector-mes { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.selector-mes__nombre { font-weight: 700; font-size: 1.05rem; text-transform: capitalize; min-width: 150px; text-align: center; }
+.selector-mes .btn-icono { font-size: 1.3rem; background: var(--surface); }
+
+.resumen-mes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.resumen-mes__fila { display: flex; justify-content: space-between; gap: 12px; font-size: 0.95rem; }
+.resumen-mes__fila strong { font-variant-numeric: tabular-nums; }
+.resumen-mes .aviso { margin: 0; display: flex; align-items: center; gap: 6px; }
+.resumen-mes .campo__ayuda { margin: 0; }
+
+.fila--gasto { gap: 10px; }
+.fila--pagada .fila__titulo { color: var(--text-secondary); }
+.dia {
+  flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--surface-muted); color: var(--text-secondary); font-weight: 700; font-size: 0.9rem; font-variant-numeric: tabular-nums;
+}
+.dia--vencido { background: var(--danger-soft); color: var(--danger); }
+.fila__texto--boton { background: none; border: none; padding: 0; text-align: left; color: inherit; cursor: pointer; }
+.fila--gasto .badge { margin-top: 2px; }
+
+.mes-grafica { padding: 0; }
+.mes-grafica > summary { cursor: pointer; padding: 14px 16px; font-weight: 600; color: var(--accent); list-style: none; }
+.mes-grafica > summary::-webkit-details-marker { display: none; }
+.mes-grafica[open] > summary { padding-bottom: 4px; }
+.mes-grafica > .grafica-cabecera, .mes-grafica > .grafica { padding: 0 16px; }
+.mes-grafica > .grafica { padding-bottom: 12px; }
+.explicacion { display: flex; flex-direction: column; gap: 12px; }
+.explicacion p { margin: 0; }
+.fila--gasto .fila__monto-doble { gap: 4px; }
+.btn--chico-peligro { background: var(--danger-soft); color: var(--danger); }

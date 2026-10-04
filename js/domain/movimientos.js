@@ -102,6 +102,8 @@ export function construirMovimiento(m) {
   }
   if (m.tipo === "ingreso" || m.tipo === "gasto") doc.categoriaId = m.categoriaId;
   if (m.tipo === "ajuste") doc.direccion = m.direccion;
+  // Forma de pago / recepción (como en la plantilla): opcional, informativa.
+  if ((m.tipo === "gasto" || m.tipo === "ingreso") && m.formaPago) doc.formaPago = String(m.formaPago).slice(0, 20);
   // Vínculos (Fase 2): un pago de obligación/deuda es un gasto; un ingreso o
   // transferencia programada puede marcar su ocurrencia como recibida.
   if (m.tipo === "gasto" && m.obligacionId) { doc.obligacionId = m.obligacionId; doc.obligacionPeriodo = m.obligacionPeriodo; }
@@ -211,7 +213,7 @@ export function agregadosDesdeMovimientos(movs) {
 /** Campos editables que se comparan para el historial de auditoría. */
 const CAMPOS_AUDITADOS = ["tipo", "fecha", "montoCentavos", "cajaId", "cuentaId",
   "cajaDestinoId", "cuentaDestinoId", "categoriaId", "direccion", "nota", "estado",
-  "obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo"];
+  "obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo", "formaPago"];
 
 export function cambiosRelevantes(antes, despues) {
   const out = {};

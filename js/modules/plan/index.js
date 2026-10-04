@@ -1,8 +1,7 @@
 // ============================================================
 // modules/plan/index.js
-// Plan financiero (Fase 2): Resumen (disponible real, alertas,
-// flujo proyectado) · Pagos (obligaciones) · Presupuesto ·
-// Deudas · Ingresos (esperados y transferencias programadas).
+// Planeación (en Más): Puedes gastar (disponible real por caja,
+// avisos y proyección) · Deudas · Presupuesto.
 // La pestaña activa vive en la URL: #/plan?tab=deudas
 // ============================================================
 
@@ -17,17 +16,17 @@ import { calcularPlan } from "../../services/planCalculado.js";
 import { skeletonLista } from "../../components/states.js";
 import { abrirCapa } from "../../components/modal.js";
 import { activarTooltips } from "../../components/charts.js";
-import { pestanaResumen, pestanaPagos, pestanaPresupuesto, pestanaDeudas, pestanaIngresos, puntosProyeccion, HORIZONTES } from "./pestanas.js";
+import { pestanaResumen, pestanaPresupuesto, pestanaDeudas, puntosProyeccion, HORIZONTES } from "./pestanas.js";
 import { abrirObligacion, abrirDeuda, abrirRecurrente, abrirPresupuesto } from "./formularios.js";
 import { SUGERENCIAS } from "./sugerencias.js";
 import { pagarEvento, claveEvento } from "./acciones.js";
 
+// Los gastos e ingresos fijos viven en las pestañas Gastos e Ingresos;
+// aquí queda lo de planeación: cuánto puedes gastar, deudas y presupuesto.
 const PESTANAS = [
-  { id: "resumen", label: "Resumen" },
-  { id: "pagos", label: "Pagos" },
-  { id: "presupuesto", label: "Presupuesto" },
+  { id: "resumen", label: "Puedes gastar" },
   { id: "deudas", label: "Deudas" },
-  { id: "ingresos", label: "Ingresos" },
+  { id: "presupuesto", label: "Presupuesto" },
 ];
 
 const ABRIR = { obligacion: abrirObligacion, deuda: abrirDeuda, recurrente: abrirRecurrente, presupuesto: abrirPresupuesto };
@@ -55,10 +54,8 @@ export function render(container, ctx) {
     const plan = calcularPlan(s);
     const vistas = {
       resumen: () => pestanaResumen(s, plan, { horizonte, ancho: ancho() }),
-      pagos: () => pestanaPagos(s, plan),
       presupuesto: () => pestanaPresupuesto(s),
       deudas: () => pestanaDeudas(s, plan),
-      ingresos: () => pestanaIngresos(s, plan),
     };
     renderHtml(panel, vistas[tab]());
   }
@@ -70,8 +67,9 @@ export function render(container, ctx) {
     window.scrollTo(0, 0);
   }
 
-  const quitarClick = on(container, "click", "[data-tab], [data-nuevo], [data-editar], [data-sugerencia], [data-pagar], [data-historial-deuda]", (e, el) => {
+  const quitarClick = on(container, "click", "[data-tab], [data-nuevo], [data-nuevo-pase], [data-editar], [data-sugerencia], [data-pagar], [data-historial-deuda]", (e, el) => {
     const s = getState();
+    if (el.hasAttribute("data-nuevo-pase")) return abrirRecurrente({ tipo: "transferencia", nombre: "" });
     if (el.dataset.tab) return cambiarTab(el.dataset.tab);
     if (el.dataset.nuevo) return ABRIR[el.dataset.nuevo]();
     if (el.dataset.editar) {

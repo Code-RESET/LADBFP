@@ -1,37 +1,42 @@
 // ============================================================
 // modules/mas/index.js
-// Menú "Más" en móvil (estilo iOS Settings). Se construye con
-// los módulos registrados con nav.movil = 'mas' en router.js.
+// Menú "Más" (estilo iOS Settings), agrupado en lenguaje simple:
+// planeación, registros y ajustes.
 // ============================================================
 
 import { html, render as renderHtml } from "../../core/dom.js";
 import { icon } from "../../components/icons.js";
-import { MODULES } from "../../router.js";
 
-// Accesos directos a pestañas de Plan.
-const ATAJOS = [
-  { label: "Deudas", icon: "deudas", ruta: "plan?tab=deudas" },
-  { label: "Presupuesto", icon: "plan", ruta: "plan?tab=presupuesto" },
-  { label: "Ingresos esperados", icon: "ingreso", ruta: "plan?tab=ingresos" },
+const GRUPOS = [
+  { titulo: "Planeación", items: [
+    { label: "¿Cuánto puedo gastar?", sub: "Lo libre de cada caja y cómo vas a terminar el mes", icon: "plan", ruta: "plan" },
+    { label: "Deudas", sub: "Cuánto debes, cuánto llevas y cuándo terminas", icon: "deudas", ruta: "plan?tab=deudas" },
+    { label: "Presupuesto", sub: "Cuánto quieres gastar por semana o mes", icon: "metas", ruta: "plan?tab=presupuesto" },
+  ] },
+  { titulo: "Registros", items: [
+    { label: "Todos los movimientos", icon: "movimientos", ruta: "movimientos" },
+    { label: "Cajas", sub: "Para qué es tu dinero", icon: "cajas", ruta: "cajas" },
+    { label: "Cuentas", sub: "Dónde está tu dinero (bancos, efectivo)", icon: "cuentas", ruta: "cuentas" },
+  ] },
+  { titulo: "Ajustes", items: [
+    { label: "Configuración", sub: "Apariencia, categorías, actualizar la app", icon: "config", ruta: "configuracion" },
+  ] },
 ];
 
 const FUTUROS = [
-  { label: "Metas y escenarios", icon: "metas", fase: 3 },
+  { label: "Metas de ahorro", icon: "metas", fase: 3 },
   { label: "Reportes y Excel", icon: "reportes", fase: 3 },
 ];
 
 export function render(container) {
-  const items = [
-    ...ATAJOS.map((a) => ({ path: a.ruta, label: a.label, icon: a.icon })),
-    ...MODULES.filter((m) => m.nav.movil === "mas"),
-  ];
   renderHtml(container, html`
-    <ul class="lista card card--lista">${items.map((m) => html`<li>
-      <a class="fila" href="#/${m.path}">
-        <span class="fila__icono">${icon(m.icon, { size: 18 })}</span>
-        <span class="fila__texto"><span class="fila__titulo">${m.label}</span></span>
-        ${icon("chevron", { size: 16, clase: "fila__chevron" })}
-      </a></li>`)}</ul>
+    ${GRUPOS.map((g) => html`<h2 class="seccion__titulo">${g.titulo}</h2>
+      <ul class="lista card card--lista">${g.items.map((it) => html`<li>
+        <a class="fila" href="#/${it.ruta}">
+          <span class="fila__icono">${icon(it.icon, { size: 18 })}</span>
+          <span class="fila__texto"><span class="fila__titulo">${it.label}</span>${it.sub ? html`<span class="fila__sub">${it.sub}</span>` : ""}</span>
+          ${icon("chevron", { size: 16, clase: "fila__chevron" })}
+        </a></li>`)}</ul>`)}
 
     <h2 class="seccion__titulo">Próximamente</h2>
     <ul class="lista card card--lista atenuada">${FUTUROS.map((f) => html`<li><div class="fila">

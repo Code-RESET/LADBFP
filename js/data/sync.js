@@ -7,11 +7,13 @@
 import { setState, marcarListo, resetState, getState } from "../core/state.js";
 import { cajasRepo, cuentasRepo, categoriasRepo } from "./catalogosRepo.js";
 import { perfilRepo, agregadosRepo } from "./perfilRepo.js";
+import { asegurarCategorias } from "./seed.js";
 import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo } from "./planRepo.js";
 import { sincronizarDesdeNube } from "../core/theme.js";
 import { mensajeDeError } from "../core/errors.js";
 
 let cancelaciones = [];
+let asegurado = false;
 const pendientes = {};
 
 function marcarPendiente(clave, meta) {
@@ -22,6 +24,7 @@ function marcarPendiente(clave, meta) {
 
 export function iniciarSync(user, { onError } = {}) {
   detenerSync();
+  asegurado = false;
   setState({ user });
   const uid = user.uid;
   const error = (err) => onError?.(mensajeDeError(err, "No se pudieron cargar tus datos."));
@@ -29,7 +32,11 @@ export function iniciarSync(user, { onError } = {}) {
   cancelaciones = [
     cajasRepo.escuchar(uid, (cajas, meta) => { setState({ cajas, cajasDesdeCache: meta.fromCache }); marcarListo("cajas"); marcarPendiente("cajas", meta); }, error),
     cuentasRepo.escuchar(uid, (cuentas, meta) => { setState({ cuentas }); marcarListo("cuentas"); marcarPendiente("cuentas", meta); }, error),
-    categoriasRepo.escuchar(uid, (categorias, meta) => { setState({ categorias }); marcarListo("categorias"); marcarPendiente("categorias", meta); }, error),
+    categoriasRepo.escuchar(uid, (categorias, meta) => {
+      setState({ categorias }); marcarListo("categorias"); marcarPendiente("categorias", meta);
+      // Usuarios existentes: agregar categorías nuevas (solo si ya sembró y con datos del servidor).
+      if (!meta.fromCache && categorias.length && !asegurado) { asegurado = true; asegurarCategorias(uid, categorias)?.catch(() => {}); }
+    }, error),
     agregadosRepo.escuchar(uid, (agregados, meta) => { setState({ agregados }); marcarListo("agregados"); marcarPendiente("agregados", meta); }, error),
     obligacionesRepo.escuchar(uid, (obligaciones) => { setState({ obligaciones }); marcarListo("obligaciones"); }, error),
     deudasRepo.escuchar(uid, (deudas) => { setState({ deudas }); marcarListo("deudas"); }, error),

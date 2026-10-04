@@ -177,6 +177,11 @@ await prueba("rechaza: transferencia que dice pagar una deuda", () => assertFail
 await prueba("agregado con porVinculo y porDeuda permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "agregados/2026-10")),
   { mes: "2026-10", porVinculo: { "d:d1__2026-10-15": increment(600000) }, porDeuda: { d1: increment(600000) } }, { merge: true })));
 
+// ---------- Modo simple: forma de pago ----------
+await prueba("gasto con forma de pago permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/fp1")), { ...movBase, formaPago: "Domiciliado" })));
+await prueba("rechaza: forma de pago demasiado larga", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/fp2")), { ...movBase, formaPago: "x".repeat(30) })));
+await prueba("gasto fijo con forma de pago y nota permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/fp")), { ...obligacion, formaPago: "Tarjeta", nota: "BBVA" })));
+
 await env.cleanup();
 console.log(`\n${ok} de ${ok + fallas.length} pruebas de reglas correctas`);
 process.exit(fallas.length ? 1 : 0);

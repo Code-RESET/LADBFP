@@ -151,6 +151,13 @@ export const movimientosRepo = {
     }
   },
 
+  /** Gastos o ingresos activos de un mes (usa el índice estado + tipo + fecha). */
+  async delMes(uid, mes, tipo) {
+    const q = query(col(uid, MOV), ...this.restricciones({ mes, tipo }), limit(300));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data(), _pendiente: d.metadata.hasPendingWrites }));
+  },
+
   /** Pagos vinculados a una deuda u obligación (sin índice compuesto: un solo filtro de igualdad). */
   async pagosDe(uid, campo, id) {
     const snap = await getDocs(query(col(uid, MOV), where(campo, "==", id), limit(300)));

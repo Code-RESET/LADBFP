@@ -9,7 +9,7 @@ import { formatMonto } from "../../core/money.js";
 import { formatFecha, mesCorto, nombreMes, sumarDias } from "../../core/dates.js";
 import { cajaPorId, categoriaPorId } from "../../core/state.js";
 import { cuentaParaGasto } from "../../domain/catalogos.js";
-import { describirRegla, equivalenteMensual } from "../../domain/periodos.js";
+import { describirRegla } from "../../domain/periodos.js";
 import { resumenDeuda } from "../../domain/compromisos.js";
 import { evaluarPresupuesto, PERIODOS_PRESUPUESTO } from "../../domain/presupuesto.js";
 import { porMes } from "../../domain/proyeccion.js";
@@ -17,7 +17,7 @@ import { graficaLinea } from "../../components/charts.js";
 import { estadoVacio } from "../../components/states.js";
 import { segmentado } from "../../components/fields.js";
 import { icon } from "../../components/icons.js";
-import { filaEvento, bloqueSugerencias, tarjetaAlerta, barra } from "./ui.js";
+import { bloqueSugerencias, tarjetaAlerta, barra } from "./ui.js";
 import { sugerenciasPendientes } from "./sugerencias.js";
 
 const nombreCaja = (id) => cajaPorId(id)?.nombre || "—";
@@ -59,10 +59,11 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
     </section>` : ""}
 
     <section class="seccion">
-      <h2 class="seccion__titulo">Disponible real · próximos ${plan.horizonte} días</h2>
+      <h2 class="seccion__titulo">Lo que puedes gastar · próximos ${plan.horizonte} días</h2>
+      <p class="texto-sec intro">Lo que hay en cada caja menos lo apartado para pagos de los próximos ${plan.horizonte} días.</p>
       <div class="card card--lista">
         <table class="tabla-plan">
-          <thead><tr><th>Caja</th><th>Saldo</th><th>Comprometido</th><th>Disponible</th></tr></thead>
+          <thead><tr><th>Caja</th><th>Tiene</th><th>Apartado</th><th>Puedes gastar</th></tr></thead>
           <tbody>${cajas.map((c) => {
             const d = plan.disponible.porCaja[c.id] || 0;
             return html`<tr class="${cuentaParaGasto(c) ? "" : "atenuada"}">
@@ -80,7 +81,7 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
     </section>
 
     <section class="seccion">
-      <h2 class="seccion__titulo">Flujo proyectado</h2>
+      <h2 class="seccion__titulo">Si todo sigue igual…</h2>
       <div class="card card--grafica">
         <form class="horizonte">${segmentado("horizonte", HORIZONTES.map(({ valor, label }) => ({ valor, label })), h.valor)}</form>
         <div class="kpis">
@@ -96,36 +97,23 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
         ${negativos.length ? html`<ul class="lista-alertas">${negativos.map(([cajaId, f]) => tarjetaAlerta({
           nivel: "naranja", ruta: "plan?tab=resumen", titulo: `${nombreCaja(cajaId)} quedaría en negativo el ${formatFecha(f)}`,
           texto: "Ajusta ingresos, pagos o transfiere a tiempo." }))}</ul>` : html`<p class="aviso aviso--ok">✓ Ninguna caja queda en negativo en este periodo.</p>`}
-        <p class="campo__ayuda">Incluye ingresos esperados, transferencias programadas, obligaciones, pagos de deudas y presupuestos sostenibles.</p>
+        <p class="campo__ayuda">Incluye ingresos fijos, pases fijos entre cajas, gastos fijos, cuotas de deudas y presupuestos sostenibles.</p>
       </div>
+    </section>
+
+    <section class="seccion">
+      <div class="seccion__cabecera"><h2 class="seccion__titulo">Pases fijos entre cajas</h2>
+        <button type="button" class="btn-texto" data-nuevo-pase>+ Agregar</button></div>
+      ${s.recurrentes.some((r) => r.tipo === "transferencia")
+        ? html`<ul class="lista card card--lista">${s.recurrentes.filter((r) => r.tipo === "transferencia").map((r) => html`<li>
+          <button type="button" class="fila ${r.activa === false ? "atenuada" : ""}" data-editar="recurrente:${r.id}">
+            <span class="fila__icono">${icon("transferencia", { size: 18 })}</span>
+            <span class="fila__texto"><span class="fila__titulo">${r.nombre}</span>
+              <span class="fila__sub">${describirRegla(r.regla)} · ${nombreCaja(r.cajaId)} → ${nombreCaja(r.cajaDestinoId)}</span></span>
+            <span class="fila__monto">${formatMonto(r.montoCentavos)}</span>
+          </button></li>`)}</ul>`
+        : html`<p class="texto-sec intro">Dinero que mueves cada cierto tiempo de una caja a otra (p. ej. tu sueldo de HD Crédit a Nu).</p>`}
     </section>`;
-}
-
-// ---------------- Pagos (obligaciones) ----------------
-
-export function pestanaPagos(s, plan) {
-  const hasta = sumarDias(plan.hoy, 30);
-  const pagos = plan.eventos.filter((e) => (e.clase === "obligacion" || e.clase === "deuda") && e.fecha <= hasta);
-  const sug = sugerenciasPendientes("obligacion", s.obligaciones);
-  return html`
-    <section class="seccion">
-      <h2 class="seccion__titulo">Próximos 30 días</h2>
-      ${pagos.length ? html`<ul class="lista card card--lista">${pagos.map(filaEvento)}</ul>`
-        : estadoVacio({ icono: "check", titulo: "Sin pagos pendientes en los próximos 30 días." })}
-    </section>
-    <section class="seccion">
-      <div class="seccion__cabecera"><h2 class="seccion__titulo">Obligaciones</h2>
-        <button type="button" class="btn-texto" data-nuevo="obligacion">+ Nueva</button></div>
-      ${s.obligaciones.length ? html`<ul class="lista card card--lista">${s.obligaciones.map((o) => html`<li>
-        <button type="button" class="fila ${o.activa === false ? "atenuada" : ""}" data-editar="obligacion:${o.id}">
-          <span class="fila__texto"><span class="fila__titulo">${o.nombre}</span>
-            <span class="fila__sub">${describirRegla(o.regla)} · ${nombreCaja(o.cajaId)}${o.variable ? ` · ${formatMonto(o.minimoCentavos)}–${formatMonto(o.maximoCentavos)}` : ""}</span></span>
-          <span class="fila__monto">${formatMonto(o.montoCentavos)}</span>
-          ${icon("chevron", { size: 16, clase: "fila__chevron" })}
-        </button></li>`)}</ul>`
-        : html`<p class="texto-sec intro">Pagos fijos que no son deuda: trabajadora, colegiatura, celular, cuota de casa.</p>`}
-    </section>
-    ${bloqueSugerencias("obligacion", sug)}`;
 }
 
 // ---------------- Presupuesto ----------------
@@ -191,32 +179,4 @@ export function pestanaDeudas(s, plan) {
       }) : html`<p class="texto-sec intro">Registra cada deuda con su saldo y pago por periodo: la app calcula saldo, % pagado y fecha de liquidación.</p>`}
     </section>
     ${bloqueSugerencias("deuda", sug)}`;
-}
-
-// ---------------- Ingresos ----------------
-
-export function pestanaIngresos(s, plan) {
-  const hasta = sumarDias(plan.hoy, 30);
-  const proximos = plan.eventos.filter((e) => (e.clase === "ingreso" || e.clase === "transferencia") && e.fecha <= hasta);
-  const sug = sugerenciasPendientes("recurrente", s.recurrentes);
-  return html`
-    <section class="seccion">
-      <h2 class="seccion__titulo">Próximos 30 días</h2>
-      ${proximos.length ? html`<ul class="lista card card--lista">${proximos.map(filaEvento)}</ul>`
-        : html`<p class="texto-sec intro">Sin ingresos ni transferencias programadas en los próximos 30 días.</p>`}
-    </section>
-    <section class="seccion">
-      <div class="seccion__cabecera"><h2 class="seccion__titulo">Ingresos esperados y transferencias</h2>
-        <button type="button" class="btn-texto" data-nuevo="recurrente">+ Nuevo</button></div>
-      ${s.recurrentes.length ? html`<ul class="lista card card--lista">${s.recurrentes.map((r) => html`<li>
-        <button type="button" class="fila ${r.activa === false ? "atenuada" : ""}" data-editar="recurrente:${r.id}">
-          <span class="fila__icono">${icon(r.tipo === "ingreso" ? "ingreso" : "transferencia", { size: 18 })}</span>
-          <span class="fila__texto"><span class="fila__titulo">${r.nombre}</span>
-            <span class="fila__sub">${describirRegla(r.regla)} · ${r.tipo === "ingreso" ? nombreCaja(r.cajaId) : `${nombreCaja(r.cajaId)} → ${nombreCaja(r.cajaDestinoId)}`} · ≈${formatMonto(equivalenteMensual(r.montoCentavos, r.regla))}/mes</span></span>
-          <span class="fila__monto">${formatMonto(r.montoCentavos)}</span>
-          ${icon("chevron", { size: 16, clase: "fila__chevron" })}
-        </button></li>`)}</ul>`
-        : html`<p class="texto-sec intro">Lo que esperas recibir y las transferencias fijas entre cajas: alimentan la proyección.</p>`}
-    </section>
-    ${bloqueSugerencias("recurrente", sug)}`;
 }

@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.1.0";
+const CACHE_VERSION = "finanzas-reset-v1.2.0";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -43,6 +43,7 @@ const CORE_ASSETS = [
   "./js/domain/alertas.js",
   "./js/domain/catalogos.js",
   "./js/domain/compromisos.js",
+  "./js/domain/mes.js",
   "./js/domain/metricas.js",
   "./js/domain/movimientos.js",
   "./js/domain/periodos.js",
@@ -68,6 +69,7 @@ const CORE_ASSETS = [
   "./js/components/movimientoItem.js",
   "./js/components/pagination.js",
   "./js/components/reglaFields.js",
+  "./js/components/selectorMes.js",
   "./js/components/states.js",
   "./js/components/toast.js",
   "./js/modules/cajas/index.js",
@@ -78,6 +80,8 @@ const CORE_ASSETS = [
   "./js/modules/dashboard/bienvenida.js",
   "./js/modules/dashboard/index.js",
   "./js/modules/dashboard/metricas.js",
+  "./js/modules/gastos/index.js",
+  "./js/modules/ingresos/index.js",
   "./js/modules/mas/index.js",
   "./js/modules/movimientos/index.js",
   "./js/modules/plan/acciones.js",

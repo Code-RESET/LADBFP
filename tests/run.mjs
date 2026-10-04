@@ -12,6 +12,7 @@ import { test, assert, ejecutar } from "./lib.js";
 import "./core.test.js";
 import "./finanzas.test.js";
 import "./plan.test.js";
+import "./mes.test.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 

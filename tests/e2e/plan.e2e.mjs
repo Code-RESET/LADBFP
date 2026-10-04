@@ -47,7 +47,7 @@ await paso("preparación: cajas y saldos iniciales (Reset $20,000 · Sueldo $3,0
   await page.fill('input[name="monto-sueldo-personal"]', "3000");
   await page.click('.form-saldos button[type="submit"]');
   await page.waitForSelector(".hero");
-  esperar((await texto(".hero__etiqueta")) === "SALDO TOTAL" || (await texto(".hero__etiqueta")).toLowerCase() === "saldo total", "sin plan: debe mostrar saldo total");
+  esperar((await texto(".hero__etiqueta")).toLowerCase().startsWith("balance de"), "Inicio muestra el balance del mes");
 });
 
 await paso("DÉFICIT: presupuesto semanal sugerido → 🔴 −$521", async () => {
@@ -62,19 +62,19 @@ await paso("DÉFICIT: presupuesto semanal sugerido → 🔴 −$521", async () =
   esperar(t.includes("Deficitario") && t.includes("-$521.00"), t);
 });
 
-await paso("obligación sugerida: Trabajadora $8,000 (variable $3,200–$8,000)", async () => {
-  await page.click('.pestana[data-tab="pagos"]');
+await paso("gasto fijo sugerido: Trabajadora $8,000 (variable $3,200–$8,000)", async () => {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/gastos");
   await page.click('[data-sugerencia^="obligacion:0"]');
   await hojaLista();
-  await page.fill('.capa input[name="diaMes"]', String(DIA));
+  await page.fill('.capa input[name="diaVence"]', String(DIA));
   await page.click('.capa button[type="submit"]');
   await sinHojas();
-  await page.waitForSelector('.fila--evento:has-text("Trabajadora")');
-  esperar((await texto('.fila--evento:has-text("Trabajadora")')).includes("$8,000.00"), "monto");
+  await page.waitForSelector('.fila--gasto:has-text("Trabajadora")');
+  esperar((await texto('.fila--gasto:has-text("Trabajadora")')).includes("$8,000.00"), "monto");
 });
 
-await paso("validación: obligación con monto fuera del rango mín/máx se bloquea", async () => {
-  await page.click('[data-editar^="obligacion:"]');
+await paso("validación: gasto fijo con monto fuera del rango mín/máx se bloquea", async () => {
+  await page.click('[data-editar-fijo]');
   await hojaLista();
   await page.fill('.capa input[name="monto"]', "9000");
   await page.click('.capa button[type="submit"]');
@@ -84,7 +84,7 @@ await paso("validación: obligación con monto fuera del rango mín/máx se bloq
 });
 
 await paso("DEUDA: Dra. Marcela $30,000 con pagos de $6,000 → 5 pagos", async () => {
-  await page.click('.pestana[data-tab="deudas"]');
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/plan?tab=deudas");
   await page.click('[data-sugerencia^="deuda:0"]');
   await hojaLista();
   await page.fill('.capa input[name="saldoInicial"]', "30000");
@@ -114,15 +114,15 @@ await paso("pagar la deuda desde Plan: saldo $24,000 · 20% · 4 pagos", async (
   await sinHojas();
 });
 
-await paso("DISPONIBLE REAL en Inicio: $14,000 − $8,000 comprometido = $6,000 (Reset) + $3,000 (Sueldo) = $9,000", async () => {
+await paso("PUEDES GASTAR (Más → ¿Cuánto puedo gastar?): $14,000 − $8,000 apartado = $6,000 (Reset) + $3,000 (Sueldo) = $9,000", async () => {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/plan");
+  await page.waitForSelector(".tabla-plan tfoot");
+  const pie = await texto(".tabla-plan tfoot");
+  esperar(pie.includes("$17,000.00") && pie.includes("-$8,000.00") && pie.includes("$9,000.00"), pie);
+  esperar((await texto(".lista-alertas")).includes("-$521.00"), "aviso de déficit");
   await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
   await page.waitForSelector(".hero");
-  esperar((await texto(".hero__etiqueta")).toLowerCase() === "disponible real", await texto(".hero__etiqueta"));
-  esperar((await texto(".hero__monto")) === "$9,000.00", await texto(".hero__monto"));
-  const d = await texto(".hero__desglose");
-  esperar(d.includes("$17,000.00") && d.includes("-$8,000.00"), d);
-  esperar((await texto(".lista-alertas")).includes("-$521.00"), "alerta de déficit en Inicio");
-  esperar((await page.locator('.fila--evento:has-text("Trabajadora")').count()) === 1, "próximos pagos 7 días");
+  esperar((await page.locator('.fila--gasto:has-text("Trabajadora")').count()) === 1, "Trabajadora en 'Falta pagar'");
   await page.screenshot({ path: `${SHOTS}/f2-inicio.png`, fullPage: true });
 });
 
@@ -152,7 +152,7 @@ await paso("Resumen: tabla de disponible, proyección 7/30/90 días y 12 meses",
 });
 
 await paso("ingreso esperado sugerido (cobranza quincenal) y registrarlo", async () => {
-  await page.click('.pestana[data-tab="ingresos"]');
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/ingresos");
   await page.click('[data-sugerencia^="recurrente:1"]');
   await hojaLista();
   await page.click('.capa button[type="submit"]');
@@ -170,7 +170,8 @@ await paso("ingreso esperado sugerido (cobranza quincenal) y registrarlo", async
 
 await paso("capturas: pestañas en oscuro", async () => {
   await page.emulateMedia({ colorScheme: "dark" });
-  for (const t of ["pagos", "presupuesto", "deudas"]) {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/plan");
+  for (const t of ["resumen", "presupuesto", "deudas"]) {
     await page.click(`.pestana[data-tab="${t}"]`);
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${SHOTS}/f2-${t}-oscuro.png`, fullPage: true });
