@@ -418,3 +418,77 @@ button.pag-num:hover { background: var(--surface-muted); }
 .hero__tendencia { position: relative; margin-top: 14px; }
 .hero__tendencia-ejes { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary); text-transform: capitalize; padding: 2px 6px 0; }
 .hero .viz-punto { stroke: var(--surface); }
+
+/* ---------- Plan (Fase 2) ---------- */
+.pestanas { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
+.pestanas::-webkit-scrollbar { display: none; }
+.pestana {
+  flex: none; min-height: 36px; padding: 6px 14px; border-radius: 999px;
+  background: var(--surface); border: 0.5px solid var(--border);
+  color: var(--text-secondary); font-weight: 600; font-size: 0.88rem;
+}
+.pestana[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.btn--chico { min-height: 34px; padding: 6px 12px; font-size: 0.82rem; background: var(--accent-soft); color: var(--accent); border-radius: 999px; flex: none; }
+.fila--evento { gap: 10px; }
+.fila__icono--peligro { background: var(--danger-soft); color: var(--danger); }
+.texto-peligro { color: var(--danger) !important; }
+.fila__monto-doble { display: flex; flex-direction: column; align-items: flex-end; }
+
+.lista-alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.alerta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: var(--text-primary); border-left: 4px solid var(--text-tertiary); }
+.alerta--rojo { border-left-color: var(--danger); }
+.alerta--naranja { border-left-color: var(--warning); }
+.alerta--info { border-left-color: var(--neutral); }
+.alerta__icono { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+.alerta--rojo .alerta__icono { background: var(--danger-soft); color: var(--danger); }
+.alerta--naranja .alerta__icono { background: var(--warning-soft); color: var(--warning); }
+.alerta--info .alerta__icono { background: var(--surface-muted); color: var(--text-secondary); }
+.alerta .fila__sub { white-space: normal; }
+
+.barra { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; }
+.barra span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+
+.tabla-plan { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.tabla-plan th, .tabla-plan td { padding: 10px 12px; text-align: right; border-bottom: 0.5px solid var(--separator); white-space: nowrap; }
+.tabla-plan th:first-child, .tabla-plan td:first-child { text-align: left; white-space: normal; }
+.tabla-plan th { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; }
+.tabla-plan tfoot td { border-bottom: none; font-weight: 600; background: var(--surface-muted); }
+.card--lista:has(.tabla-plan) { overflow-x: auto; }
+
+.tarjeta-presupuesto, .tarjeta-deuda { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; border: none; color: var(--text-primary); margin-bottom: 12px; }
+.tarjeta-presupuesto__cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tarjeta-deuda__cabecera { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; text-align: left; color: inherit; width: 100%; }
+.tarjeta-deuda__cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tarjeta-deuda .acciones { margin-top: 0; }
+.badge--peligro { background: var(--danger-soft); color: var(--danger); }
+.badge--ok { background: var(--success-soft); color: var(--success); }
+.lista-datos--compacta { background: var(--surface-muted); }
+.lista-datos--compacta > div { padding: 8px 12px; font-size: 0.88rem; }
+.lista-datos__total { font-weight: 700; }
+.sugerencias .fila__icono { background: var(--surface-muted); color: var(--text-secondary); }
+.sugerencias .fila__sub { white-space: normal; }
+.horizonte { margin: 0; }
+
+/* Formularios del plan */
+.regla .regla__semanal, .regla .regla__dia, .regla .regla__anual, .regla .regla__n { display: none; }
+.regla[data-frecuencia="semanal"] .regla__semanal,
+.regla[data-frecuencia="mensual"] .regla__dia,
+.regla[data-frecuencia="anual"] .regla__dia,
+.regla[data-frecuencia="anual"] .regla__anual,
+.regla[data-frecuencia="personalizada"] .regla__n { display: block; }
+.regla { display: flex; flex-direction: column; gap: 12px; }
+.form[data-variable="no"] .solo-variable { display: none; }
+.form[data-tipo="ingreso"] .solo-transfer { display: none; }
+.form[data-tipo="transferencia"] .solo-ingreso { display: none; }
+.interruptor { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; }
+.interruptor input { width: 20px; height: 20px; accent-color: var(--accent); }
+.fila-linea { display: grid; grid-template-columns: 1fr 110px 36px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.fila-linea select, .fila-linea input {
+  min-height: 44px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid transparent;
+  background: var(--surface-muted); color: var(--text-primary); font-size: 1rem; width: 100%;
+}
+.resumen-presupuesto { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--radius); background: var(--surface-muted); }
+.resumen-presupuesto > div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.resumen-presupuesto .aviso { margin: 4px 0 0; }
+.segmentado--bloqueado { opacity: 0.6; pointer-events: none; }

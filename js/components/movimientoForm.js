@@ -46,14 +46,18 @@ function valoresIniciales(mov, preset) {
     fecha: hoy(),
     cajaId,
     cuentaId: preset.cuentaId || ultimo.cuentaId || caja?.cuentaPredeterminadaId || "",
-    cajaDestinoId: ultimo.cajaDestinoId || "",
-    cuentaDestinoId: ultimo.cuentaDestinoId || "",
-    categoriaId: ultimo.categoriaId || "",
+    cajaDestinoId: preset.cajaDestinoId || ultimo.cajaDestinoId || "",
+    cuentaDestinoId: preset.cuentaDestinoId || ultimo.cuentaDestinoId || "",
+    categoriaId: preset.categoriaId || ultimo.categoriaId || "",
     direccion: "entrada",
-    nota: "",
-    monto: "",
+    nota: preset.nota || "",
+    monto: preset.montoCentavos ? centavosATexto(preset.montoCentavos) : "",
   };
 }
+
+// Campos que vinculan el movimiento con una obligación, deuda o ingreso programado.
+const CAMPOS_VINCULO = ["obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo"];
+const vinculoDe = (obj) => Object.fromEntries(CAMPOS_VINCULO.filter((k) => obj?.[k]).map((k) => [k, obj[k]]));
 
 function plantilla(v, cat, editando) {
   const tipoGrupo = ["apertura", "ajuste"].includes(v.tipo) ? "otro" : v.tipo;
@@ -165,11 +169,24 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
   const cat = catalogos(movimiento);
   const v = valoresIniciales(movimiento, preset);
 
+  // Al pagar desde Plan llega { vinculo, titulo }; al editar se conserva el vínculo existente.
+  const vinculo = editando ? vinculoDe(movimiento) : vinculoDe(preset.vinculo);
   const capa = abrirCapa({
-    titulo: editando ? `Editar ${ETIQUETA_TIPO[movimiento.tipo].toLowerCase()}` : "Nuevo movimiento",
+    titulo: preset.titulo || (editando ? `Editar ${ETIQUETA_TIPO[movimiento.tipo].toLowerCase()}` : "Nuevo movimiento"),
     contenido: plantilla(v, cat, editando),
   });
   const form = capa.cuerpo.querySelector("form");
+  if (Object.keys(vinculo).length) {
+    // El tipo queda fijo: un pago de obligación/deuda es un gasto.
+    form.querySelector(".segmentado").classList.add("segmentado--bloqueado");
+    form.querySelectorAll('input[name="tipoGrupo"]').forEach((r) => { r.disabled = !r.checked; });
+    if (preset.aviso) {
+      const p = document.createElement("p");
+      p.className = "aviso aviso--ok";
+      p.textContent = preset.aviso;
+      form.prepend(p);
+    }
+  }
   sincronizarTipo(form, cat, v.categoriaId);
 
   form.addEventListener("change", (e) => {
@@ -193,7 +210,7 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (enviando) return;
-    const entrada = leerEntrada(form);
+    const entrada = { ...leerEntrada(form), ...vinculo };
     const { ok, errores } = validarMovimiento(entrada, cat);
     if (!ok) { mostrarErrores(form, errores); return; }
     mostrarErrores(form, {});
@@ -239,6 +256,7 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
 
   // El foco dentro del mismo toque abre el teclado numérico en iOS.
   if (!editando) form.monto.focus();
+  if (!editando && preset.montoCentavos) form.monto.select();
   return capa;
 }
 

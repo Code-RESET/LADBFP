@@ -12,7 +12,7 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
-| 2 | Obligaciones, deudas, presupuesto, alertas, próximos pagos, flujo proyectado, disponible real | Pendiente |
+| 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
 | 3 | Metas, escenarios, reportes, Excel, CSV, PDF, backup e importación | Pendiente |
 
 ## Estructura
@@ -58,9 +58,10 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 40/40 |
-| Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 40/40 |
+| Lógica financiera, fechas, dinero, paginación, plan (déficit, deudas, disponible, proyección, alertas) | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 61/61 |
+| Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 54/54 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
+| Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
 

@@ -1,11 +1,11 @@
 // ============================================================
 // modules/dashboard/index.js
-// Pantalla principal: saldo total con su tendencia, flujo del mes
-// (ingresos vs gastos con gráfica), saldo por caja, dónde está el
-// dinero (por cuenta) y últimos movimientos.
-// "Disponible real" (saldo − comprometido) llega en Fase 2,
-// cuando existan obligaciones, deudas y metas: no se muestra
-// un número inventado antes.
+// Pantalla principal: disponible real (saldo − comprometido) con
+// la tendencia del saldo, alertas, próximos pagos de 7 días, flujo
+// del mes (ingresos vs gastos), cajas, cuentas y últimos movimientos.
+// Mientras no haya nada planificado (obligaciones, deudas,
+// ingresos o presupuestos) se muestra el saldo total: no se
+// presenta un "disponible" que no descuenta nada.
 // ============================================================
 
 import { html, render as renderHtml, on } from "../../core/dom.js";
@@ -23,6 +23,10 @@ import { icon } from "../../components/icons.js";
 import { pasoCatalogos, pasoSaldosIniciales } from "./bienvenida.js";
 import { activarTooltips } from "../../components/charts.js";
 import { calcularSerie, tendenciaSaldo, seccionFlujo, tooltipMetricas } from "./metricas.js";
+import { calcularPlan, hayPlan } from "../../services/planCalculado.js";
+import { sumarDias } from "../../core/dates.js";
+import { filaEvento, tarjetaAlerta } from "../plan/ui.js";
+import { pagarEvento, claveEvento } from "../plan/acciones.js";
 
 export function render(container, ctx) {
   const uid = ctx.user.uid;
@@ -73,17 +77,41 @@ export function render(container, ctx) {
     const operativo = cajas.filter(cuentaParaGasto).reduce((a, c) => a + (porCaja[c.id] || 0), 0);
     const reservado = total - operativo;
 
+    const conPlan = hayPlan(s);
+    const plan = conPlan ? calcularPlan(s) : null;
+    const disp = plan?.disponible;
+    const semana = conPlan ? plan.eventos.filter((e) => (e.clase === "obligacion" || e.clase === "deuda") && e.fecha <= sumarDias(plan.hoy, 7)) : [];
+    const alertas = conPlan ? plan.alertas.filter((a) => a.nivel !== "info").slice(0, 3) : [];
+
     return html`
       <section class="hero card">
-        <p class="hero__etiqueta">Saldo total</p>
-        <p class="hero__monto ${total < 0 ? "monto--negativo" : ""}">${formatMonto(total)}</p>
-        <div class="hero__desglose">
-          <span>Cajas operativas <strong>${formatMonto(operativo)}</strong></span>
-          ${reservado ? html`<span>Capital / ahorro <strong>${formatMonto(reservado)}</strong></span>` : ""}
-        </div>
+        ${conPlan ? html`
+          <p class="hero__etiqueta">Disponible real</p>
+          <p class="hero__monto ${disp.total < 0 ? "monto--negativo" : ""}">${formatMonto(disp.total)}</p>
+          <div class="hero__desglose">
+            <span>Saldo <strong>${formatMonto(disp.saldoParaGasto)}</strong></span>
+            <span>Comprometido ${plan.horizonte} días <strong>-${formatMonto(disp.comprometidoTotal)}</strong></span>
+            ${reservado ? html`<span>Capital / ahorro <strong>${formatMonto(reservado)}</strong></span>` : ""}
+          </div>` : html`
+          <p class="hero__etiqueta">Saldo total</p>
+          <p class="hero__monto ${total < 0 ? "monto--negativo" : ""}">${formatMonto(total)}</p>
+          <div class="hero__desglose">
+            <span>Cajas operativas <strong>${formatMonto(operativo)}</strong></span>
+            ${reservado ? html`<span>Capital / ahorro <strong>${formatMonto(reservado)}</strong></span>` : ""}
+          </div>`}
         ${tendenciaSaldo(serie, anchoHero)}
-        <p class="hero__nota">Próximamente: <em>disponible real</em>, descontando pagos comprometidos.</p>
+        ${conPlan ? "" : html`<p class="hero__nota">Registra obligaciones, deudas o ingresos en <a href="#/plan">Plan</a> para ver tu <em>disponible real</em>.</p>`}
       </section>
+
+      ${alertas.length ? html`<section class="seccion">
+        <div class="seccion__cabecera"><h2 class="seccion__titulo">Alertas</h2><a href="#/plan" class="link">Ver plan</a></div>
+        <ul class="lista-alertas">${alertas.map(tarjetaAlerta)}</ul>
+      </section>` : ""}
+
+      ${semana.length ? html`<section class="seccion">
+        <div class="seccion__cabecera"><h2 class="seccion__titulo">Próximos pagos · 7 días</h2><a href="#/plan?tab=pagos" class="link">Todos</a></div>
+        <ul class="lista card card--lista">${semana.map(filaEvento)}</ul>
+      </section>` : ""}
 
       <div class="acciones-rapidas">
         <button type="button" class="accion-rapida" data-accion="nuevo-movimiento" data-tipo="gasto">${icon("gasto")}<span>Gasto</span></button>
@@ -101,7 +129,10 @@ export function render(container, ctx) {
               <span class="punto" style="background:${c.color || "var(--accent)"}"></span>
               <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>
                 ${c.tipo !== "operativa" ? html`<span class="fila__sub">${TIPOS_CAJA[c.tipo]}</span>` : ""}</span>
-              <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
+              ${conPlan && plan.comprometido[c.id] ? html`<span class="fila__monto-doble">
+                <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
+                <span class="fila__sub ${disp.porCaja[c.id] < 0 ? "texto-peligro" : ""}">Disponible ${formatMonto(disp.porCaja[c.id])}</span>
+              </span>` : html`<span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>`}
               ${icon("chevron", { size: 16, clase: "fila__chevron" })}
             </a></li>`)}</ul>
         </section>
@@ -134,6 +165,11 @@ export function render(container, ctx) {
       </section>`;
   }
 
+  const quitarPagar = on(container, "click", "[data-pagar]", (e, el) => {
+    const ev = calcularPlan(getState()).eventos.find((x) => claveEvento(x) === el.dataset.pagar);
+    if (ev) pagarEvento(ev);
+  });
+
   const quitarClick = on(container, "click", "[data-mov]", (e, el) => {
     const m = ultimos?.find((x) => x.id === el.dataset.mov);
     if (m) abrirDetalleMovimiento(m);
@@ -155,6 +191,7 @@ export function render(container, ctx) {
     cancelarUltimos();
     cancelarState();
     quitarClick();
+    quitarPagar();
     quitarTooltips();
     observador.disconnect();
   };

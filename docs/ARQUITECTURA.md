@@ -14,6 +14,14 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Fase 2 — implementada (v1.1.0)
+
+- **Datos:** colecciones `obligaciones`, `deudas`, `recurrentes` (ingresos esperados y transferencias programadas) y `presupuestos`, con reglas de validación en servidor (sin caja → rechazado).
+- **Pagos vinculados:** "Pagar" abre el formulario prellenado y guarda en el movimiento `obligacionId + obligacionPeriodo`, `deudaId + deudaPeriodo` o `recurrenteId + recurrentePeriodo`. Los agregados mensuales suman lo pagado en `porVinculo` y `porDeuda`: el estado de cada ocurrencia, el saldo de cada deuda y el comprometido se calculan **sin leer movimientos**, también sin conexión.
+- **Dominio puro:** `periodos.js` (frecuencias/calendario), `compromisos.js` (estados, deudas, eventos), `presupuesto.js` (déficit y sostenibilidad, decisión A4), `proyeccion.js` (comprometido, disponible real, simulación diaria), `alertas.js`. Reunidos en `services/planCalculado.js` para que Inicio y Plan muestren los mismos números.
+- **Datos pendientes (sección 42):** no se asumen. Los datos conocidos se ofrecen como *sugerencias* que abren el formulario prellenado para confirmar día, frecuencia y montos.
+- **Presupuesto en la proyección:** cuenta el gasto (prorrateado por día) solo si es sostenible; el campo "ingreso" sirve para evaluar el déficit y el dinero que entra viene de los ingresos/transferencias programados (evita doble conteo).
+
 ## Índice
 
 - [A. Problemas detectados](#a-problemas-detectados)

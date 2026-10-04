@@ -102,6 +102,13 @@ export function construirMovimiento(m) {
   }
   if (m.tipo === "ingreso" || m.tipo === "gasto") doc.categoriaId = m.categoriaId;
   if (m.tipo === "ajuste") doc.direccion = m.direccion;
+  // Vínculos (Fase 2): un pago de obligación/deuda es un gasto; un ingreso o
+  // transferencia programada puede marcar su ocurrencia como recibida.
+  if (m.tipo === "gasto" && m.obligacionId) { doc.obligacionId = m.obligacionId; doc.obligacionPeriodo = m.obligacionPeriodo; }
+  if (m.tipo === "gasto" && m.deudaId) { doc.deudaId = m.deudaId; if (m.deudaPeriodo) doc.deudaPeriodo = m.deudaPeriodo; }
+  if ((m.tipo === "ingreso" || m.tipo === "transferencia") && m.recurrenteId) {
+    doc.recurrenteId = m.recurrenteId; doc.recurrentePeriodo = m.recurrentePeriodo;
+  }
   doc.cajaIds = [...new Set([doc.cajaId, doc.cajaDestinoId].filter(Boolean))];
   doc.cuentaIds = [...new Set([doc.cuentaId, doc.cuentaDestinoId].filter(Boolean))];
   return doc;
@@ -145,6 +152,13 @@ export function aplicarMovimiento(acc, mov, signo = 1) {
     default: return acc;
   }
   if (mov.categoriaId) sumarEn(acc, ["porCategoria", mov.categoriaId], m);
+  // Lo pagado por ocurrencia ("o:id__fecha", "d:…", "r:…") y por deuda.
+  if (mov.obligacionId && mov.obligacionPeriodo) sumarEn(acc, ["porVinculo", `o:${mov.obligacionId}__${mov.obligacionPeriodo}`], m);
+  if (mov.deudaId) {
+    sumarEn(acc, ["porDeuda", mov.deudaId], m);
+    if (mov.deudaPeriodo) sumarEn(acc, ["porVinculo", `d:${mov.deudaId}__${mov.deudaPeriodo}`], m);
+  }
+  if (mov.recurrenteId && mov.recurrentePeriodo) sumarEn(acc, ["porVinculo", `r:${mov.recurrenteId}__${mov.recurrentePeriodo}`], m);
 
   // Conteos para "Mostrando 1–25 de N" sin consultar al servidor.
   sumarEn(acc, ["n"], signo);
@@ -196,7 +210,8 @@ export function agregadosDesdeMovimientos(movs) {
 
 /** Campos editables que se comparan para el historial de auditoría. */
 const CAMPOS_AUDITADOS = ["tipo", "fecha", "montoCentavos", "cajaId", "cuentaId",
-  "cajaDestinoId", "cuentaDestinoId", "categoriaId", "direccion", "nota", "estado"];
+  "cajaDestinoId", "cuentaDestinoId", "categoriaId", "direccion", "nota", "estado",
+  "obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo"];
 
 export function cambiosRelevantes(antes, despues) {
   const out = {};

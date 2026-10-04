@@ -8,13 +8,23 @@ import { html, render as renderHtml } from "../../core/dom.js";
 import { icon } from "../../components/icons.js";
 import { MODULES } from "../../router.js";
 
+// Accesos directos a pestañas de Plan.
+const ATAJOS = [
+  { label: "Deudas", icon: "deudas", ruta: "plan?tab=deudas" },
+  { label: "Presupuesto", icon: "plan", ruta: "plan?tab=presupuesto" },
+  { label: "Ingresos esperados", icon: "ingreso", ruta: "plan?tab=ingresos" },
+];
+
 const FUTUROS = [
-  { label: "Deudas", icon: "deudas", fase: 2 },
+  { label: "Metas y escenarios", icon: "metas", fase: 3 },
   { label: "Reportes y Excel", icon: "reportes", fase: 3 },
 ];
 
 export function render(container) {
-  const items = MODULES.filter((m) => m.nav.movil === "mas");
+  const items = [
+    ...ATAJOS.map((a) => ({ path: a.ruta, label: a.label, icon: a.icon })),
+    ...MODULES.filter((m) => m.nav.movil === "mas"),
+  ];
   renderHtml(container, html`
     <ul class="lista card card--lista">${items.map((m) => html`<li>
       <a class="fila" href="#/${m.path}">

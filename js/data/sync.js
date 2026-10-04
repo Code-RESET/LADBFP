@@ -7,6 +7,7 @@
 import { setState, marcarListo, resetState, getState } from "../core/state.js";
 import { cajasRepo, cuentasRepo, categoriasRepo } from "./catalogosRepo.js";
 import { perfilRepo, agregadosRepo } from "./perfilRepo.js";
+import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo } from "./planRepo.js";
 import { sincronizarDesdeNube } from "../core/theme.js";
 import { mensajeDeError } from "../core/errors.js";
 
@@ -30,6 +31,10 @@ export function iniciarSync(user, { onError } = {}) {
     cuentasRepo.escuchar(uid, (cuentas, meta) => { setState({ cuentas }); marcarListo("cuentas"); marcarPendiente("cuentas", meta); }, error),
     categoriasRepo.escuchar(uid, (categorias, meta) => { setState({ categorias }); marcarListo("categorias"); marcarPendiente("categorias", meta); }, error),
     agregadosRepo.escuchar(uid, (agregados, meta) => { setState({ agregados }); marcarListo("agregados"); marcarPendiente("agregados", meta); }, error),
+    obligacionesRepo.escuchar(uid, (obligaciones) => { setState({ obligaciones }); marcarListo("obligaciones"); }, error),
+    deudasRepo.escuchar(uid, (deudas) => { setState({ deudas }); marcarListo("deudas"); }, error),
+    recurrentesRepo.escuchar(uid, (recurrentes) => { setState({ recurrentes }); marcarListo("recurrentes"); }, error),
+    presupuestosRepo.escuchar(uid, (presupuestos) => { setState({ presupuestos }); marcarListo("presupuestos"); }, error),
     perfilRepo.escuchar(uid, (perfil) => {
       setState({ perfil });
       marcarListo("perfil");

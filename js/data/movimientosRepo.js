@@ -151,6 +151,14 @@ export const movimientosRepo = {
     }
   },
 
+  /** Pagos vinculados a una deuda u obligación (sin índice compuesto: un solo filtro de igualdad). */
+  async pagosDe(uid, campo, id) {
+    const snap = await getDocs(query(col(uid, MOV), where(campo, "==", id), limit(300)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((m) => m.estado !== "anulado")
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.ts || 0) - (a.ts || 0));
+  },
+
   async historial(uid, movId) {
     const snap = await getDocs(query(collectionHistorial(uid, movId), orderBy("ts", "asc")));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
