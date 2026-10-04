@@ -47,6 +47,13 @@ tests/
 4. Agregar sus archivos a `CORE_ASSETS` en `service-worker.js` y subir `CACHE_VERSION` (`node tests/run.mjs` avisa si falta alguno).
 5. Si crea una colección nueva, agregar su `match` en `firestore.rules` (todo lo no declarado está cerrado) y su prueba en `tests/rules/`.
 
+## Publicar una mejora
+
+1. Hacer los cambios y subir `CACHE_VERSION` en `service-worker.js` (p. ej. `finanzas-reset-v1.0.3` → `v1.0.4`). **Sin este paso los teléfonos siguen usando la versión guardada.**
+2. Fusionar a `main`: GitHub Pages publica en 1–2 minutos.
+3. En el teléfono la versión nueva llega sola (aviso "Hay una versión nueva → Actualizar"), o al momento con **Configuración → Aplicación → Buscar actualizaciones**.
+4. Si algo se ve raro: **Reinstalar archivos de la app** (borra solo la caché de archivos; los datos están en Firestore).
+
 ## Pruebas
 
 | Qué | Cómo | Resultado actual |
