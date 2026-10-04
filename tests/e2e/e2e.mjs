@@ -66,8 +66,11 @@ async function nuevoMovimiento({ tipo = "gasto", monto, caja, cuenta, categoria,
   await page.waitForSelector(".capa--visible");
   await page.waitForTimeout(300); // animación de entrada de la hoja
   const grupo = ["apertura", "ajuste"].includes(tipo) ? "otro" : tipo;
-  await f.locator(`.segmentado__opcion:has(input[name="tipoGrupo"][value="${grupo}"])`).click();
-  if (grupo === "otro") await f.locator(`.segmentado__opcion:has(input[name="tipoOtro"][value="${tipo}"])`).click();
+  // Modo simple: cuenta, fecha, nota y "saldo inicial / ajuste" viven en "Más detalles".
+  const abrirDetalles = async () => { if (!(await f.locator(".mas-detalles").evaluate((d) => d.open))) await f.locator(".mas-detalles > summary").click(); };
+  if (grupo === "otro") { await abrirDetalles(); await f.locator(".otro-tipo").click(); await f.locator(`.segmentado__opcion:has(input[name="tipoOtro"][value="${tipo}"])`).click(); }
+  else await f.locator(`.segmentado__opcion:has(input[name="tipoGrupo"][value="${grupo}"])`).click();
+  if (cuenta || cuentaDestino || nota) await abrirDetalles();
   await f.locator('input[name="monto"]').fill(monto);
   if (caja) await f.locator('select[name="cajaId"]').selectOption({ label: caja });
   if (cuenta) await f.locator('select[name="cuentaId"]').selectOption({ label: cuenta });
@@ -111,21 +114,21 @@ await paso("asistente: saldo inicial de $10,000 en HD Crédit", async () => {
   await page.fill('input[name="monto-hd-credit"]', "10,000");
   await page.click('.form-saldos button[type="submit"]');
   await page.waitForSelector(".hero");
-  esperar((await texto(".hero__monto")) === "$10,000.00", await texto(".hero__monto"));
+  esperar((await texto(".total-cajas")) === "$10,000.00", await texto(".total-cajas"));
   esperar((await montoDeCaja("HD Crédit")) === "$10,000.00", "saldo HD");
 });
 
 // ---------------- Pruebas obligatorias ----------------
 await paso("SALDOS: $10,000 − gasto $2,000 = $8,000", async () => {
   await nuevoMovimiento({ tipo: "gasto", monto: "2000", caja: "HD Crédit", cuenta: "BBVA HD", categoria: "Casa" });
-  await page.waitForFunction(() => document.querySelector(".hero__monto")?.textContent === "$8,000.00");
+  await page.waitForFunction(() => document.querySelector(".total-cajas")?.textContent === "$8,000.00");
   esperar((await montoDeCaja("HD Crédit")) === "$8,000.00", "saldo HD");
 });
 await paso("TRANSFERENCIA: HD Crédit → Sueldo personal $3,000; patrimonio sin cambio", async () => {
   await nuevoMovimiento({ tipo: "transferencia", monto: "3000", caja: "HD Crédit", cuenta: "BBVA HD", cajaDestino: "Sueldo personal", cuentaDestino: "Nu" });
   await page.waitForFunction(() => [...document.querySelectorAll(".fila")].some((f) => f.textContent.includes("Sueldo personal") && f.textContent.includes("$3,000.00")));
   esperar((await montoDeCaja("HD Crédit")) === "$5,000.00", `HD ${await montoDeCaja("HD Crédit")}`);
-  esperar((await texto(".hero__monto")) === "$8,000.00", "patrimonio cambió");
+  esperar((await texto(".total-cajas")) === "$8,000.00", "patrimonio cambió");
   await page.screenshot({ path: `${SHOTS}/03-dashboard-claro.png`, fullPage: true });
 });
 await paso("integridad en UI: transferencia al mismo par (caja, cuenta) se bloquea", async () => {
@@ -154,7 +157,7 @@ await paso("anular un movimiento con motivo revierte el saldo", async () => {
   await page.click('[data-accion="anular"]');
   await page.fill('textarea[name="motivo"]', "Prueba de anulación");
   await page.click('.capa--dialog button[type="submit"]');
-  await page.waitForFunction(() => document.querySelector(".hero__monto")?.textContent === "$10,000.00");
+  await page.waitForFunction(() => document.querySelector(".total-cajas")?.textContent === "$10,000.00");
 });
 
 // ---------------- Paginación ----------------
@@ -169,7 +172,7 @@ await paso("cargar 320 movimientos de prueba (código real del repositorio)", as
     }
   });
   // 320 gastos de $1.00 a $4.19 = $830.40. Esperar a que todo se sincronice antes de recargar.
-  await page.waitForFunction(() => document.querySelector(".hero__monto")?.textContent === "$9,169.60", null, { timeout: 30000 });
+  await page.waitForFunction(() => document.querySelector(".total-cajas")?.textContent === "$9,169.60", null, { timeout: 30000 });
   await page.waitForSelector("#sync-estado[hidden]", { state: "attached", timeout: 60000 });
 });
 let totalMovs = 0;

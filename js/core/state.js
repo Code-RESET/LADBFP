@@ -12,8 +12,13 @@ const estadoInicial = () => ({
   cuentas: [],
   categorias: [],
   agregados: {},        // { 'YYYY-MM': doc }
+  obligaciones: [],
+  deudas: [],
+  recurrentes: [],
+  presupuestos: [],
   perfil: null,         // users/{uid}
-  listo: { cajas: false, cuentas: false, categorias: false, agregados: false, perfil: false },
+  listo: { cajas: false, cuentas: false, categorias: false, agregados: false, perfil: false,
+    obligaciones: false, deudas: false, recurrentes: false, presupuestos: false },
   pendientesSync: false,
 });
 
@@ -47,6 +52,11 @@ export function subscribe(fn) {
 export function catalogosListos() {
   const l = estado.listo;
   return l.cajas && l.cuentas && l.categorias && l.agregados && l.perfil;
+}
+
+export function planListo() {
+  const l = estado.listo;
+  return catalogosListos() && l.obligaciones && l.deudas && l.recurrentes && l.presupuestos;
 }
 
 // ---- Selectores ----

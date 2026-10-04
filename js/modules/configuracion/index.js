@@ -19,7 +19,7 @@ import { versionInstalada, buscarActualizacion, reinstalarArchivos } from "../..
 import { toast, toastError } from "../../components/toast.js";
 import { confirmar } from "../../components/confirmation.js";
 
-export const FASE_APP = "Fase 1";
+export const FASE_APP = "Fase 2 · modo simple";
 
 const MENSAJE_ACTUALIZACION = {
   "al-dia": "✓ Ya tienes la versión más reciente",

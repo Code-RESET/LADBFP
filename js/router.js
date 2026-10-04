@@ -22,12 +22,14 @@ import { estadoError, skeletonLista } from "./components/states.js";
 // load   -> import dinámico: el código del módulo se descarga solo al abrirlo
 export const MODULES = [
   { path: "dashboard", label: "Inicio", icon: "inicio", nav: { movil: "tab", desktop: true }, load: () => import("./modules/dashboard/index.js") },
-  { path: "movimientos", label: "Movimientos", icon: "movimientos", nav: { movil: "tab", desktop: true }, load: () => import("./modules/movimientos/index.js") },
-  { path: "plan", label: "Plan", icon: "plan", nav: { movil: "tab", desktop: true }, load: () => import("./modules/plan/index.js") },
+  { path: "gastos", label: "Gastos", icon: "gasto", nav: { movil: "tab", desktop: true }, load: () => import("./modules/gastos/index.js") },
+  { path: "ingresos", label: "Ingresos", icon: "ingreso", nav: { movil: "tab", desktop: true }, load: () => import("./modules/ingresos/index.js") },
+  { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: false }, load: () => import("./modules/mas/index.js") },
+  { path: "plan", label: "Deudas y proyección", icon: "plan", nav: { movil: "mas", desktop: true }, load: () => import("./modules/plan/index.js") },
+  { path: "movimientos", label: "Todos los movimientos", icon: "movimientos", nav: { movil: "mas", desktop: true }, load: () => import("./modules/movimientos/index.js") },
   { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cajas/index.js") },
   { path: "cuentas", label: "Cuentas", icon: "cuentas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cuentas/index.js") },
   { path: "configuracion", label: "Configuración", icon: "config", nav: { movil: "mas", desktop: true }, load: () => import("./modules/configuracion/index.js") },
-  { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: false }, load: () => import("./modules/mas/index.js") },
 ];
 
 const RUTA_INICIAL = "dashboard";

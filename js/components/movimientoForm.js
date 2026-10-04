@@ -12,6 +12,7 @@ import { hoy } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
 import { getState, cajaPorId, cajasActivas, cuentasActivas, categoriasActivas } from "../core/state.js";
 import { validarMovimiento, buscarDuplicado, ETIQUETA_TIPO } from "../domain/movimientos.js";
+import { FORMAS_PAGO } from "../domain/mes.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
 import { abrirCapa } from "./modal.js";
 import { confirmar } from "./confirmation.js";
@@ -46,23 +47,28 @@ function valoresIniciales(mov, preset) {
     fecha: hoy(),
     cajaId,
     cuentaId: preset.cuentaId || ultimo.cuentaId || caja?.cuentaPredeterminadaId || "",
-    cajaDestinoId: ultimo.cajaDestinoId || "",
-    cuentaDestinoId: ultimo.cuentaDestinoId || "",
-    categoriaId: ultimo.categoriaId || "",
+    cajaDestinoId: preset.cajaDestinoId || ultimo.cajaDestinoId || "",
+    cuentaDestinoId: preset.cuentaDestinoId || ultimo.cuentaDestinoId || "",
+    categoriaId: preset.categoriaId || ultimo.categoriaId || "",
+    formaPago: preset.formaPago ?? ultimo.formaPago ?? "",
     direccion: "entrada",
-    nota: "",
-    monto: "",
+    nota: preset.nota || "",
+    monto: preset.montoCentavos ? centavosATexto(preset.montoCentavos) : "",
   };
 }
 
+// Campos que vinculan el movimiento con una obligación, deuda o ingreso programado.
+const CAMPOS_VINCULO = ["obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo"];
+const vinculoDe = (obj) => Object.fromEntries(CAMPOS_VINCULO.filter((k) => obj?.[k]).map((k) => [k, obj[k]]));
+
 function plantilla(v, cat, editando) {
   const tipoGrupo = ["apertura", "ajuste"].includes(v.tipo) ? "otro" : v.tipo;
+  const detallesAbiertos = editando || tipoGrupo === "otro";
   return html`<form class="form-mov" data-tipo="${v.tipo}" novalidate>
     ${segmentado("tipoGrupo", [
       { valor: "gasto", label: "Gasto" },
       { valor: "ingreso", label: "Ingreso" },
-      { valor: "transferencia", label: "Transferir" },
-      { valor: "otro", label: "Otro" },
+      { valor: "transferencia", label: "Mover dinero" },
     ], tipoGrupo)}
 
     <div class="solo-otro">
@@ -81,34 +87,43 @@ function plantilla(v, cat, editando) {
     </div>
 
     <label class="monto-grande">
-      <span class="visually-hidden">Monto</span>
+      <span class="visually-hidden">¿Cuánto?</span>
       <span class="monto-grande__signo">$</span>
-      <input name="monto" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${v.monto}" enterkeyhint="done" />
+      <input name="monto" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${v.monto}" enterkeyhint="done" aria-label="¿Cuánto?" />
     </label>
     <span class="campo__error campo__error--centro" data-error="montoCentavos"></span>
 
     <div class="grupo">
-      <p class="grupo__titulo solo-transfer">Desde</p>
-      <div class="fila-2">
-        ${campo({ label: "Caja", nombre: "cajaId", control: html`<select name="cajaId">${opciones(cat.cajas, v.cajaId, { vacio: "Elige…" })}</select>` })}
-        ${campo({ label: "Cuenta", nombre: "cuentaId", control: html`<select name="cuentaId">${opciones(cat.cuentas, v.cuentaId, { vacio: "Elige…" })}</select>` })}
-      </div>
+      ${campo({ label: html`<span class="solo-no-transfer">¿De qué caja?</span><span class="solo-transfer">De la caja</span>`, nombre: "cajaId",
+        control: html`<select name="cajaId">${opciones(cat.cajas, v.cajaId, { vacio: "Elige…" })}</select>` })}
       <div class="solo-transfer">
-        <p class="grupo__titulo">Hacia</p>
-        <div class="fila-2">
-          ${campo({ label: "Caja", nombre: "cajaDestinoId", control: html`<select name="cajaDestinoId">${opciones(cat.cajas, v.cajaDestinoId, { vacio: "Elige…" })}</select>` })}
-          ${campo({ label: "Cuenta", nombre: "cuentaDestinoId", control: html`<select name="cuentaDestinoId">${opciones(cat.cuentas, v.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}
-        </div>
+        ${campo({ label: "A la caja", nombre: "cajaDestinoId", control: html`<select name="cajaDestinoId">${opciones(cat.cajas, v.cajaDestinoId, { vacio: "Elige…" })}</select>` })}
       </div>
-      <div class="solo-categoria">
-        ${campo({ label: "Categoría", nombre: "categoriaId", control: html`
-<select name="categoriaId"></select>` })}
-      </div>
-      <div class="fila-2">
-        ${campo({ label: "Fecha", nombre: "fecha", control: html`<input type="date" name="fecha" value="${v.fecha}" required />` })}
-        ${campo({ label: "Nota", nombre: "nota", control: html`<input name="nota" maxlength="500" value="${v.nota || ""}" placeholder="Opcional" />` })}
+      <div class="solo-categoria fila-2">
+        ${campo({ label: html`<span class="solo-gasto">¿En qué?</span><span class="solo-ingreso">¿De qué?</span>`, nombre: "categoriaId", control: html`<select name="categoriaId"></select>` })}
+        ${campo({ label: html`<span class="solo-gasto">Forma de pago</span><span class="solo-ingreso">Forma de recepción</span>`, nombre: "formaPago",
+          control: html`<select name="formaPago"><option value="">—</option>${FORMAS_PAGO.map((f) => html`<option value="${f}" ${f === v.formaPago ? "selected" : ""}>${f}</option>`)}</select>` })}
       </div>
     </div>
+
+    <details class="mas-detalles" ${detallesAbiertos ? "open" : ""}>
+      <summary>Más detalles <span class="texto-sec">(fecha, nota, cuenta)</span></summary>
+      <div class="grupo">
+        <div class="fila-2">
+          ${campo({ label: "Fecha", nombre: "fecha", control: html`<input type="date" name="fecha" value="${v.fecha}" required />` })}
+          ${campo({ label: "Nota", nombre: "nota", control: html`<input name="nota" maxlength="500" value="${v.nota || ""}" placeholder="Opcional" />` })}
+        </div>
+        <div class="fila-2">
+          ${campo({ label: html`<span class="solo-no-transfer">Cuenta</span><span class="solo-transfer">Cuenta de origen</span>`, nombre: "cuentaId",
+            control: html`<select name="cuentaId">${opciones(cat.cuentas, v.cuentaId, { vacio: "Elige…" })}</select>` })}
+          <div class="solo-transfer">${campo({ label: "Cuenta de destino", nombre: "cuentaDestinoId",
+            control: html`<select name="cuentaDestinoId">${opciones(cat.cuentas, v.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}</div>
+        </div>
+        <p class="campo__ayuda">La cuenta se elige sola según la caja; cámbiala solo si el dinero está en otra.</p>
+        ${editando && tipoGrupo !== "otro" ? "" : html`<label class="otro-tipo"><input type="radio" name="tipoGrupo" value="otro" ${tipoGrupo === "otro" ? "checked" : ""} />
+          <span>Registrar un <strong>saldo inicial</strong> o un <strong>ajuste</strong> de saldo</span></label>`}
+      </div>
+    </details>
 
     <button type="submit" class="btn btn--primario btn--bloque">${editando ? "Guardar cambios" : "Guardar"}</button>
   </form>`;
@@ -146,6 +161,7 @@ function leerEntrada(form) {
     cuentaDestinoId: tipo === "transferencia" ? form.cuentaDestinoId.value : null,
     categoriaId: tipo === "gasto" || tipo === "ingreso" ? form.categoriaId.value : null,
     direccion: tipo === "ajuste" ? form.direccion.value : null,
+    formaPago: tipo === "gasto" || tipo === "ingreso" ? form.formaPago.value : null,
     nota: form.nota.value,
   };
 }
@@ -165,11 +181,24 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
   const cat = catalogos(movimiento);
   const v = valoresIniciales(movimiento, preset);
 
+  // Al pagar desde Plan llega { vinculo, titulo }; al editar se conserva el vínculo existente.
+  const vinculo = editando ? vinculoDe(movimiento) : vinculoDe(preset.vinculo);
   const capa = abrirCapa({
-    titulo: editando ? `Editar ${ETIQUETA_TIPO[movimiento.tipo].toLowerCase()}` : "Nuevo movimiento",
+    titulo: preset.titulo || (editando ? `Editar ${ETIQUETA_TIPO[movimiento.tipo].toLowerCase()}` : "Nuevo movimiento"),
     contenido: plantilla(v, cat, editando),
   });
   const form = capa.cuerpo.querySelector("form");
+  if (Object.keys(vinculo).length) {
+    // El tipo queda fijo: un pago de obligación/deuda es un gasto.
+    form.querySelector(".segmentado").classList.add("segmentado--bloqueado");
+    form.querySelectorAll('input[name="tipoGrupo"]').forEach((r) => { r.disabled = !r.checked; });
+    if (preset.aviso) {
+      const p = document.createElement("p");
+      p.className = "aviso aviso--ok";
+      p.textContent = preset.aviso;
+      form.prepend(p);
+    }
+  }
   sincronizarTipo(form, cat, v.categoriaId);
 
   form.addEventListener("change", (e) => {
@@ -193,9 +222,13 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (enviando) return;
-    const entrada = leerEntrada(form);
+    const entrada = { ...leerEntrada(form), ...vinculo };
     const { ok, errores } = validarMovimiento(entrada, cat);
-    if (!ok) { mostrarErrores(form, errores); return; }
+    if (!ok) {
+      if (["cuentaId", "cuentaDestinoId", "fecha", "nota"].some((k) => errores[k])) form.querySelector(".mas-detalles").open = true;
+      mostrarErrores(form, errores);
+      return;
+    }
     mostrarErrores(form, {});
 
     enviando = true;
@@ -224,7 +257,7 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
         guardarLocal("fr.ultimoTipo", entrada.tipo);
         guardarLocal(CLAVE_ULTIMO(entrada.tipo), {
           cajaId: entrada.cajaId, cuentaId: entrada.cuentaId, categoriaId: entrada.categoriaId,
-          cajaDestinoId: entrada.cajaDestinoId, cuentaDestinoId: entrada.cuentaDestinoId,
+          cajaDestinoId: entrada.cajaDestinoId, cuentaDestinoId: entrada.cuentaDestinoId, formaPago: entrada.formaPago,
         });
         capa.cerrar();
         toast(navigator.onLine ? "✓ Movimiento registrado" : "✓ Movimiento registrado · se sincronizará al reconectar");
@@ -239,6 +272,7 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
 
   // El foco dentro del mismo toque abre el teclado numérico en iOS.
   if (!editando) form.monto.focus();
+  if (!editando && preset.montoCentavos) form.monto.select();
   return capa;
 }
 

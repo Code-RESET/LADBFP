@@ -39,9 +39,11 @@ export const CATEGORIAS_INICIALES = [
   cat("ingreso", "venta-equipo", "Venta de equipo"),
   cat("ingreso", "cobranza", "Cobranza"),
   cat("ingreso", "software", "Software"),
+  cat("ingreso", "honorarios", "Honorarios"),
   cat("ingreso", "prestamo-recibido", "Préstamo recibido", { esFinanciamiento: true }),
   cat("ingreso", "otros", "Otros ingresos"),
   cat("gasto", "casa", "Casa"),
+  cat("gasto", "vivienda", "Vivienda (hipoteca, renta, créditos)"),
   cat("gasto", "comida", "Comida"),
   cat("gasto", "transporte", "Transporte"),
   cat("gasto", "combustible", "Combustible"),
@@ -66,5 +68,21 @@ export function sembrarCatalogos(uid) {
   CATEGORIAS_INICIALES.forEach(({ id, ...c }, i) =>
     batch.set(doc(db, rutaUsuario(uid, "categorias"), id), { esFinanciamiento: false, ...base, orden: i, ...c }));
   batch.set(doc(db, "users", uid), { config: { seedVersion: SEED_VERSION }, updatedAt: serverTimestamp() }, { merge: true });
+  return batch.commit();
+}
+
+/**
+ * Categorías agregadas después de la primera versión (Honorarios, Vivienda).
+ * Se crean solo si faltan, para usuarios que ya sembraron su app.
+ */
+export const CATEGORIAS_NUEVAS = ["in-honorarios", "ga-vivienda"];
+
+export function asegurarCategorias(uid, existentes) {
+  const ids = new Set(existentes.map((c) => c.id));
+  const faltan = CATEGORIAS_INICIALES.filter((c) => CATEGORIAS_NUEVAS.includes(c.id) && !ids.has(c.id));
+  if (!faltan.length) return null;
+  const batch = writeBatch(db);
+  faltan.forEach(({ id, ...c }) => batch.set(doc(db, rutaUsuario(uid, "categorias"), id),
+    { esFinanciamiento: false, activa: true, orden: 50, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), schemaVersion: 1, ...c }));
   return batch.commit();
 }

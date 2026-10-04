@@ -142,6 +142,46 @@ await prueba("agregado con id de mes inválido: rechazado", () =>
 await prueba("perfil: solo config", () =>
   assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL)), { admin: true }, { merge: true })));
 
+// ---------- Fase 2: plan ----------
+const regla = { frecuencia: "mensual", diaMes: 15, desde: "2026-10-01" };
+const obligacion = { nombre: "Trabajadora", montoCentavos: 800000, variable: true, minimoCentavos: 320000, maximoCentavos: 800000,
+  regla, cajaId: "reset-alarmas", cuentaId: "mercado-pago", categoriaId: "ga-negocio", activa: true };
+const deudaOk = { acreedor: "Dra. Marcela", saldoInicialCentavos: 3000000, pagoCentavos: 600000, regla,
+  cajaId: "reset-alarmas", cuentaId: "mercado-pago", categoriaId: "ga-deudas", activa: true };
+const recurrente = { nombre: "Sueldo", tipo: "transferencia", montoCentavos: 350000, regla: { frecuencia: "semanal", diaSemana: 5, desde: "2026-10-01" },
+  cajaId: "hd-credit", cuentaId: "bbva-hd", cajaDestinoId: "sueldo-personal", cuentaDestinoId: "nu", activa: true };
+const presupuesto = { nombre: "Sueldo semanal", periodo: "semanal", cajaId: "sueldo-personal", ingresoCentavos: 350000,
+  lineas: [{ categoriaId: "ga-casa", montoCentavos: 250000 }], coberturas: [], activa: true };
+
+await prueba("obligación válida", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/o1")), obligacion)));
+await prueba("rechaza: obligación sin caja", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/o2")), (({ cajaId, ...r }) => r)(obligacion))));
+await prueba("rechaza: obligación con frecuencia inválida", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/o3")), { ...obligacion, regla: { frecuencia: "diaria", desde: "2026-10-01" } })));
+await prueba("deuda válida", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/d1")), deudaOk)));
+await prueba("rechaza: deuda sin caja", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/d2")), { ...deudaOk, cajaId: "" })));
+await prueba("transferencia programada válida", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "recurrentes/r1")), recurrente)));
+await prueba("rechaza: transferencia programada a la misma caja y cuenta", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "recurrentes/r2")),
+  { ...recurrente, cajaDestinoId: "hd-credit", cuentaDestinoId: "bbva-hd" })));
+await prueba("presupuesto válido (aunque sea deficitario)", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "presupuestos/p1")), presupuesto)));
+await prueba("rechaza: presupuesto sin líneas", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "presupuestos/p2")), { ...presupuesto, lineas: [] })));
+await prueba("otro usuario NO puede leer obligaciones, deudas ni presupuestos", async () => {
+  await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "obligaciones/o1"))));
+  await assertFails(getDocs(collection(db(INTRUSO), ruta(ANGEL, "deudas"))));
+  await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "presupuestos/p1"))));
+});
+await prueba("pago de deuda vinculado (gasto) permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/pd1")),
+  { ...movBase, categoriaId: "ga-deudas", deudaId: "d1", deudaPeriodo: "2026-10-15" })));
+await prueba("rechaza: pago de obligación sin periodo", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/po1")),
+  { ...movBase, obligacionId: "o1" })));
+await prueba("rechaza: transferencia que dice pagar una deuda", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/pt1")),
+  { ...transferencia, deudaId: "d1" })));
+await prueba("agregado con porVinculo y porDeuda permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "agregados/2026-10")),
+  { mes: "2026-10", porVinculo: { "d:d1__2026-10-15": increment(600000) }, porDeuda: { d1: increment(600000) } }, { merge: true })));
+
+// ---------- Modo simple: forma de pago ----------
+await prueba("gasto con forma de pago permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/fp1")), { ...movBase, formaPago: "Domiciliado" })));
+await prueba("rechaza: forma de pago demasiado larga", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/fp2")), { ...movBase, formaPago: "x".repeat(30) })));
+await prueba("gasto fijo con forma de pago y nota permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/fp")), { ...obligacion, formaPago: "Tarjeta", nota: "BBVA" })));
+
 await env.cleanup();
 console.log(`\n${ok} de ${ok + fallas.length} pruebas de reglas correctas`);
 process.exit(fallas.length ? 1 : 0);
