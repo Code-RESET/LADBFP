@@ -1,7 +1,8 @@
 // ============================================================
 // modules/dashboard/index.js
-// Pantalla principal. Fase 1: saldo total, saldo por caja,
-// dónde está el dinero (por cuenta) y últimos movimientos.
+// Pantalla principal: saldo total con su tendencia, flujo del mes
+// (ingresos vs gastos con gráfica), saldo por caja, dónde está el
+// dinero (por cuenta) y últimos movimientos.
 // "Disponible real" (saldo − comprometido) llega en Fase 2,
 // cuando existan obligaciones, deudas y metas: no se muestra
 // un número inventado antes.
@@ -20,6 +21,8 @@ import { filaMovimiento } from "../../components/movimientoItem.js";
 import { abrirDetalleMovimiento } from "../../components/movimientoDetalle.js";
 import { icon } from "../../components/icons.js";
 import { pasoCatalogos, pasoSaldosIniciales } from "./bienvenida.js";
+import { activarTooltips } from "../../components/charts.js";
+import { calcularSerie, tendenciaSaldo, seccionFlujo, tooltipMetricas } from "./metricas.js";
 
 export function render(container, ctx) {
   const uid = ctx.user.uid;
@@ -53,7 +56,15 @@ export function render(container, ctx) {
     else renderHtml(container, vista(s));
   }
 
+  let serie = [];
+
   function vista(s) {
+    serie = calcularSerie(s.agregados, s.categorias);
+    // Ancho útil = ancho del contenido menos el padding interno de cada tarjeta.
+    const cs = getComputedStyle(container);
+    const contenido = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const anchoCard = Math.max(0, contenido - 32);   // .card: 16 px por lado
+    const anchoHero = Math.max(0, contenido - 40);   // .hero: 20 px por lado
     const porCaja = saldosPor(s.agregados, "porCaja");
     const porCuenta = saldosPor(s.agregados, "porCuenta");
     const total = patrimonio(s.agregados);
@@ -70,6 +81,7 @@ export function render(container, ctx) {
           <span>Cajas operativas <strong>${formatMonto(operativo)}</strong></span>
           ${reservado ? html`<span>Capital / ahorro <strong>${formatMonto(reservado)}</strong></span>` : ""}
         </div>
+        ${tendenciaSaldo(serie, anchoHero)}
         <p class="hero__nota">Próximamente: <em>disponible real</em>, descontando pagos comprometidos.</p>
       </section>
 
@@ -78,6 +90,8 @@ export function render(container, ctx) {
         <button type="button" class="accion-rapida" data-accion="nuevo-movimiento" data-tipo="ingreso">${icon("ingreso")}<span>Ingreso</span></button>
         <button type="button" class="accion-rapida" data-accion="nuevo-movimiento" data-tipo="transferencia">${icon("transferencia")}<span>Transferir</span></button>
       </div>
+
+      ${seccionFlujo(serie, anchoCard)}
 
       <div class="dash-grid">
         <section class="seccion">
@@ -125,6 +139,15 @@ export function render(container, ctx) {
     if (m) abrirDetalleMovimiento(m);
   });
 
+  const quitarTooltips = activarTooltips(container, (grafica, i) => tooltipMetricas(serie, grafica, i));
+
+  // Las gráficas se dibujan al ancho real: repintar si cambia el ancho (girar el teléfono, ventana).
+  let anchoPrevio = container.clientWidth;
+  const observador = new ResizeObserver(() => {
+    if (Math.abs(container.clientWidth - anchoPrevio) > 8) { anchoPrevio = container.clientWidth; pintar(); }
+  });
+  observador.observe(container);
+
   const cancelarState = subscribe(pintar);
   pintar();
 
@@ -132,5 +155,7 @@ export function render(container, ctx) {
     cancelarUltimos();
     cancelarState();
     quitarClick();
+    quitarTooltips();
+    observador.disconnect();
   };
 }

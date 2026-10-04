@@ -45,6 +45,26 @@ export function mesSiguiente(mes) {
   return `${a}-${String(m).padStart(2, "0")}`;
 }
 
+/** '2026-01' -> '2025-12' */
+export function mesAnterior(mes) {
+  let [a, m] = mes.split("-").map(Number);
+  m -= 1;
+  if (m === 0) { m = 12; a -= 1; }
+  return `${a}-${String(m).padStart(2, "0")}`;
+}
+
+/** Los últimos n meses terminando en `hasta` (inclusive), del más antiguo al más reciente. */
+export function ultimosMeses(hasta, n) {
+  const out = [hasta];
+  while (out.length < n) out.unshift(mesAnterior(out[0]));
+  return out;
+}
+
+/** '2026-10' -> 'oct' */
+export function mesCorto(mes) {
+  return MESES_CORTOS[Number(mes.slice(5, 7)) - 1];
+}
+
 export function sumarDias(fecha, dias) {
   const [a, m, d] = fecha.split("-").map(Number);
   const dt = new Date(Date.UTC(a, m - 1, d + dias));

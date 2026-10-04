@@ -360,3 +360,61 @@ button.pag-num:hover { background: var(--surface-muted); }
 .acerca__logo { width: 36px; height: 36px; margin-bottom: 8px; }
 .form--linea { margin: 14px 0; }
 .form--linea .acciones { margin-top: 0; }
+
+/* ---------- Gráficas (components/charts.js) ---------- */
+.card--grafica { display: flex; flex-direction: column; gap: 14px; }
+.grafica { position: relative; }
+.viz-svg { display: block; overflow: visible; }
+.viz-rejilla { stroke: var(--viz-rejilla); stroke-width: 1; shape-rendering: crispEdges; }
+.viz-base { stroke: var(--border); stroke-width: 1; shape-rendering: crispEdges; }
+.viz-eje { fill: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-eje--fuerte { fill: var(--text-primary); font-weight: 600; }
+.viz-hit { fill: transparent; }
+.viz-banda { outline: none; cursor: pointer; }
+.viz-banda--activa .viz-hit, .viz-banda:focus-visible .viz-hit { fill: var(--text-primary); fill-opacity: 0.05; }
+.viz-area { fill-opacity: 0.1; }
+.viz-punto { stroke: var(--surface); stroke-width: 2; }
+.viz-cursor { stroke: var(--text-tertiary); stroke-width: 1; opacity: 0; }
+.viz-banda--activa .viz-cursor { opacity: 1; }
+
+.viz-leyenda { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; font-size: 0.8rem; color: var(--text-secondary); }
+.viz-leyenda li { display: flex; align-items: center; gap: 6px; }
+.viz-muestra { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+
+.viz-tooltip {
+  position: absolute; top: -8px; transform: translateY(-100%); z-index: 5;
+  min-width: 150px; padding: 10px 12px; border-radius: 10px;
+  background: var(--surface-elevated); box-shadow: var(--shadow-elevated);
+  border: 0.5px solid var(--border); pointer-events: none;
+  font-size: 0.82rem;
+}
+.viz-tooltip__titulo { margin: 0 0 6px; font-weight: 600; color: var(--text-secondary); text-transform: capitalize; }
+.viz-tooltip__fila { margin: 2px 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.viz-tooltip__fila strong { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.viz-tooltip__fila span:last-child { color: var(--text-secondary); }
+.viz-tooltip__clave { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+
+.grafica-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.grafica-titulo { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+.grafica-vacia { margin: 0; }
+.grafica-tabla summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); }
+.grafica-tabla table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.grafica-tabla th, .grafica-tabla td { padding: 6px 4px; text-align: right; border-bottom: 0.5px solid var(--separator); }
+.grafica-tabla th:first-child, .grafica-tabla td:first-child { text-align: left; text-transform: capitalize; }
+.grafica-tabla th { color: var(--text-secondary); font-weight: 600; }
+
+/* KPIs del mes */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.kpi { min-width: 0; }
+.kpi__etiqueta { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-secondary); }
+.kpi__valor { margin: 2px 0 4px; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi__delta { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 600; line-height: 1.2; }
+.kpi__delta--bueno { color: var(--success); }
+.kpi__delta--malo { color: var(--danger); }
+.kpi__delta--neutro { color: var(--text-tertiary); font-weight: 500; }
+.kpi__nota { margin: -6px 0 0; font-size: 0.75rem; color: var(--text-tertiary); }
+
+/* Tendencia del saldo en la tarjeta principal */
+.hero__tendencia { position: relative; margin-top: 14px; }
+.hero__tendencia-ejes { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-tertiary); text-transform: capitalize; padding: 2px 6px 0; }
+.hero .viz-punto { stroke: var(--surface); }
