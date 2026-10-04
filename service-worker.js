@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.0.1";
+const CACHE_VERSION = "finanzas-reset-v1.0.2";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -25,6 +25,9 @@ const CORE_ASSETS = [
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/icon-maskable-512.png",
+  "./assets/apple-touch-icon.png",
+  "./assets/favicon-16.png",
+  "./assets/favicon-32.png",
   "./js/app.js",
   "./js/firebase-config.js",
   "./js/router.js",

@@ -63,7 +63,7 @@ a { color: var(--accent); }
   background: var(--brand-bg);
   z-index: 100;
 }
-.splash__logo { width: 64px; height: 64px; animation: latido 1.4s ease-in-out infinite; }
+.splash__logo { width: 72px; height: 72px; border-radius: 22%; animation: latido 1.4s ease-in-out infinite; }
 @keyframes latido { 50% { opacity: 0.5; transform: scale(0.94); } }
 
 /* ---------- Login (identidad Code-Reset, igual en ambos temas) ---------- */
