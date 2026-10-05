@@ -14,6 +14,15 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Mi mes (v1.3.0)
+
+Angel: «la app aún es muy complicada». Eligió «igual a mi Excel + mis cajas» y registrar solo «nombre + monto»:
+- **Una sola pantalla, "Mi mes"** (`modules/dashboard`): Te quedan (Ingresos − Gastos del mes) · lista de **Gastos** · lista de **Ingresos** · **Mis cajas**. Selector de mes arriba. Barra inferior: Mi mes · ＋ · Más.
+- Cada gasto/ingreso fijo tiene una **casilla ☐/☑** (`components/marcarPagado.js`): marcarla crea el movimiento vinculado (obligación/deuda/ingreso programado + periodo) con su caja y cuenta; trae «Deshacer». Desmarcarla anula ese pago (queda en el historial). Los registros de una vez aparecen en la misma lista, por día, ya con ✓.
+- **Registro rápido** (`components/registroSimple.js`): ¿Qué es? · ¿Cuánto? · caja (chips, ya elegida) · ☐ «Se repite cada mes el día __». La categoría se elige sola por el nombre (`categoriaSugerida` en `domain/mes.js`, probada), la cuenta es la predeterminada de la caja y la fecha es hoy (o el día 1 si se ve otro mes). Si se repite, se guarda como obligación (gasto) o ingreso programado mensual.
+- Tocar un renglón lo edita con el mismo formulario; «Ya no se repite» pone `regla.hasta` (lo pagado se conserva) o lo elimina si nunca llegó a aparecer. Deudas, quincenales y montos variables abren su formulario completo.
+- Las pantallas Gastos e Ingresos de v1.2 se quitaron (sus rutas viejas llevan a Mi mes). Deudas, proyección, presupuesto y cuentas siguen en **Más → Avanzado (opcional)**; «Mover dinero» está en Mis cajas. No cambia el modelo de datos ni las reglas de Firestore.
+
 ## Modo simple (v1.2.0)
 
 A pedido de Angel («la app es muy complicada»; lo que más confundía eran los números del Inicio) y tomando como base su plantilla de Excel:

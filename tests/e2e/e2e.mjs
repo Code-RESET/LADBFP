@@ -31,6 +31,12 @@ async function paso(nombre, fn) {
 }
 const esperar = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+// Usuario de prueba en el emulador de Auth (si ya existe, no pasa nada).
+await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: EMAIL, password: PASS, returnSecureToken: true }),
+}).catch(() => {});
+
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 
 async function nuevoContexto(viewport) {
@@ -53,14 +59,20 @@ page.on("pageerror", (e) => erroresConsola.push(e.message));
 
 const texto = (sel) => page.locator(sel).first().innerText();
 const montoDeCaja = async (nombre) =>
-  (await page.locator(".fila", { hasText: nombre }).first().locator(".fila__monto").innerText()).trim();
+  (await page.locator(".seccion:has(.total-cajas) .fila", { hasText: nombre }).first().locator(".fila__monto").innerText()).trim();
 async function cerrarHojas() {
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => !document.querySelector(".capa"));
 }
 async function nuevoMovimiento({ tipo = "gasto", monto, caja, cuenta, categoria, cajaDestino, cuentaDestino, nota }) {
   await page.waitForFunction(() => !document.querySelector(".capa"));
-  await page.click(".tabbar__nuevo");
+  // v1.3: ＋ abre el registro rápido; el formulario completo (el de "Mover dinero",
+  // que también tiene Gasto/Ingreso/saldo inicial/ajuste) se abre con su acción global.
+  await page.evaluate(() => {
+    const b = Object.assign(document.createElement("button"), { hidden: true });
+    b.dataset.accion = "nuevo-movimiento"; b.dataset.tipo = "transferencia";
+    document.body.append(b); b.click(); b.remove();
+  });
   const f = page.locator(".form-mov");
   await f.waitFor();
   await page.waitForSelector(".capa--visible");
@@ -153,10 +165,13 @@ await paso("posible duplicado: se pregunta antes de registrar", async () => {
 
 // ---------------- Anular ----------------
 await paso("anular un movimiento con motivo revierte el saldo", async () => {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/movimientos");
   await page.click('.fila-mov:has-text("Casa")');
   await page.click('[data-accion="anular"]');
   await page.fill('textarea[name="motivo"]', "Prueba de anulación");
   await page.click('.capa--dialog button[type="submit"]');
+  await page.waitForFunction(() => !document.querySelector(".capa"));
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
   await page.waitForFunction(() => document.querySelector(".total-cajas")?.textContent === "$10,000.00");
 });
 
@@ -244,11 +259,11 @@ await paso("OFFLINE: registrar sin conexión y sincronizar sin duplicados", asyn
   esperar((await texto("#sync-estado")) === "Sin conexión", await texto("#sync-estado"));
   await nuevoMovimiento({ tipo: "ingreso", monto: "1234.56", caja: "Reset Alarmas", cuenta: "Mercado Pago", categoria: "Instalaciones", nota: "offline" });
   await page.waitForSelector(".toast", { hasText: "se sincronizará" });
-  await page.waitForSelector('.fila-mov:has-text("Instalaciones") .badge--pendiente');
+  await page.waitForSelector('.fila--hoja:has-text("offline")'); // aparece en Ingresos de Mi mes sin conexión
   esperar((await montoDeCaja("Reset Alarmas")) === "$1,234.56", "saldo local offline");
   await page.screenshot({ path: `${SHOTS}/05-offline.png`, fullPage: true });
   await ctx.setOffline(false);
-  await page.waitForFunction(() => !document.querySelector(".badge--pendiente"), null, { timeout: 20000 });
+  await page.waitForSelector("#sync-estado[hidden]", { state: "attached", timeout: 20000 });
   // Verificar en el servidor (otra pestaña, sin caché compartida de esta sesión)
   const n = await page.evaluate(async () => {
     const fs = await import("/js/data/firestore.js");

@@ -75,7 +75,9 @@ export function render(container, ctx) {
       html`<option value="${m}" ${m === filtros.mes ? "selected" : ""}>${nombreMes(m)}</option>`)}`);
   }
 
+  let viva = true; // al salir de la pantalla, una carga que llegue tarde no pinta encima de otra
   function pintar() {
+    if (!viva) return;
     if (error) {
       renderHtml(lista, estadoError(error));
       renderHtml(pag, "");
@@ -183,6 +185,7 @@ export function render(container, ctx) {
   reiniciar();
 
   return () => {
+    viva = false;
     clearTimeout(timer);
     cancelarState();
     quitarPag();

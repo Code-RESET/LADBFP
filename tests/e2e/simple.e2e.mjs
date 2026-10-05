@@ -1,7 +1,8 @@
 // ============================================================
-// tests/e2e/simple.e2e.mjs — Modo simple basado en la plantilla
-// de Excel del usuario (Gastos del Mes · Ingresos · Balance).
-// Dev: emuladores + servidor local; usuario simple@code-reset.mx.
+// tests/e2e/simple.e2e.mjs — "Mi mes" (v1.3): la app en una
+// pantalla como la hoja de Excel del usuario. Gastos e ingresos
+// con casillas ☐/☑, registro "nombre + monto", Mis cajas.
+// Dev: emuladores + servidor local (ver encabezado de e2e.mjs).
 // ============================================================
 import { chromium } from "playwright-core";
 import { readFileSync, mkdirSync } from "node:fs";
@@ -10,6 +11,7 @@ import { join } from "node:path";
 const URL_APP = process.env.E2E_URL || "http://localhost:5178/?emulador&nosw";
 const SDK_DIR = process.env.FIREBASE_SDK_DIR;
 const SHOTS = process.env.E2E_SHOTS || "e2e-shots";
+const EMAIL = "simple@code-reset.mx";
 mkdirSync(SHOTS, { recursive: true });
 
 let ok = 0; const fallas = [];
@@ -23,6 +25,12 @@ const DIA_HOY = Number(hoyMx.slice(8));
 const diaAntes = Math.max(1, DIA_HOY - 1);              // ya vencido (si hoy no es día 1)
 const diaDespues = Math.min(28, DIA_HOY + 3);            // pendiente
 
+// Usuario de prueba en el emulador de Auth (si ya existe, no pasa nada).
+await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: EMAIL, password: "secreto123", returnSecureToken: true }),
+}).catch(() => {});
+
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "America/Mexico_City" });
 if (SDK_DIR) await ctx.route(/www\.gstatic\.com\/firebasejs\/[\d.]+\/(.+\.js)$/, (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(join(SDK_DIR, r.request().url().split("/").pop())) }));
@@ -32,24 +40,29 @@ const errores = [];
 page.on("pageerror", (e) => errores.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errores.push(m.text()); });
 const texto = (sel) => page.locator(sel).first().innerText();
+const etiqueta = async () => (await page.locator(".hero__etiqueta").textContent()).trim();
 async function hojaLista() { await page.waitForSelector(".capa--visible"); await page.waitForTimeout(300); }
 async function sinHojas() { await page.waitForFunction(() => !document.querySelector(".capa")); }
 const ir = (ruta) => page.goto(URL_APP.replace(/#.*/, "") + `#/${ruta}`);
+const filas = (lista) => page.locator(`.hoja [data-abrir^="${lista}:"]`).allInnerTexts();
+const fila = (lista, nombre) => page.locator(".fila--hoja", { has: page.locator(`[data-abrir^="${lista}:"]`, { hasText: nombre }) });
+const esperarTexto = (sel, t) => page.waitForFunction(([s, x]) => document.querySelector(s)?.innerText.includes(x), [sel, t], { timeout: 8000 });
 
-async function gastoFijo({ nombre, monto, dia, categoria, forma }) {
-  await page.click('[data-accion="nuevo-fijo"]');
+/** Registro rápido: nombre + monto (+ caja, + "se repite cada mes el día N"). */
+async function registrar({ boton = ".tabbar__nuevo", tipo, nombre, monto, caja, dia }) {
+  await page.click(boton);
   await hojaLista();
+  if (tipo) await page.click(`.capa .segmentado__opcion:has(input[value="${tipo}"])`);
   await page.fill('.capa input[name="nombre"]', nombre);
   await page.fill('.capa input[name="monto"]', monto);
-  await page.fill('.capa input[name="diaVence"]', String(dia));
-  await page.selectOption('.capa select[name="categoriaId"]', { label: categoria });
-  await page.selectOption('.capa select[name="formaPago"]', forma);
+  if (caja) await page.click(`.capa .chip:has-text("${caja}")`);
+  if (dia) { await page.check('.capa input[name="repite"]'); await page.fill('.capa input[name="dia"]', String(dia)); }
   await page.click('.capa button[type="submit"]');
   await sinHojas();
 }
 
 await page.goto(URL_APP);
-await page.fill("#login-email", "simple@code-reset.mx"); await page.fill("#login-password", "secreto123"); await page.click("#login-btn");
+await page.fill("#login-email", EMAIL); await page.fill("#login-password", "secreto123"); await page.click("#login-btn");
 
 await paso("preparación: cajas y saldo inicial", async () => {
   await page.click('[data-accion="sembrar"]', { timeout: 15000 });
@@ -60,125 +73,157 @@ await paso("preparación: cajas y saldo inicial", async () => {
   await page.waitForSelector(".hero");
 });
 
-await paso("navegación simple: Inicio · Gastos · ＋ · Ingresos · Más", async () => {
+await paso("navegación mínima: Mi mes · ＋ · Más", async () => {
   const t = (await texto(".tabbar")).replace(/\s+/g, " ").trim();
-  esperar(t === "Inicio Gastos Ingresos Más", t);
+  esperar(t === "Mi mes Más", t);
+  esperar(await page.locator(".tabbar > *").nth(1).evaluate((el) => el.classList.contains("tabbar__nuevo")), "＋ no está en medio");
 });
 
-await paso("Inicio = Balance del mes (sin gastos ni ingresos: $0)", async () => {
-  esperar((await texto(".hero__etiqueta")).toLowerCase().startsWith("balance de"), await texto(".hero__etiqueta"));
+await paso("mes vacío: Te quedan $0 y botones para empezar", async () => {
+  esperar((await etiqueta()).startsWith("Te quedan en"), await etiqueta());
   esperar((await texto(".hero__monto")) === "$0.00", await texto(".hero__monto"));
+  await page.waitForSelector(".hoja-vacia[data-nuevo='gasto']");
+  await page.waitForSelector(".hoja-vacia[data-nuevo='ingreso']");
+  const cajas = await texto(".seccion:has(.total-cajas)");
+  esperar(cajas.includes("Personal / IMSS") && cajas.includes("$5,000.00"), cajas);
 });
 
-await paso("Gastos del Mes: agregar 3 gastos fijos como en la plantilla", async () => {
-  await ir("gastos");
-  await page.waitForSelector(".selector-mes");
-  await gastoFijo({ nombre: "Hipoteca casa (Santander)", monto: "1000", dia: diaAntes, categoria: "Vivienda (hipoteca, renta, créditos)", forma: "Domiciliado" });
-  await gastoFijo({ nombre: "Internet casa (Starlink)", monto: "600", dia: diaDespues, categoria: "Servicios", forma: "Transferencia" });
-  await gastoFijo({ nombre: "Tarjeta Crédito (BBVA)", monto: "2300", dia: diaDespues, categoria: "Pago de deudas", forma: "Tarjeta" });
-  await page.waitForFunction(() => document.querySelectorAll(".fila--gasto").length === 3);
-  const filas = await page.locator(".fila--gasto").allInnerTexts();
-  esperar(filas[0].includes("Hipoteca") && filas[0].includes(String(diaAntes)), "ordenado por día de vencimiento");
-  esperar(filas.some((f) => f.includes("Domiciliado")), "forma de pago visible");
-  if (DIA_HOY > 1) esperar(filas[0].includes("Vencido"), `estado vencido: ${filas[0]}`);
-  esperar((await texto(".resumen-mes")).includes("$3,900.00"), await texto(".resumen-mes"));
-});
-
-await paso("Pagar un gasto fijo: queda ✓ Pagado y pasa de Pendiente a Pagado", async () => {
-  await page.locator('.fila--gasto:has-text("Hipoteca") [data-pagar-fijo]').click();
-  await hojaLista();
-  esperar((await page.locator('.capa input[name="monto"]').inputValue()) === "1000.00", "monto prellenado");
-  await page.click('.capa button[type="submit"]');
-  await sinHojas();
-  await page.waitForSelector('.fila--gasto:has-text("Hipoteca") .badge--ok');
-  const r = await texto(".resumen-mes");
-  esperar(r.includes("Total pagado") && r.includes("$1,000.00") && r.includes("$2,900.00"), r);
-  esperar((await texto(".resumen-mes")).includes("1 de 3 gastos fijos pagados"), "progreso");
-});
-
-await paso("Otros gastos del mes: gasto de una vez con forma de pago", async () => {
-  await page.click('[data-accion="nuevo-gasto"]');
-  await hojaLista();
-  await page.fill('.capa input[name="monto"]', "350");
-  await page.selectOption('.capa select[name="categoriaId"]', { label: "Comida" });
-  await page.selectOption('.capa select[name="formaPago"]', "Efectivo");
-  esperar(!(await page.locator('.capa select[name="cuentaId"]').isVisible()), "la cuenta va escondida en Más detalles");
-  await page.click('.capa button[type="submit"]');
-  await sinHojas();
-  await page.waitForFunction(() => [...document.querySelectorAll(".fila-mov")].some((f) => f.innerText.includes("Comida")));
-});
-
-await paso("Ingresos: registrar 2 ingresos (honorarios y nómina)", async () => {
-  await ir("ingresos");
-  for (const [monto, cat] of [["15000", "Honorarios"], ["3000", "Sueldo"]]) {
-    await page.click('[data-accion="nuevo-ingreso"]');
-    await hojaLista();
-    await page.fill('.capa input[name="monto"]', monto);
-    await page.selectOption('.capa select[name="categoriaId"]', { label: cat });
-    await page.selectOption('.capa select[name="formaPago"]', "Depósito");
-    await page.click('.capa button[type="submit"]');
-    await sinHojas();
-  }
-  await page.waitForFunction(() => document.querySelector(".resumen-mes")?.innerText.includes("$18,000.00"));
-  esperar((await page.locator(".fila-mov").count()) === 2, "2 recibidos");
-});
-
-await paso("BALANCE (como la hoja 3): $18,000 − ($1,350 pagado + $2,900 pendiente) = $13,750", async () => {
-  await ir("dashboard");
-  await page.waitForSelector(".hero");
-  esperar((await texto(".hero__monto")) === "$13,750.00", await texto(".hero__monto"));
-  const t = await texto(".tres-cifras");
-  esperar(t.includes("$18,000.00") && t.includes("$1,350.00") && t.includes("$2,900.00"), t);
-  esperar((await page.locator(".fila--gasto").count()) === 2, "falta pagar: 2");
-  await page.screenshot({ path: `${SHOTS}/s-inicio.png`, fullPage: true });
-  await page.click('[data-accion="explicar"]');
-  await hojaLista();
-  esperar((await texto(".explicacion")).includes("Ingresos − todos los gastos del mes"), "explicación");
-  await page.screenshot({ path: `${SHOTS}/s-explicacion.png` });
-  await page.keyboard.press("Escape");
-  await sinHojas();
-});
-
-await paso("Pagar desde Inicio actualiza el balance sin cambiarlo (pendiente → pagado)", async () => {
-  await page.locator('.fila--gasto:has-text("Internet") [data-pagar-fijo]').click();
-  await hojaLista();
-  await page.click('.capa button[type="submit"]');
-  await sinHojas();
-  await page.waitForFunction(() => document.querySelectorAll(".fila--gasto").length === 1);
-  esperar((await texto(".hero__monto")) === "$13,750.00", "el balance no cambia al pagar");
-  esperar((await texto(".tres-cifras")).includes("$1,950.00"), await texto(".tres-cifras"));
-});
-
-await paso("selector de mes: mes anterior vacío y regresar a este mes", async () => {
-  await ir("gastos");
-  await page.waitForSelector(".selector-mes");
-  await page.click('[data-mes-nav="-1"]');
-  await page.waitForSelector('[data-mes-nav="hoy"]');
-  await page.click('[data-mes-nav="hoy"]');
-  await page.waitForFunction(() => !document.querySelector('[data-mes-nav="hoy"]'));
-  await page.screenshot({ path: `${SHOTS}/s-gastos.png`, fullPage: true });
-});
-
-await paso("Más: planeación, registros y ajustes; ¿Cuánto puedo gastar? abre la proyección", async () => {
-  await ir("mas");
-  await page.waitForSelector('#app-content a[href="#/plan"]');
-  const t = await texto("#app-content");
-  esperar(t.includes("¿Cuánto puedo gastar?") && t.includes("Deudas") && t.includes("Cajas"), t);
-  await page.click('#app-content a[href="#/plan"]');
-  await page.waitForSelector(".tabla-plan");
-  await page.screenshot({ path: `${SHOTS}/s-plan.png`, fullPage: true });
-});
-
-await paso("formulario simple en oscuro", async () => {
-  await page.emulateMedia({ colorScheme: "dark" });
-  await ir("dashboard");
-  await page.waitForSelector(".hero");
+await paso("registro = solo nombre + monto (caja ya elegida, sin categoría ni cuenta)", async () => {
   await page.click(".tabbar__nuevo");
   await hojaLista();
-  await page.screenshot({ path: `${SHOTS}/s-form-oscuro.png` });
+  const visibles = await page.locator(".capa input:visible, .capa select:visible").evaluateAll((els) => els.map((e) => e.name));
+  esperar(!visibles.includes("categoriaId") && !visibles.includes("cuentaId") && !visibles.includes("fecha"), visibles.join(","));
+  esperar(await page.locator(".capa .chip input:checked").count() === 1, "sin caja preseleccionada");
+  esperar(!(await page.locator('.capa input[name="dia"]').isVisible()), "el día se ve sin marcar 'se repite'");
+  await page.screenshot({ path: `${SHOTS}/m-registro.png` });
   await page.keyboard.press("Escape");
   await sinHojas();
-  await page.screenshot({ path: `${SHOTS}/s-inicio-oscuro.png`, fullPage: true });
+});
+
+await paso("gastos fijos y de una vez en la misma lista, por día", async () => {
+  await registrar({ nombre: "Hipoteca casa", monto: "1000", caja: "Personal / IMSS", dia: diaAntes });
+  await registrar({ nombre: "Internet casa", monto: "600", dia: diaDespues });
+  await registrar({ nombre: "Gasolina", monto: "500", caja: "Personal / IMSS" });
+  await page.waitForFunction(() => document.querySelectorAll(".hoja [data-abrir^='gastos:']").length === 3);
+  const t = await filas("gastos");
+  esperar(t.some((x) => x.includes("Hipoteca casa") && x.includes("↻") && x.includes("Personal / IMSS")), t.join(" | "));
+  esperar(await fila("gastos", "Gasolina").locator(".casilla--fija").count() === 1, "Gasolina debería verse ✓ (ya se gastó)");
+  esperar(await fila("gastos", "Hipoteca casa").locator('button.casilla[aria-checked="false"]').count() === 1, "Hipoteca debería estar ☐");
+  const dias = await page.locator(".hoja .dia").allInnerTexts();
+  const nums = dias.slice(0, 3).map(Number);
+  esperar(nums.every((n, i) => i === 0 || nums[i - 1] <= n), `no ordenado por día: ${dias}`);
+});
+
+await paso("Te faltan = gastos del mes (pagados y pendientes) sin ingresos", async () => {
+  await esperarTexto(".hero__monto", "$2,100.00");
+  esperar((await etiqueta()).startsWith("Te faltan"), await etiqueta());
+  esperar((await texto(".hero__linea")).includes("Gastos $2,100.00"), await texto(".hero__linea"));
+  esperar((await texto(".hero__frase")).includes("$1,600.00"), await texto(".hero__frase"));
+});
+
+await paso("☐ → ☑ marca pagado: descuenta de la caja y se puede deshacer", async () => {
+  await fila("gastos", "Hipoteca casa").locator("button.casilla").click();
+  await page.waitForSelector('.fila--hoja.fila--hecha button.casilla[aria-checked="true"]');
+  await esperarTexto(".seccion:has(.total-cajas)", "$3,500.00"); // 5000 − 500 gasolina − 1000 hipoteca
+  esperar((await texto(".hero__frase")).includes("$600.00"), await texto(".hero__frase"));
+  await page.click(".toast__accion"); // Deshacer
+  await page.waitForFunction(() => !document.querySelector('button.casilla[aria-checked="true"]'));
+  await esperarTexto(".seccion:has(.total-cajas)", "$4,500.00");
+  await fila("gastos", "Hipoteca casa").locator("button.casilla").click();
+  await page.waitForSelector('button.casilla[aria-checked="true"]');
+});
+
+await paso("☑ → ☐ (desmarcar) pregunta y lo deja pendiente", async () => {
+  await fila("gastos", "Hipoteca casa").locator("button.casilla").click();
+  await hojaLista();
+  await page.click('.capa button[type="submit"]');
+  await page.waitForFunction(() => !document.querySelector('button.casilla[aria-checked="true"]'));
+  await esperarTexto(".seccion:has(.total-cajas)", "$4,500.00");
+  await fila("gastos", "Hipoteca casa").locator("button.casilla").click();
+  await page.waitForSelector('button.casilla[aria-checked="true"]');
+});
+
+await paso("ingreso fijo desde Ingresos → + Nuevo; ☑ recibido; Te quedan", async () => {
+  await registrar({ boton: ".seccion:has([data-nuevo='ingreso']) .seccion__cabecera [data-nuevo='ingreso']", nombre: "Honorarios", monto: "15000", caja: "Personal / IMSS", dia: diaDespues });
+  await page.waitForSelector(".hoja [data-abrir^='ingresos:']");
+  await fila("ingresos", "Honorarios").locator("button.casilla").click();
+  await page.waitForSelector('.hoja [data-marcar^="ingresos:"][aria-checked="true"]');
+  await esperarTexto(".hero__monto", "$12,900.00"); // 15000 − 2100
+  esperar((await etiqueta()).startsWith("Te quedan"), await etiqueta());
+  esperar((await texto(".hero__linea")).includes("Entró $15,000.00"), await texto(".hero__linea"));
+  await page.screenshot({ path: `${SHOTS}/m-mes.png`, fullPage: true });
+});
+
+await paso("tocar un gasto de una vez lo edita (nombre + monto) y se puede borrar", async () => {
+  await fila("gastos", "Gasolina").locator("[data-abrir]").click();
+  await hojaLista();
+  await page.fill('.capa input[name="monto"]', "450");
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await esperarTexto(".hero__linea", "Gastos $2,050.00");
+  await fila("gastos", "Gasolina").locator("[data-abrir]").click();
+  await hojaLista();
+  await page.click('.capa [data-accion="quitar"]');
+  await page.waitForFunction(() => document.querySelectorAll(".capa").length === 2);
+  await page.waitForTimeout(300);
+  await page.locator(".capa").last().locator('button[type="submit"]').click();
+  await sinHojas();
+  await esperarTexto(".hero__linea", "Gastos $1,600.00");
+});
+
+await paso("gasto fijo: editar el monto y 'Ya no se repite'", async () => {
+  await fila("gastos", "Internet casa").locator("[data-abrir]").click();
+  await hojaLista();
+  esperar(await page.locator('.capa input[name="dia"]').inputValue() === String(diaDespues), "día no precargado");
+  await page.fill('.capa input[name="monto"]', "650");
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await esperarTexto(".hero__linea", "Gastos $1,650.00");
+  await fila("gastos", "Internet casa").locator("[data-abrir]").click();
+  await hojaLista();
+  await page.click('.capa [data-accion="quitar"]');
+  await page.waitForFunction(() => document.querySelectorAll(".capa").length === 2);
+  await page.waitForTimeout(300);
+  await page.locator(".capa").last().locator('button[type="submit"]').click();
+  await sinHojas();
+  await page.waitForFunction(() => ![...document.querySelectorAll(".hoja [data-abrir]")].some((b) => b.innerText.includes("Internet")));
+  await esperarTexto(".hero__linea", "Gastos $1,000.00");
+});
+
+await paso("cambiar de mes: el anterior no tiene los fijos nuevos; 'Este mes' regresa", async () => {
+  await page.click('[data-mes-nav="-1"]');
+  await page.waitForSelector(".hoja-vacia[data-nuevo='gasto']");
+  esperar((await page.evaluate(() => location.hash)).includes("mes="), "sin ?mes en la URL");
+  await page.click('[data-mes-nav="hoy"]');
+  await page.waitForSelector(".hoja [data-abrir^='gastos:']");
+});
+
+await paso("Más: lo de todos los días arriba y lo avanzado marcado como opcional", async () => {
+  await page.click('.tabbar a[href="#/mas"]');
+  await page.waitForSelector("#app-content a.fila[href='#/cajas']", { timeout: 8000 }).catch(async (e) => {
+    await page.screenshot({ path: `${SHOTS}/debug-mas.png` });
+    throw new Error(`${e.message.split("\n")[0]} hash=${await page.evaluate(() => location.hash)} capas=${await page.locator(".capa").count()}`);
+  });
+  const t = await texto("#app-content");
+  const tt = (await page.locator("#app-content").textContent()).toLowerCase();
+  esperar(tt.includes("cajas") && tt.includes("avanzado (opcional)") && tt.includes("deudas") && !tt.includes("próximamente"), t);
+  await page.screenshot({ path: `${SHOTS}/m-mas.png`, fullPage: true });
+});
+
+await paso("enlaces viejos (#/gastos) llevan a Mi mes", async () => {
+  await ir("gastos");
+  await page.waitForSelector(".hero");
+  esperar((await page.evaluate(() => location.hash)).startsWith("#/dashboard"), await page.evaluate(() => location.hash));
+});
+
+await paso("modo oscuro y escritorio", async () => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.waitForSelector(".hoja");
+  await page.screenshot({ path: `${SHOTS}/m-mes-oscuro.png`, fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}/m-desktop.png` });
+  await page.emulateMedia({ colorScheme: "light" });
 });
 
 await paso("sin errores de JavaScript", async () => esperar(errores.length === 0, errores.join(" | ")));
