@@ -15,17 +15,18 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
 | 3 | Metas, escenarios, reportes, Excel, CSV, PDF, backup e importación | Pendiente |
 
-## Modo simple (cómo se usa)
+## Cómo se usa (v1.3 «Mi mes»)
 
-Basado en la plantilla de Excel del usuario (Gastos del Mes · Ingresos · Balance):
+Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 
-| Pestaña | Qué muestra |
+| Parte | Qué hace |
 |---|---|
-| **Inicio** | Balance del mes = Ingresos − todos los gastos del mes (pagados y pendientes). Ingresos · Pagado · Pendiente. Lo que falta pagar, con botón **Pagar**. |
-| **Gastos** | Gastos fijos del mes ordenados por día de vencimiento, con forma de pago y estado Pagado / Pendiente / Vencido; otros gastos del mes. Selector de mes. |
-| **＋** | Registrar: ¿Cuánto? · ¿De qué caja? · ¿En qué? · Forma de pago. Cuenta, fecha y nota en «Más detalles». |
-| **Ingresos** | Ingresos recibidos del mes y los que faltan por cobrar de los ingresos fijos. |
-| **Más** | ¿Cuánto puedo gastar? (proyección), Deudas, Presupuesto, Todos los movimientos, Cajas, Cuentas, Configuración. |
+| **Te quedan** | Ingresos del mes − todos los gastos del mes (pagados y pendientes). Debajo: Entró · Gastos y cuánto falta por pagar. |
+| **Gastos** | Fijos (↻) y de una vez, ordenados por día y con su caja. Tocar ☐ = pagado (con «Deshacer»); tocar el renglón = editar. |
+| **Ingresos** | Igual: ☐ = recibido. |
+| **Mis cajas** | Cuánto tiene cada caja hoy; «Mover dinero» entre cajas. |
+| **＋** | Registrar: ¿Qué es? + ¿Cuánto? (la caja ya viene elegida; opcional «Se repite cada mes el día __»). La categoría, la cuenta y la fecha se ponen solas. |
+| **Más** | Cajas, todos los movimientos, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y cuentas de banco. |
 
 ## Estructura
 
@@ -43,7 +44,7 @@ js/
   domain/             LÓGICA FINANCIERA PURA (sin Firebase ni DOM) — probada en tests/
   data/               ÚNICO acceso a Firestore (repositorios, paginador, siembra inicial)
   components/         hoja inferior, confirmación, toast, paginación, formulario de movimiento…
-  modules/            una carpeta por pantalla: dashboard, movimientos, cajas, cuentas, plan, mas, configuracion
+  modules/            una carpeta por pantalla: dashboard (Mi mes), movimientos, cajas, cuentas, plan, mas, configuracion
 tests/
   index.html          pruebas de lógica en el navegador (sin instalar nada)
   run.mjs             las mismas pruebas en Node + chequeo del service worker
@@ -70,11 +71,11 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla) | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 66/66 |
+| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 69/69 |
 | Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 57/57 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
 | Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
-| Punta a punta modo simple (gastos fijos con vencimiento y estado, pagar, ingresos, balance del mes) | `tests/e2e/simple.e2e.mjs` | 13/13 |
+| Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más) | `tests/e2e/simple.e2e.mjs` | 16/16 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
 

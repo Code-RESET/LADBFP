@@ -72,3 +72,44 @@ test("plantilla · ingresos por cobrar (fijos esperados que aún no llegan)", ()
   const ag = registrar({}, { tipo: "ingreso", fecha: "2026-09-15", montoCentavos: 500000, categoriaId: "in-sueldo", recurrenteId: "n", recurrentePeriodo: "2026-09-15" });
   assert.eq(ingresosPorCobrar({ mes: "2026-09", recurrentes: r, agregados: ag }).map((i) => i.fecha), ["2026-09-30"]);
 });
+
+// ---------- v1.3: Mi mes (hoja con casillas, registro nombre + monto) ----------
+import { ingresosFijosDelMes, categoriaSugerida, fechaParaMes } from "../js/domain/mes.js";
+
+test("mes: ingresos fijos del mes incluyen recibidos y pendientes", () => {
+  const r = [{ id: "n", nombre: "Nómina IMSS", tipo: "ingreso", montoCentavos: 300000, categoriaId: "in-sueldo", cajaId: "a", cuentaId: "c",
+    regla: { frecuencia: "mensual", diaMes: 9, desde: "2026-01-01" }, activa: true }];
+  let lista = ingresosFijosDelMes({ mes: "2026-09", recurrentes: r, agregados: {} });
+  assert.eq(lista.map((i) => [i.dia, i.estado, i.pendiente]), [[9, "Pendiente", 300000]]);
+  const ag = registrar({}, { tipo: "ingreso", fecha: "2026-09-09", montoCentavos: 300000, categoriaId: "in-sueldo", recurrenteId: "n", recurrentePeriodo: "2026-09-09" });
+  lista = ingresosFijosDelMes({ mes: "2026-09", recurrentes: r, agregados: ag });
+  assert.eq(lista.map((i) => [i.estado, i.pendiente, i.pagado]), [["Recibido", 0, 300000]]);
+  assert.eq(ingresosPorCobrar({ mes: "2026-09", recurrentes: r, agregados: ag }).length, 0);
+});
+
+test("mes: la categoría se elige sola por el nombre", () => {
+  const cats = [
+    ...["combustible", "vivienda", "servicios", "educacion", "deudas", "comida", "otros"].map((x) => ({ id: `ga-${x}`, tipo: "gasto", nombre: x })),
+    { id: "ga-veterinario", tipo: "gasto", nombre: "Veterinario" },
+    { id: "ga-casa", tipo: "gasto", nombre: "Casa", activa: false },
+    ...["sueldo", "honorarios", "otros"].map((x) => ({ id: `in-${x}`, tipo: "ingreso", nombre: x })),
+  ];
+  assert.eq(categoriaSugerida("Gasolina", "gasto", cats), "ga-combustible");
+  assert.eq(categoriaSugerida("Hipoteca casa", "gasto", cats), "ga-vivienda");
+  assert.eq(categoriaSugerida("Internet casa", "gasto", cats), "ga-servicios");
+  assert.eq(categoriaSugerida("Gas natural", "gasto", cats), "ga-servicios");
+  assert.eq(categoriaSugerida("COLEGIATURA", "gasto", cats), "ga-educacion");
+  assert.eq(categoriaSugerida("Tarjeta BBVA", "gasto", cats), "ga-deudas");
+  assert.eq(categoriaSugerida("Veterinario Firulais", "gasto", cats), "ga-veterinario");
+  assert.eq(categoriaSugerida("Aguacates", "gasto", cats), "ga-otros"); // "agua" solo como palabra completa
+  assert.eq(categoriaSugerida("Muebles", "gasto", cats), "ga-otros"); // Casa está desactivada
+  assert.eq(categoriaSugerida("Nómina IMSS", "ingreso", cats), "in-sueldo");
+  assert.eq(categoriaSugerida("Honorarios Dra.", "ingreso", cats), "in-honorarios");
+  assert.eq(categoriaSugerida("Algo raro", "ingreso", cats), "in-otros");
+  assert.eq(categoriaSugerida("x", "gasto", []), "");
+});
+
+test("mes: fecha de un registro según el mes que se ve", () => {
+  assert.eq(fechaParaMes("2026-09", "2026-09-20"), "2026-09-20");
+  assert.eq(fechaParaMes("2026-08", "2026-09-20"), "2026-08-01");
+});

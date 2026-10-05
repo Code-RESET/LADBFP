@@ -268,15 +268,6 @@ textarea { resize: vertical; }
 .hero__desglose strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .hero__nota { margin: 12px 0 0; font-size: 0.78rem; color: var(--text-tertiary); }
 
-.acciones-rapidas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-.accion-rapida {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 12px 8px; border-radius: var(--radius);
-  background: var(--surface); box-shadow: var(--shadow); border: none;
-  color: var(--accent); font-size: 0.82rem; font-weight: 600;
-}
-.accion-rapida span { color: var(--text-primary); }
-.accion-rapida:active { transform: scale(0.97); }
 
 .dash-grid { display: grid; gap: 0; }
 
@@ -433,7 +424,6 @@ button.pag-num:hover { background: var(--surface-muted); }
 .fila--evento { gap: 10px; }
 .fila__icono--peligro { background: var(--danger-soft); color: var(--danger); }
 .texto-peligro { color: var(--danger) !important; }
-.fila__monto-doble { display: flex; flex-direction: column; align-items: flex-end; }
 
 .lista-alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .alerta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: var(--text-primary); border-left: 4px solid var(--text-tertiary); }
@@ -510,34 +500,18 @@ button.pag-num:hover { background: var(--surface-muted); }
 /* ---------- Modo simple: Balance, Gastos e Ingresos del mes ---------- */
 .hero__frase { margin: 4px 0 0; font-size: 0.92rem; color: var(--text-secondary); line-height: 1.45; }
 .hero__frase strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.hero__ayuda { display: inline-block; margin-top: 10px; padding: 4px 0; font-size: 0.88rem; font-weight: 600; text-decoration: none; }
-.tres-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.tres-cifras a {
-  display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: var(--radius-sm);
-  background: var(--surface-muted); text-decoration: none; color: var(--text-primary); min-width: 0;
-}
-.tres-cifras span { font-size: 0.75rem; color: var(--text-secondary); }
-.tres-cifras strong { font-size: 0.98rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .selector-mes { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .selector-mes__nombre { font-weight: 700; font-size: 1.05rem; text-transform: capitalize; min-width: 150px; text-align: center; }
 .selector-mes .btn-icono { font-size: 1.3rem; background: var(--surface); }
 
-.resumen-mes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.resumen-mes__fila { display: flex; justify-content: space-between; gap: 12px; font-size: 0.95rem; }
-.resumen-mes__fila strong { font-variant-numeric: tabular-nums; }
-.resumen-mes .aviso { margin: 0; display: flex; align-items: center; gap: 6px; }
-.resumen-mes .campo__ayuda { margin: 0; }
 
-.fila--gasto { gap: 10px; }
-.fila--pagada .fila__titulo { color: var(--text-secondary); }
 .dia {
   flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
   background: var(--surface-muted); color: var(--text-secondary); font-weight: 700; font-size: 0.9rem; font-variant-numeric: tabular-nums;
 }
 .dia--vencido { background: var(--danger-soft); color: var(--danger); }
 .fila__texto--boton { background: none; border: none; padding: 0; text-align: left; color: inherit; cursor: pointer; }
-.fila--gasto .badge { margin-top: 2px; }
 
 .mes-grafica { padding: 0; }
 .mes-grafica > summary { cursor: pointer; padding: 14px 16px; font-weight: 600; color: var(--accent); list-style: none; }
@@ -545,7 +519,51 @@ button.pag-num:hover { background: var(--surface-muted); }
 .mes-grafica[open] > summary { padding-bottom: 4px; }
 .mes-grafica > .grafica-cabecera, .mes-grafica > .grafica { padding: 0 16px; }
 .mes-grafica > .grafica { padding-bottom: 12px; }
-.explicacion { display: flex; flex-direction: column; gap: 12px; }
-.explicacion p { margin: 0; }
-.fila--gasto .fila__monto-doble { gap: 4px; }
-.btn--chico-peligro { background: var(--danger-soft); color: var(--danger); }
+
+/* ---------- Mi mes (v1.3): hoja con casillas, como el Excel ---------- */
+.hero__linea { margin: 6px 0 0; font-size: 0.98rem; color: var(--text-secondary); }
+.hero__linea strong { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.hero__linea strong.monto--positivo { color: var(--success); }
+
+.fila--hoja { gap: 10px; }
+.fila--hoja .fila__texto { flex: 1; min-width: 0; }
+.fila--hoja .fila__titulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila--hecha .fila__titulo { color: var(--text-secondary); }
+.casilla {
+  flex: none; width: 28px; height: 28px; border-radius: 8px; padding: 0; cursor: pointer;
+  display: grid; place-items: center; font-size: 1rem; font-weight: 800; line-height: 1;
+  border: 2px solid var(--border); background: var(--surface); color: #fff;
+  /* Área táctil de 44px sin agrandar el dibujo */
+  position: relative;
+}
+.casilla::after { content: ""; position: absolute; inset: -8px; }
+.casilla--on { background: var(--success); border-color: var(--success); }
+.casilla--vencida { border-color: var(--danger); }
+.casilla--fija { cursor: default; opacity: 0.55; }
+.casilla:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fijo { color: var(--text-secondary); font-weight: 400; font-size: 0.85em; }
+.hoja-vacia {
+  width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+  border: 1.5px dashed var(--border); background: transparent; color: var(--text-secondary); font: inherit;
+}
+.hoja-vacia strong { color: var(--accent); }
+
+/* Registro rápido: nombre + monto + caja */
+.registro { display: flex; flex-direction: column; gap: 12px; }
+.registro .solo-gasto, .registro .solo-ingreso { display: none; }
+.registro[data-tipo="gasto"] .solo-gasto, .registro[data-tipo="ingreso"] .solo-ingreso { display: inline; }
+.registro[data-repite="no"] .solo-repite { display: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  background: var(--surface-muted); border: 1.5px solid transparent; font-size: 0.9rem; min-height: 36px;
+}
+.chip input:checked + span { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.repite { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-muted); font-size: 0.95rem; }
+.repite__check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.repite__check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.repite__dia { width: 64px; text-align: center; }
+.registro__extra { display: flex; justify-content: space-between; gap: 12px; }

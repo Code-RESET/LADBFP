@@ -56,19 +56,82 @@ export function gastosFijosDelMes({ mes, obligaciones = [], deudas = [], agregad
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.nombre.localeCompare(b.nombre, "es"));
 }
 
-/** Ingresos fijos esperados en `mes` que aún no se registran ("por cobrar"). */
-export function ingresosPorCobrar({ mes, recurrentes = [], agregados }) {
+/**
+ * Ingresos fijos (nómina, honorarios…) que tocan en `mes`, recibidos o no.
+ * [{ clase:'ingreso', ref, nombre, categoriaId, cajaId, cuentaId, fecha, dia, monto, pagado, pendiente, estado, periodo }]
+ */
+export function ingresosFijosDelMes({ mes, recurrentes = [], agregados }) {
   const { inicio, fin } = rangoMes(mes);
   const out = [];
   for (const r of recurrentes.filter((x) => x.activa !== false && x.tipo === "ingreso")) {
     for (const f of ocurrencias(r.regla, inicio, fin)) {
       const recibido = pagadoVinculo(agregados, claveVinculo("recurrente", r.id, f));
-      if (recibido >= r.montoCentavos) continue;
       out.push({ clase: "ingreso", ref: r, nombre: r.nombre, categoriaId: r.categoriaId, cajaId: r.cajaId, cuentaId: r.cuentaId,
-        fecha: f, monto: r.montoCentavos - recibido, pagado: recibido, estado: "pendiente", periodo: f });
+        fecha: f, dia: Number(f.slice(8)), monto: r.montoCentavos, pagado: recibido, pendiente: Math.max(0, r.montoCentavos - recibido),
+        estado: recibido >= r.montoCentavos ? "Recibido" : "Pendiente", periodo: f });
     }
   }
-  return out.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.nombre.localeCompare(b.nombre, "es"));
+}
+
+/** Ingresos fijos esperados en `mes` que aún no se registran ("por cobrar"); monto = lo que falta. */
+export function ingresosPorCobrar({ mes, recurrentes = [], agregados }) {
+  return ingresosFijosDelMes({ mes, recurrentes, agregados })
+    .filter((i) => i.pendiente > 0)
+    .map((i) => ({ ...i, monto: i.pendiente, estado: "pendiente" }));
+}
+
+/** Fecha con que se registra algo "en" un mes: hoy si es el mes actual; si no, el día 1 de ese mes. */
+export function fechaParaMes(mes, hoyF) {
+  return hoyF.slice(0, 7) === mes ? hoyF : `${mes}-01`;
+}
+
+// Palabras clave → categoría (registro rápido "nombre + monto": la categoría se elige sola).
+const PALABRAS_CATEGORIA = {
+  gasto: [
+    ["vivienda", ["hipoteca", "renta", "infonavit", "fovissste", "cuota de casa", "predial", "mantenimiento"]],
+    ["servicios", ["internet", "luz", "cfe", "agua ", "telefono", "celular", "telcel", "izzi", "totalplay", "netflix", "spotify", "streaming", "gas natural"]],
+    ["combustible", ["gasolina", "gas ", "diesel", "magna", "premium", "combustible"]],
+    ["educacion", ["colegiatura", "escuela", "inscripcion", "curso", "libros", "uniforme"]],
+    ["deudas", ["tarjeta", "prestamo", "credito", "abono", "deuda", "mensualidad"]],
+    ["comida", ["super", "despensa", "comida", "restaurante", "tacos", "cafe", "mercado", "walmart", "soriana", "oxxo"]],
+    ["transporte", ["uber", "didi", "taxi", "camion", "metro", "caseta", "estacionamiento", "transporte"]],
+    ["entretenimiento", ["salida", "cine", "fiesta", "bar ", "antro", "viaje", "vacaciones"]],
+    ["electrodomesticos", ["refri", "lavadora", "estufa", "microondas", "electrodomestico", "television", "pantalla"]],
+    ["negocio", ["material", "equipo", "proveedor", "herramienta", "camara", "alarma", "gps", "sueldo de", "nomina de"]],
+    ["casa", ["casa", "limpieza", "muebles", "ferreteria"]],
+  ],
+  ingreso: [
+    ["prestamo-recibido", ["me prestaron", "prestamo recibido"]],
+    ["sueldo", ["sueldo", "nomina", "quincena", "imss", "aguinaldo"]],
+    ["honorarios", ["honorarios", "asesoria", "consultoria"]],
+    ["cobranza", ["cobranza", "cobro", "abono de"]],
+    ["instalaciones", ["instalacion"]],
+    ["venta-equipo", ["venta", "vendi"]],
+    ["software", ["app ", "software", "aplicacion", "licencia", "code-reset", "code reset"]],
+  ],
+};
+
+const normalizar = (t) => ` ${String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")} `;
+
+/**
+ * Elige la categoría según el nombre ("Gasolina" → Combustible).
+ * Si ninguna palabra coincide: "Otros gastos" / "Otros ingresos".
+ * Solo devuelve categorías activas del tipo pedido.
+ */
+export function categoriaSugerida(nombre, tipo, categorias = []) {
+  const activas = categorias.filter((c) => c.tipo === tipo && c.activa !== false);
+  const existe = (id) => activas.some((c) => c.id === id);
+  const prefijo = tipo === "ingreso" ? "in" : "ga";
+  const texto = normalizar(nombre);
+  for (const [sufijo, palabras] of PALABRAS_CATEGORIA[tipo] || []) {
+    if (palabras.some((p) => texto.includes(p.endsWith(" ") ? ` ${p}` : p)) && existe(`${prefijo}-${sufijo}`)) return `${prefijo}-${sufijo}`;
+  }
+  // Una categoría propia con el mismo nombre ("Veterinario") también cuenta.
+  const propia = activas.find((c) => normalizar(c.nombre).trim() && texto.includes(normalizar(c.nombre).trim()));
+  if (propia && !propia.esFinanciamiento) return propia.id;
+  if (existe(`${prefijo}-otros`)) return `${prefijo}-otros`;
+  return activas.find((c) => !c.esFinanciamiento)?.id || "";
 }
 
 /**

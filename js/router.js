@@ -21,15 +21,13 @@ import { estadoError, skeletonLista } from "./components/states.js";
 // nav    -> movil: 'tab' (barra inferior) | 'mas' (menú Más) | null; desktop: true/false (sidebar)
 // load   -> import dinámico: el código del módulo se descarga solo al abrirlo
 export const MODULES = [
-  { path: "dashboard", label: "Inicio", icon: "inicio", nav: { movil: "tab", desktop: true }, load: () => import("./modules/dashboard/index.js") },
-  { path: "gastos", label: "Gastos", icon: "gasto", nav: { movil: "tab", desktop: true }, load: () => import("./modules/gastos/index.js") },
-  { path: "ingresos", label: "Ingresos", icon: "ingreso", nav: { movil: "tab", desktop: true }, load: () => import("./modules/ingresos/index.js") },
-  { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: false }, load: () => import("./modules/mas/index.js") },
-  { path: "plan", label: "Deudas y proyección", icon: "plan", nav: { movil: "mas", desktop: true }, load: () => import("./modules/plan/index.js") },
+  { path: "dashboard", label: "Mi mes", icon: "inicio", nav: { movil: "tab", desktop: true }, load: () => import("./modules/dashboard/index.js") },
   { path: "movimientos", label: "Todos los movimientos", icon: "movimientos", nav: { movil: "mas", desktop: true }, load: () => import("./modules/movimientos/index.js") },
   { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cajas/index.js") },
-  { path: "cuentas", label: "Cuentas", icon: "cuentas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cuentas/index.js") },
-  { path: "configuracion", label: "Configuración", icon: "config", nav: { movil: "mas", desktop: true }, load: () => import("./modules/configuracion/index.js") },
+  { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: true }, load: () => import("./modules/mas/index.js") },
+  { path: "plan", label: "Deudas y proyección", icon: "plan", nav: { movil: "mas", desktop: false }, load: () => import("./modules/plan/index.js") },
+  { path: "cuentas", label: "Cuentas", icon: "cuentas", nav: { movil: "mas", desktop: false }, load: () => import("./modules/cuentas/index.js") },
+  { path: "configuracion", label: "Configuración", icon: "config", nav: { movil: "mas", desktop: false }, load: () => import("./modules/configuracion/index.js") },
 ];
 
 const RUTA_INICIAL = "dashboard";
@@ -64,9 +62,9 @@ function pintarNav(actual) {
   const tabs = MODULES.filter((m) => m.nav.movil === "tab");
   const masActivo = MODULES.find((m) => m.path === actual)?.nav.movil === "mas";
   render(document.getElementById("tabbar"), html`
-    ${tabs.slice(0, 2).map(tab)}
-    <button type="button" class="tabbar__nuevo" data-accion="nuevo-movimiento" aria-label="Nuevo movimiento">${icon("plus", { size: 28 })}</button>
-    ${tabs.slice(2).map((m) => m.path === "mas" && masActivo
+    ${tabs.slice(0, Math.ceil(tabs.length / 2)).map(tab)}
+    <button type="button" class="tabbar__nuevo" data-accion="nuevo-movimiento" aria-label="Registrar gasto o ingreso">${icon("plus", { size: 28 })}</button>
+    ${tabs.slice(Math.ceil(tabs.length / 2)).map((m) => m.path === "mas" && masActivo
       ? html`<a href="#/mas" class="tabbar__item activo">${icon(m.icon)}<span>${m.label}</span></a>`
       : tab(m))}`);
 

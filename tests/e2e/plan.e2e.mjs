@@ -23,6 +23,14 @@ const esperar = (c, m) => { if (!c) throw new Error(m); };
 const hoyMx = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date());
 const en5 = new Date(`${hoyMx}T12:00:00Z`); en5.setUTCDate(en5.getUTCDate() + 5);
 const DIA = Math.min(en5.getUTCDate(), 28);
+// La cuota de la deuda sale en Mi mes solo si dentro de 5 días sigue siendo este mes.
+const MISMO_MES = en5.toISOString().slice(0, 7) === hoyMx.slice(0, 7);
+
+// Usuario de prueba en el emulador de Auth (si ya existe, no pasa nada).
+await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "fase2@code-reset.mx", password: "secreto123", returnSecureToken: true }),
+}).catch(() => {});
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "America/Mexico_City" });
@@ -47,7 +55,7 @@ await paso("preparación: cajas y saldos iniciales (Reset $20,000 · Sueldo $3,0
   await page.fill('input[name="monto-sueldo-personal"]', "3000");
   await page.click('.form-saldos button[type="submit"]');
   await page.waitForSelector(".hero");
-  esperar((await texto(".hero__etiqueta")).toLowerCase().startsWith("balance de"), "Inicio muestra el balance del mes");
+  esperar((await page.locator(".hero__etiqueta").textContent()).trim().startsWith("Te quedan"), "Mi mes muestra lo que queda del mes");
 });
 
 await paso("DÉFICIT: presupuesto semanal sugerido → 🔴 −$521", async () => {
@@ -62,25 +70,25 @@ await paso("DÉFICIT: presupuesto semanal sugerido → 🔴 −$521", async () =
   esperar(t.includes("Deficitario") && t.includes("-$521.00"), t);
 });
 
-await paso("gasto fijo sugerido: Trabajadora $8,000 (variable $3,200–$8,000)", async () => {
-  await page.goto(URL_APP.replace(/#.*/, "") + "#/gastos");
-  await page.click('[data-sugerencia^="obligacion:0"]');
+/** v1.3: registro rápido de Mi mes (nombre + monto + caja + "se repite cada mes el día N"). */
+async function registrar({ boton = ".tabbar__nuevo", tipo, nombre, monto, caja, dia }) {
+  await page.click(boton);
   await hojaLista();
-  await page.fill('.capa input[name="diaVence"]', String(DIA));
+  if (tipo) await page.click(`.capa .segmentado__opcion:has(input[value="${tipo}"])`);
+  await page.fill('.capa input[name="nombre"]', nombre);
+  await page.fill('.capa input[name="monto"]', monto);
+  if (caja) await page.click(`.capa .chip:has-text("${caja}")`);
+  if (dia) { await page.check('.capa input[name="repite"]'); await page.fill('.capa input[name="dia"]', String(dia)); }
   await page.click('.capa button[type="submit"]');
   await sinHojas();
-  await page.waitForSelector('.fila--gasto:has-text("Trabajadora")');
-  esperar((await texto('.fila--gasto:has-text("Trabajadora")')).includes("$8,000.00"), "monto");
-});
+}
 
-await paso("validación: gasto fijo con monto fuera del rango mín/máx se bloquea", async () => {
-  await page.click('[data-editar-fijo]');
-  await hojaLista();
-  await page.fill('.capa input[name="monto"]', "9000");
-  await page.click('.capa button[type="submit"]');
-  esperar((await texto('.capa [data-error="montoCentavos"]')).includes("entre el mínimo y el máximo"), "sin error");
-  await page.keyboard.press("Escape");
-  await sinHojas();
+await paso("gasto fijo desde Mi mes: Trabajadora $8,000 (Reset Alarmas)", async () => {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
+  await page.waitForSelector(".hero");
+  await registrar({ nombre: "Trabajadora", monto: "8000", caja: "Reset Alarmas", dia: DIA });
+  await page.waitForSelector('.fila--hoja:has-text("Trabajadora")');
+  esperar((await texto('.fila--hoja:has-text("Trabajadora")')).includes("$8,000.00"), "monto");
 });
 
 await paso("DEUDA: Dra. Marcela $30,000 con pagos de $6,000 → 5 pagos", async () => {
@@ -122,7 +130,8 @@ await paso("PUEDES GASTAR (Más → ¿Cuánto puedo gastar?): $14,000 − $8,000
   esperar((await texto(".lista-alertas")).includes("-$521.00"), "aviso de déficit");
   await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
   await page.waitForSelector(".hero");
-  esperar((await page.locator('.fila--gasto:has-text("Trabajadora")').count()) === 1, "Trabajadora en 'Falta pagar'");
+  esperar((await page.locator('.fila--hoja:has-text("Trabajadora") button.casilla[aria-checked="false"]').count()) === 1, "Trabajadora pendiente en Mi mes");
+  if (MISMO_MES) esperar((await page.locator('.fila--hoja:has-text("Dra. Marcela") button.casilla[aria-checked="true"]').count()) >= 1, "pago de la deuda ☑ en Mi mes");
   await page.screenshot({ path: `${SHOTS}/f2-inicio.png`, fullPage: true });
 });
 
@@ -151,21 +160,23 @@ await paso("Resumen: tabla de disponible, proyección 7/30/90 días y 12 meses",
   await page.screenshot({ path: `${SHOTS}/f2-resumen.png`, fullPage: true });
 });
 
-await paso("ingreso esperado sugerido (cobranza quincenal) y registrarlo", async () => {
-  await page.goto(URL_APP.replace(/#.*/, "") + "#/ingresos");
-  await page.click('[data-sugerencia^="recurrente:1"]');
+await paso("ingreso fijo (cobranza) desde Mi mes y marcarlo recibido", async () => {
+  await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
+  await page.waitForSelector(".hero");
+  await registrar({ tipo: "ingreso", nombre: "Cobranza HD Crédit", monto: "5000", caja: "HD Crédit", dia: DIA });
+  await page.locator('.fila--hoja:has-text("Cobranza HD Crédit") button.casilla').click();
+  await page.waitForSelector('.fila--hoja:has-text("Cobranza HD Crédit") button.casilla[aria-checked="true"]');
+  await page.waitForFunction(() => document.querySelector(".hero__linea")?.innerText.includes("$5,000.00"));
+  await page.screenshot({ path: `${SHOTS}/f2-mi-mes.png`, fullPage: true });
+});
+
+await paso("un renglón de deuda en Mi mes abre su formulario completo", async () => {
+  if (!MISMO_MES) return;
+  await page.locator('.fila--hoja:has-text("Dra. Marcela") [data-abrir]').first().click();
   await hojaLista();
-  await page.click('.capa button[type="submit"]');
+  await page.waitForSelector('.capa input[name="saldoInicial"]');
+  await page.keyboard.press("Escape");
   await sinHojas();
-  await page.waitForSelector('.fila--evento:has-text("Cobranza HD Crédit")');
-  const antes = await page.locator('.fila--evento:has-text("Cobranza HD Crédit")').count();
-  await page.locator('.fila--evento:has-text("Cobranza HD Crédit") [data-pagar]').first().click();
-  await hojaLista();
-  await page.click('.capa button[type="submit"]');
-  await sinHojas();
-  await page.waitForFunction((n) => document.querySelectorAll('.fila--evento').length >= 0 &&
-    [...document.querySelectorAll(".fila--evento")].filter((f) => f.innerText.includes("Cobranza HD Crédit")).length === n - 1, antes);
-  await page.screenshot({ path: `${SHOTS}/f2-ingresos.png`, fullPage: true });
 });
 
 await paso("capturas: pestañas en oscuro", async () => {

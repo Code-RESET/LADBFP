@@ -152,7 +152,7 @@ a { color: var(--accent); }
 /* Barra inferior (móvil) */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   background: var(--bg-secondary);

@@ -9,11 +9,12 @@ import { login, logout, recuperarContrasena, alCambiarSesion } from "./core/auth
 import { mensajeDeError } from "./core/errors.js";
 import { subscribe, getState } from "./core/state.js";
 import { iniciarSync, detenerSync } from "./data/sync.js";
-import { initRouter, detenerRouter } from "./router.js";
+import { initRouter, detenerRouter, parseHash } from "./router.js";
 import { CONFIG_PENDIENTE } from "./firebase-config.js";
 import { toast, toastError } from "./components/toast.js";
 import { cerrarTodas } from "./components/modal.js";
 import { abrirFormularioMovimiento } from "./components/movimientoForm.js";
+import { abrirRegistro } from "./components/registroSimple.js";
 import { confirmar } from "./components/confirmation.js";
 import { registrarServiceWorker } from "./services/actualizacion.js";
 
@@ -72,7 +73,14 @@ document.addEventListener("click", async (e) => {
   if (!el) return;
   const accion = el.dataset.accion;
   if (accion === "nuevo-movimiento") {
-    abrirFormularioMovimiento({ tipo: el.dataset.tipo, cajaId: el.dataset.caja });
+    // Gasto/ingreso: registro rápido (nombre + monto). Mover dinero: formulario completo.
+    const tipo = el.dataset.tipo;
+    if (tipo && !["gasto", "ingreso"].includes(tipo)) abrirFormularioMovimiento({ tipo, cajaId: el.dataset.caja });
+    else {
+      const { params } = parseHash();
+      const mes = /^\d{4}-\d{2}$/.test(params.get("mes") || "") ? params.get("mes") : undefined;
+      abrirRegistro({ tipo: tipo || "gasto", cajaId: el.dataset.caja, mes });
+    }
   } else if (accion === "cerrar-sesion") {
     const ok = await confirmar({ titulo: "Cerrar sesión", mensaje: "¿Seguro que quieres salir?", botonConfirmar: "Salir" });
     if (ok) logout();
