@@ -39,7 +39,7 @@
   .sidebar__pie .btn-texto { align-self: flex-start; padding: 4px 0; }
 
   .topbar { padding: 12px 32px 0; }
-  .contenido { padding: 8px 32px 48px; }
+  .contenido { --pad: 32px; padding: 8px var(--pad) 48px; }
   .toasts { bottom: 24px; }
 
   /* Hojas → diálogos centrados */
@@ -68,5 +68,5 @@
 }
 
 @media (min-width: 1440px) {
-  .contenido { padding-left: 48px; padding-right: 48px; }
+  .contenido { --pad: 48px; }
 }

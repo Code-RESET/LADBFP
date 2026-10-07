@@ -15,13 +15,14 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
 | 3 | Metas, escenarios, reportes, CSV, PDF, backup e importación (Excel del mes ya disponible) | Pendiente |
 
-## Cómo se usa (v1.4 «Mi mes»)
+## Cómo se usa (v1.6 «Mi mes» estilo Clima)
 
 Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 
 | Parte | Qué hace |
 |---|---|
-| **Te quedan** | Ingresos del mes − todos los gastos del mes (pagados y pendientes). Debajo: Entró · Gastos y cuánto falta por pagar. |
+| **Te quedan** | Ingresos del mes − todos los gastos del mes (pagados y pendientes), en grande sobre un cielo que cambia de color según cómo vas (azul: bien · atardecer: justo · rojo: mes en rojo). Debajo: ↑ Entró / ↓ Gastos y cuánto falta por pagar. |
+| **Próximos 7 días** | Como el pronóstico del clima: qué vence cada día y cómo queda tu dinero. Abajo, una tarjeta con el consejo más útil (vencidos, errores, si no alcanza, el pago grande que viene). |
 | **Gastos** | Fijos (↻) y de una vez, ordenados por día y con su caja. Tocar ☐ = pagado (con «Deshacer»); tocar el renglón = editar. |
 | **Ingresos** | Igual: ☐ = recibido. |
 | **Mis cajas** | Cuánto tiene cada caja hoy; «Mover dinero» entre cajas. |

@@ -88,6 +88,20 @@ export function etiquetaDia(fecha, referencia = hoy()) {
   return `${dia} ${d} de ${MESES[m - 1]}${anio}`;
 }
 
+/** Columna de la franja de próximos días: 'Hoy', 'Mañana' o 'vie 9'. */
+export function diaCorto(fecha, referencia = hoy()) {
+  if (fecha === referencia) return "Hoy";
+  if (fecha === sumarDias(referencia, 1)) return "Mañana";
+  const [a, m, d] = fecha.split("-").map(Number);
+  return `${DIAS[new Date(Date.UTC(a, m - 1, d)).getUTCDay()].slice(0, 3)} ${d}`;
+}
+
+/** '2026-10-09' -> 'viernes' */
+export function nombreDia(fecha) {
+  const [a, m, d] = fecha.split("-").map(Number);
+  return DIAS[new Date(Date.UTC(a, m - 1, d)).getUTCDay()];
+}
+
 /** '2026-10' -> 'octubre 2026' */
 export function nombreMes(mes) {
   const [a, m] = mes.split("-").map(Number);

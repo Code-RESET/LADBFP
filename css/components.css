@@ -588,3 +588,106 @@ button.pag-num:hover { background: var(--surface-muted); }
 .hallazgo__texto .link { font-size: 0.85rem; font-weight: 600; margin-top: 2px; }
 .registro:not([data-banco="nuevo"]) .solo-banco-nuevo { display: none; }
 .solo-banco-nuevo { margin-top: 8px; }
+
+/* ---------- Mi mes estilo Clima (v1.6): cielo, paisaje, 7 días y consejo ---------- */
+/* Sol o luna según el tema */
+.solo-noche, .paisaje__luna { display: none; }
+:root[data-theme="dark"] .solo-dia, :root[data-theme="dark"] .paisaje__sol { display: none; }
+:root[data-theme="dark"] .solo-noche, :root[data-theme="dark"] .paisaje__luna { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .solo-dia, :root:not([data-theme="light"]) .paisaje__sol { display: none; }
+  :root:not([data-theme="light"]) .solo-noche, :root:not([data-theme="light"]) .paisaje__luna { display: inline; }
+}
+
+.cielo {
+  position: relative; display: flex; flex-direction: column;
+  min-height: 440px; padding: 0 4px; color: #fff;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.22);
+}
+.cielo > :not(.cielo__paisaje) { position: relative; z-index: 1; }
+.cielo .selector-mes { margin: 4px 0 22px; }
+.cielo .selector-mes__nombre { font-size: 1.45rem; font-weight: 700; text-align: left; min-width: 0; }
+.cielo .hero__etiqueta { margin: 0; color: rgba(255, 255, 255, 0.86); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.cielo .hero__monto {
+  margin: 6px 0 12px; color: #fff; font-weight: 300; line-height: 0.95;
+  font-size: clamp(3.1rem, 16.5vw, 5.6rem); letter-spacing: -0.045em; font-variant-numeric: tabular-nums;
+}
+.hero__centavos { font-size: 0.4em; font-weight: 400; letter-spacing: 0; vertical-align: 1.15em; margin-left: 0.04em; }
+.cielo__estado { margin: 0; font-size: 1.85rem; font-weight: 600; letter-spacing: -0.01em; }
+/* A la izquierda, sin tapar la alcancía (va a la derecha, como la persona en el Clima) */
+.cielo__datos { margin-top: auto; padding-bottom: 52px; max-width: calc(100% - 104px); }
+/* Un dato por renglón: ↑ Entró / ↓ Gastos / Falta por pagar / vencido */
+.cielo .hero__linea { display: flex; flex-direction: column; margin: 0; font-size: 1.12rem; font-weight: 700; color: #fff; }
+.cielo .hero__frase { display: flex; flex-direction: column; margin: 4px 0 0; font-size: 1.02rem; font-weight: 600; color: #fff; }
+.cielo__alerta { color: #FFD4D4; }
+.cielo__paisaje {
+  position: absolute; z-index: 0; bottom: 0; height: 230px; pointer-events: none;
+  left: calc(-1 * var(--pad, 16px)); right: calc(-1 * var(--pad, 16px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+}
+.paisaje { display: block; width: 100%; height: 100%; }
+.paisaje__lejos { fill: rgb(var(--silueta) / 0.34); }
+.paisaje__medio { fill: rgb(var(--silueta) / 0.52); }
+.paisaje__agua { fill: rgb(255 255 255 / 0.07); }
+.paisaje__reflejo path { fill: none; stroke: var(--astro); stroke-opacity: 0.5; stroke-width: 2; stroke-linecap: round; }
+.paisaje__cerca { fill: rgb(var(--silueta) / 0.80); }
+.paisaje__alcancia { fill: rgb(var(--silueta) / 0.94); }
+.paisaje__cola { fill: none; stroke: rgb(var(--silueta) / 0.94); stroke-width: 2.4; stroke-linecap: round; }
+.paisaje__ranura { fill: rgb(255 255 255 / 0.35); }
+.paisaje__ojo { fill: rgb(255 255 255 / 0.75); }
+.paisaje__nariz { fill: rgb(255 255 255 / 0.45); }
+.paisaje__astro { fill: var(--astro); }
+.paisaje__crater { fill: rgb(0 0 0 / 0.07); }
+.paisaje__moneda { animation: moneda 3.2s ease-in-out infinite; }
+.paisaje__moneda circle { fill: #F6C445; stroke: #D89B1E; stroke-width: 1.2; }
+.paisaje__moneda path { stroke: #B7791F; stroke-width: 1.4; stroke-linecap: round; }
+@keyframes moneda { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .paisaje__moneda { animation: none; } }
+
+/* Próximos 7 días (como el pronóstico por hora) */
+.pronostico { padding: 14px 0 4px; }
+.pronostico__resumen { margin: 0 16px; padding-bottom: 12px; border-bottom: 1px solid var(--separator); font-size: 0.95rem; font-weight: 600; line-height: 1.4; }
+.pronostico__franja { overflow-x: auto; padding: 10px 6px 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; outline: none; }
+.pronostico__franja::-webkit-scrollbar { display: none; }
+.pronostico__tabla { width: max(100%, calc(var(--n) * var(--col))); }
+.pronostico__fila { display: grid; grid-template-columns: repeat(var(--n), 1fr); justify-items: center; align-items: center; }
+.pronostico__fecha {
+  width: 100%; min-height: 30px; padding: 4px 0; border: none; background: none; cursor: pointer;
+  color: var(--text-secondary); font: inherit; font-size: 0.85rem; text-transform: capitalize;
+}
+.pronostico__icono { height: 42px; display: grid; place-items: center; }
+.pronostico__icono--doble { display: flex; align-items: center; gap: 0; }
+.pronostico__icono--calma { color: #FFD66B; }
+:root[data-theme="dark"] .pronostico__icono--calma { color: #E8EEFF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pronostico__icono--calma { color: #E8EEFF; } }
+.pronostico__sale { color: #FDBA74; }
+.pronostico__entra { color: #86EFAC; }
+.pronostico__saldo { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pronostico__saldo--negativo { color: var(--danger); }
+.pronostico__grafica { position: relative; height: 44px; margin: 4px 0 2px; }
+.pronostico__grafica svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pronostico__grafica polyline { fill: none; stroke: var(--text-tertiary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pronostico__punto { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--text-primary); transform: translate(-50%, -50%); }
+.pronostico__punto--hoy { width: 11px; height: 11px; }
+.pronostico__punto--negativo { background: var(--danger); }
+.pronostico__mov { min-height: 24px; font-size: 0.82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pronostico__mov--sale { color: #FDBA74; }
+.pronostico__mov--entra { color: #86EFAC; }
+.pronostico__mov--nada { color: var(--text-tertiary); font-weight: 400; }
+.pronostico__mas {
+  display: flex; align-items: center; justify-content: flex-end; gap: 2px;
+  padding: 10px 16px; color: var(--text-primary); font-size: 0.92rem; text-decoration: none;
+}
+
+/* Tarjeta de consejo (como "¿Desea añadir el widget?") */
+.consejo { margin-top: 16px; padding: 18px; }
+.consejo__etiqueta { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 0.86rem; color: var(--text-secondary); }
+.consejo__titulo { margin: 0 0 4px; font-size: 1.08rem; font-weight: 700; }
+.consejo__texto { margin: 0 0 16px; font-size: 0.93rem; line-height: 1.45; color: var(--text-secondary); }
+.consejo__acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.btn--pastilla { min-height: 46px; border: none; border-radius: 999px; background: var(--surface-muted); color: var(--text-primary); font-weight: 700; font-size: 0.98rem; }
+
+/* El botón ＋ conserva su verde en Mi mes */
+:root[data-estado] .tabbar__nuevo, :root[data-estado] .sidebar__nuevo { background: #059669; color: #fff; }
+:root[data-estado] #app-content .casilla--on { background: #16A34A; border-color: #16A34A; color: #fff; }

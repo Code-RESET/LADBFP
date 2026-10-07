@@ -121,15 +121,32 @@ await paso("gastos fijos y de una vez en la misma lista, por día", async () => 
 await paso("Te faltan = gastos del mes (pagados y pendientes) sin ingresos", async () => {
   await esperarTexto(".hero__monto", "$2,100.00");
   esperar((await etiqueta()).startsWith("Te faltan"), await etiqueta());
-  esperar((await texto(".hero__linea")).includes("Gastos $2,100.00"), await texto(".hero__linea"));
-  esperar((await texto(".hero__frase")).includes("$1,600.00"), await texto(".hero__frase"));
+  esperar((await texto(".hero__linea")).includes("Gastos $2,100"), await texto(".hero__linea"));
+  esperar((await texto(".hero__frase")).includes("$1,600"), await texto(".hero__frase"));
+});
+
+await paso("estilo Clima: cielo rojo, 7 días y consejo de vencido con «No, gracias»", async () => {
+  const estado = () => page.evaluate(() => document.documentElement.dataset.estado);
+  esperar((await estado()) === "mal", `estado ${await estado()}`);
+  esperar((await texto(".cielo__estado")) === "Mes en rojo", await texto(".cielo__estado"));
+  esperar(await page.locator(".pronostico__fecha").count() === 7, "deberían verse 7 días");
+  esperar((await page.locator(".pronostico__fecha").first().innerText()) === "Hoy", "el primer día es Hoy");
+  await page.locator(".pronostico__fecha").first().click();
+  await page.waitForSelector(".toast", { hasText: "Hoy:" });
+  if (diaAntes < DIA_HOY) { // Hipoteca vence ayer → aviso de vencido
+    await page.waitForSelector('.consejo[data-clave^="vencidos:"]');
+    esperar((await texto(".consejo")).includes("Hipoteca casa está vencido"), await texto(".consejo"));
+    await page.click('.consejo [data-consejo="cerrar"]');
+    await page.waitForFunction(() => !document.querySelector('.consejo[data-clave^="vencidos:"]'));
+  }
+  await page.screenshot({ path: `${SHOTS}/m-clima-rojo.png` });
 });
 
 await paso("☐ → ☑ marca pagado: descuenta de la caja y se puede deshacer", async () => {
   await fila("gastos", "Hipoteca casa").locator("button.casilla").click();
   await page.waitForSelector('.fila--hoja.fila--hecha button.casilla[aria-checked="true"]');
   await esperarTexto(".seccion:has(.total-cajas)", "$3,500.00"); // 5000 − 500 gasolina − 1000 hipoteca
-  esperar((await texto(".hero__frase")).includes("$600.00"), await texto(".hero__frase"));
+  esperar((await texto(".hero__frase")).includes("$600"), await texto(".hero__frase"));
   await page.click(".toast__accion"); // Deshacer
   await page.waitForFunction(() => !document.querySelector('button.casilla[aria-checked="true"]'));
   await esperarTexto(".seccion:has(.total-cajas)", "$4,500.00");
@@ -154,7 +171,8 @@ await paso("ingreso fijo desde Ingresos → + Nuevo; ☑ recibido; Te quedan", a
   await page.waitForSelector('.hoja [data-marcar^="ingresos:"][aria-checked="true"]');
   await esperarTexto(".hero__monto", "$12,900.00"); // 15000 − 2100
   esperar((await etiqueta()).startsWith("Te quedan"), await etiqueta());
-  esperar((await texto(".hero__linea")).includes("Entró $15,000.00"), await texto(".hero__linea"));
+  esperar((await texto(".hero__linea")).includes("Entró $15,000"), await texto(".hero__linea"));
+  esperar((await page.evaluate(() => document.documentElement.dataset.estado)) === "bien", "el cielo debería volver a 'bien'");
   await page.screenshot({ path: `${SHOTS}/m-mes.png`, fullPage: true });
 });
 
@@ -164,7 +182,7 @@ await paso("tocar un gasto de una vez lo edita (nombre + monto) y se puede borra
   await page.fill('.capa input[name="monto"]', "450");
   await page.click('.capa button[type="submit"]');
   await sinHojas();
-  await esperarTexto(".hero__linea", "Gastos $2,050.00");
+  await esperarTexto(".hero__linea", "Gastos $2,050");
   await fila("gastos", "Gasolina").locator("[data-abrir]").click();
   await hojaLista();
   await page.click('.capa [data-accion="quitar"]');
@@ -172,7 +190,7 @@ await paso("tocar un gasto de una vez lo edita (nombre + monto) y se puede borra
   await page.waitForTimeout(300);
   await page.locator(".capa").last().locator('button[type="submit"]').click();
   await sinHojas();
-  await esperarTexto(".hero__linea", "Gastos $1,600.00");
+  await esperarTexto(".hero__linea", "Gastos $1,600");
 });
 
 await paso("gasto fijo: editar el monto y 'Ya no se repite'", async () => {
@@ -182,7 +200,7 @@ await paso("gasto fijo: editar el monto y 'Ya no se repite'", async () => {
   await page.fill('.capa input[name="monto"]', "650");
   await page.click('.capa button[type="submit"]');
   await sinHojas();
-  await esperarTexto(".hero__linea", "Gastos $1,650.00");
+  await esperarTexto(".hero__linea", "Gastos $1,650");
   await fila("gastos", "Internet casa").locator("[data-abrir]").click();
   await hojaLista();
   await page.click('.capa [data-accion="quitar"]');
@@ -191,7 +209,7 @@ await paso("gasto fijo: editar el monto y 'Ya no se repite'", async () => {
   await page.locator(".capa").last().locator('button[type="submit"]').click();
   await sinHojas();
   await page.waitForFunction(() => ![...document.querySelectorAll(".hoja [data-abrir]")].some((b) => b.innerText.includes("Internet")));
-  await esperarTexto(".hero__linea", "Gastos $1,000.00");
+  await esperarTexto(".hero__linea", "Gastos $1,000");
 });
 
 await paso("cambiar de mes: el anterior no tiene los fijos nuevos; 'Este mes' regresa", async () => {
@@ -204,6 +222,7 @@ await paso("cambiar de mes: el anterior no tiene los fijos nuevos; 'Este mes' re
 
 await paso("Más: lo de todos los días arriba y lo avanzado marcado como opcional", async () => {
   await page.click('.tabbar a[href="#/mas"]');
+  await page.waitForFunction(() => !document.documentElement.dataset.estado); // fuera de Mi mes, cielo normal
   await page.waitForSelector("#app-content a.fila[href='#/cajas']", { timeout: 8000 }).catch(async (e) => {
     await page.screenshot({ path: `${SHOTS}/debug-mas.png` });
     throw new Error(`${e.message.split("\n")[0]} hash=${await page.evaluate(() => location.hash)} capas=${await page.locator(".capa").count()}`);

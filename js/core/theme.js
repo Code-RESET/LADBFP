@@ -35,8 +35,12 @@ function aplicar() {
   const root = document.documentElement;
   if (pref === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", pref);
-  // Color de la barra de estado del teléfono = parte de arriba del cielo.
-  const color = getComputedStyle(root).getPropertyValue("--barra-estado").trim();
+  sincronizarBarraEstado();
+}
+
+/** Color de la barra de estado del teléfono = parte de arriba del cielo (cambia con el tema y con el estado de Mi mes). */
+export function sincronizarBarraEstado() {
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--barra-estado").trim();
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     if (color) m.setAttribute("content", color);
   });
