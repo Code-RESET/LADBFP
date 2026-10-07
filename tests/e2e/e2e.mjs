@@ -275,10 +275,10 @@ await paso("OFFLINE: registrar sin conexión y sincronizar sin duplicados", asyn
 });
 
 // ---------------- Verificar saldos ----------------
-await paso("Verificar saldos: todo cuadra con los movimientos", async () => {
+await paso("Revisar mis datos: los saldos cuadran con los movimientos", async () => {
   await page.goto(URL_APP.replace(/#.*/, "") + "#/configuracion");
-  await page.click('[data-accion="verificar"]');
-  await page.waitForSelector(".aviso--ok", { timeout: 20000 });
+  await page.click('#app-content [data-accion="revisar-datos"]');
+  await page.waitForSelector(".capa [data-v] .aviso--ok", { timeout: 20000 });
   await page.keyboard.press("Escape");
 });
 

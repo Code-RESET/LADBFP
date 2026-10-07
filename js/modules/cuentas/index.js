@@ -1,6 +1,8 @@
 // ============================================================
 // modules/cuentas/index.js
 // Cuentas = dónde está físicamente el dinero (BBVA, Nu, Klar…).
+// Crear una = solo su nombre; tipo, institución y caja sugerida
+// quedan en "Más opciones". (También se crean desde Nueva caja.)
 // Una cuenta puede guardar dinero de varias cajas (BBVA como
 // hub): aquí se ve el desglose por caja.
 // ============================================================
@@ -41,12 +43,16 @@ function formulario(c, agregados) {
       <p class="campo__label">Dinero en esta cuenta por caja</p>
       <ul class="sublista">${desglose.map((d) => html`<li><span>${cajaPorId(d.cajaId)?.nombre || "—"}</span><span>${formatMonto(d.saldo)}</span></li>`)}</ul>
     </div>` : ""}
-    ${campo({ label: "Nombre", nombre: "nombre", control: html`<input name="nombre" maxlength="40" value="${c.nombre || ""}" required />` })}
-    ${campo({ label: "Institución", nombre: "institucion", control: html`<input name="institucion" maxlength="40" value="${c.institucion || ""}" placeholder="Banco o app" />` })}
-    ${campo({ label: "Tipo", nombre: "tipo", control: html`<select name="tipo">${Object.entries(TIPOS_CUENTA).map(([k, v]) => html`<option value="${k}" ${k === (c.tipo || "debito") ? "selected" : ""}>${v}</option>`)}</select>`,
-      ayuda: "Tarjeta de crédito: el control de límite y fecha de corte llega en una fase futura." })}
-    ${campo({ label: "Caja predeterminada", nombre: "cajaPredeterminadaId", control: html`<select name="cajaPredeterminadaId">${opciones(cajasActivas(), c.cajaPredeterminadaId, { vacio: "Ninguna" })}</select>`,
-      ayuda: "Una cuenta puede tener dinero de varias cajas; esta solo es la sugerencia." })}
+    ${campo({ label: "Nombre del banco o lugar", nombre: "nombre", control: html`<input name="nombre" maxlength="40" value="${c.nombre || ""}" placeholder="Ej. BanCoppel, Efectivo, Caja de ahorro" required />` })}
+    <details class="mas-detalles">
+      <summary>Más opciones <span class="texto-sec">(tipo, institución)</span></summary>
+      <div class="grupo">
+        ${campo({ label: "Tipo", nombre: "tipo", control: html`<select name="tipo">${Object.entries(TIPOS_CUENTA).map(([k, v]) => html`<option value="${k}" ${k === (c.tipo || "debito") ? "selected" : ""}>${v}</option>`)}</select>` })}
+        ${campo({ label: "Institución", nombre: "institucion", control: html`<input name="institucion" maxlength="40" value="${c.institucion || ""}" placeholder="Igual que el nombre" />` })}
+        ${campo({ label: "Caja sugerida", nombre: "cajaPredeterminadaId", control: html`<select name="cajaPredeterminadaId">${opciones(cajasActivas(), c.cajaPredeterminadaId, { vacio: "Ninguna" })}</select>`,
+          ayuda: "Un banco puede guardar dinero de varias cajas." })}
+      </div>
+    </details>
     <button type="submit" class="btn btn--primario btn--bloque">${c.id ? "Guardar cambios" : "Crear cuenta"}</button>
     ${c.id ? html`<div class="acciones acciones--secundarias">
       <a class="btn btn--secundario" href="#/movimientos?cuenta=${c.id}">Ver movimientos</a>
@@ -57,7 +63,7 @@ function formulario(c, agregados) {
 }
 
 function abrirEditor(uid, cuenta = {}) {
-  const capa = abrirCapa({ titulo: cuenta.id ? cuenta.nombre : "Nueva cuenta", contenido: formulario(cuenta, getState().agregados) });
+  const capa = abrirCapa({ titulo: cuenta.id ? cuenta.nombre : "Nuevo banco", contenido: formulario(cuenta, getState().agregados) });
   const form = capa.cuerpo.querySelector("form");
   const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar la cuenta."));
 
@@ -66,7 +72,7 @@ function abrirEditor(uid, cuenta = {}) {
     const datos = {
       id: cuenta.id,
       nombre: form.nombre.value.trim(),
-      institucion: form.institucion.value.trim(),
+      institucion: form.institucion.value.trim() || form.nombre.value.trim(),
       tipo: form.tipo.value,
       cajaPredeterminadaId: form.cajaPredeterminadaId.value || null,
     };
@@ -121,8 +127,8 @@ export function render(container, ctx) {
     const activas = s.cuentas.filter((c) => c.activa !== false);
     const inactivas = s.cuentas.filter((c) => c.activa === false);
     renderHtml(container, html`
-      <div class="barra-acciones"><button type="button" class="btn btn--primario" data-accion="nueva">+ Nueva cuenta</button></div>
-      ${activas.length === 0 ? estadoVacio({ icono: "cuentas", titulo: "Todavía no tienes cuentas.", texto: "Una cuenta es donde está el dinero: banco, app o efectivo." })
+      <div class="barra-acciones"><button type="button" class="btn btn--primario" data-accion="nueva">+ Nuevo banco</button></div>
+      ${activas.length === 0 ? estadoVacio({ icono: "cuentas", titulo: "Todavía no tienes bancos.", texto: "Es donde está el dinero: un banco, una app o efectivo." })
         : html`<ul class="lista card card--lista">${activas.map((c) => fila(c, saldos[c.id] || 0, s.agregados))}</ul>`}
       ${inactivas.length ? html`<h2 class="seccion__titulo">Desactivadas</h2>
         <ul class="lista card card--lista atenuada">${inactivas.map((c) => fila(c, saldos[c.id] || 0, s.agregados))}</ul>` : ""}`);

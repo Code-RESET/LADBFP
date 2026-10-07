@@ -7,6 +7,7 @@
 import { initTheme } from "./core/theme.js";
 import { login, logout, recuperarContrasena, alCambiarSesion } from "./core/auth.js";
 import { mensajeDeError } from "./core/errors.js";
+import { hoy } from "./core/dates.js";
 import { subscribe, getState } from "./core/state.js";
 import { iniciarSync, detenerSync } from "./data/sync.js";
 import { initRouter, detenerRouter, parseHash } from "./router.js";
@@ -16,7 +17,7 @@ import { cerrarTodas } from "./components/modal.js";
 import { abrirFormularioMovimiento } from "./components/movimientoForm.js";
 import { abrirRegistro } from "./components/registroSimple.js";
 import { confirmar } from "./components/confirmation.js";
-import { registrarServiceWorker } from "./services/actualizacion.js";
+import { registrarServiceWorker, buscarActualizacion, MENSAJE_ACTUALIZACION } from "./services/actualizacion.js";
 
 initTheme();
 
@@ -81,6 +82,38 @@ document.addEventListener("click", async (e) => {
       const mes = /^\d{4}-\d{2}$/.test(params.get("mes") || "") ? params.get("mes") : undefined;
       abrirRegistro({ tipo: tipo || "gasto", cajaId: el.dataset.caja, mes });
     }
+  } else if (accion === "descargar-excel") {
+    if (el.disabled) return;
+    el.disabled = true;
+    const cerrarAviso = toast("Preparando tu Excel…", { duracion: 0 });
+    try {
+      const { descargarExcel } = await import("./services/exportExcel.js");
+      const mes = /^\d{4}-\d{2}$/.test(el.dataset.mes || "") ? el.dataset.mes : hoy().slice(0, 7);
+      const r = await descargarExcel(mes);
+      cerrarAviso();
+      if (r === "descargado") toast("✓ Excel descargado");
+    } catch (err) {
+      cerrarAviso();
+      toastError(mensajeDeError(err, "No se pudo crear el Excel."));
+    } finally {
+      el.disabled = false;
+    }
+  } else if (accion === "actualizar-app") {
+    if (el.disabled) return;
+    el.disabled = true;
+    try {
+      const r = await buscarActualizacion();
+      if (r === "actualizando") toast("Descargando la versión nueva… la app se reiniciará", { duracion: 0 });
+      else if (r === "al-dia") toast(MENSAJE_ACTUALIZACION[r]);
+      else toastError(MENSAJE_ACTUALIZACION[r]);
+    } catch (err) {
+      toastError(mensajeDeError(err, "No se pudo buscar la actualización."));
+    } finally {
+      el.disabled = false;
+    }
+  } else if (accion === "revisar-datos") {
+    const { revisarDatos } = await import("./modules/configuracion/verificar.js");
+    revisarDatos(getState().user.uid).catch((err) => toastError(mensajeDeError(err)));
   } else if (accion === "cerrar-sesion") {
     const ok = await confirmar({ titulo: "Cerrar sesión", mensaje: "¿Seguro que quieres salir?", botonConfirmar: "Salir" });
     if (ok) logout();
@@ -122,9 +155,12 @@ alCambiarSesion((user) => {
 
 // ---------- Service worker y actualizaciones ----------
 // En desarrollo se puede desactivar con ?nosw en la URL.
+// Cuando llega una versión nueva aparece el botón "Actualizar" arriba (se queda hasta tocarlo).
 registrarServiceWorker({
-  onNuevaVersion: (recargar) => toast("Hay una versión nueva de la app", {
-    duracion: 0,
-    accion: { label: "Actualizar", onClick: recargar },
-  }),
+  onNuevaVersion: (recargar) => {
+    const btn = $("btn-actualizar");
+    btn.hidden = false;
+    btn.onclick = recargar;
+    toast("Hay una versión nueva de la app", { duracion: 6000, accion: { label: "Actualizar", onClick: recargar } });
+  },
 });

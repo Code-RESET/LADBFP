@@ -7,6 +7,7 @@
 import { chromium } from "playwright-core";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 
 const URL_APP = process.env.E2E_URL || "http://localhost:5178/?emulador&nosw";
 const SDK_DIR = process.env.FIREBASE_SDK_DIR;
@@ -35,6 +36,9 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "America/Mexico_City" });
 if (SDK_DIR) await ctx.route(/www\.gstatic\.com\/firebasejs\/[\d.]+\/(.+\.js)$/, (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(join(SDK_DIR, r.request().url().split("/").pop())) }));
 await ctx.route(/fonts\./, (r) => r.fulfill({ contentType: "text/css", body: "" }));
+// ExcelJS: en el teléfono viene de jsDelivr; aquí desde node_modules (EXCELJS_FILE).
+const EXCELJS_FILE = process.env.EXCELJS_FILE;
+if (EXCELJS_FILE) await ctx.route(/cdn\.jsdelivr\.net\/npm\/exceljs@/, (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(EXCELJS_FILE) }));
 const page = await ctx.newPage();
 const errores = [];
 page.on("pageerror", (e) => errores.push(e.message));
@@ -208,6 +212,65 @@ await paso("Más: lo de todos los días arriba y lo avanzado marcado como opcion
   const tt = (await page.locator("#app-content").textContent()).toLowerCase();
   esperar(tt.includes("cajas") && tt.includes("avanzado (opcional)") && tt.includes("deudas") && !tt.includes("próximamente"), t);
   await page.screenshot({ path: `${SHOTS}/m-mas.png`, fullPage: true });
+});
+
+await paso("Revisar mis datos (desde Más): saldos cuadran y avisa cajas sin usar", async () => {
+  await page.click('.tabbar a[href="#/mas"]');
+  await page.click('#app-content [data-accion="revisar-datos"]');
+  await hojaLista();
+  await page.waitForFunction(() => document.querySelector(".capa [data-v]")?.innerText.includes("cuadran"), null, { timeout: 15000 });
+  const t = await texto(".capa .revision");
+  esperar(/no se han? usado/.test(t) && !t.includes("saldo negativo"), t);
+  await page.screenshot({ path: `${SHOTS}/m-revisar.png` });
+  await page.keyboard.press("Escape");
+  await sinHojas();
+});
+
+await paso("crear caja = nombre + banco nuevo + cuánto tiene hoy", async () => {
+  await ir("cajas");
+  await page.click('[data-accion="nueva"]');
+  await hojaLista();
+  esperar(!(await page.locator('.capa select').count()), "el formulario de caja no debería tener listas desplegables");
+  await page.fill('.capa input[name="nombre"]', "Ahorro casa");
+  await page.click('.capa .chip:has-text("＋ Otro")');
+  await page.fill('.capa input[name="nuevoBanco"]', "BanCoppel");
+  await page.fill('.capa input[name="saldo"]', "2000");
+  await page.screenshot({ path: `${SHOTS}/m-nueva-caja.png` });
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await page.waitForFunction(() => [...document.querySelectorAll("#app-content .fila")].some((f) => f.innerText.includes("Ahorro casa") && f.innerText.includes("BanCoppel") && f.innerText.includes("$2,000.00")));
+  await ir("cuentas");
+  await page.waitForSelector('#app-content .fila:has-text("BanCoppel")');
+  await ir("dashboard");
+  await page.waitForFunction(() => document.querySelector(".seccion:has(.total-cajas)")?.innerText.includes("Ahorro casa"));
+});
+
+await paso("Descargar Excel: archivo con Balance, Gastos, Ingresos, Cajas, Movimientos y números que cuadran", async () => {
+  await page.waitForSelector('[data-accion="descargar-excel"]');
+  const [descarga] = await Promise.all([page.waitForEvent("download", { timeout: 30000 }), page.click('#app-content [data-accion="descargar-excel"]')]);
+  const ruta = join(SHOTS, descarga.suggestedFilename());
+  await descarga.saveAs(ruta);
+  esperar(/^Finanzas_Reset_\d{4}-\d{2}\.xlsx$/.test(descarga.suggestedFilename()), descarga.suggestedFilename());
+  const ExcelJS = createRequire(EXCELJS_FILE)("exceljs");
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(ruta);
+  const hojas = wb.worksheets.map((w) => w.name);
+  esperar(["Balance", "Gastos", "Ingresos", "Cajas", "Movimientos", "12 meses"].every((h) => hojas.includes(h)), hojas.join(","));
+  const valor = (texto) => { let v; wb.getWorksheet("Balance").eachRow((r) => { if (String(r.getCell(1).value).startsWith(texto)) v = r.getCell(2).value; }); return typeof v === "object" ? v?.result : v; };
+  // Ingresos 15,000 · gastos: Hipoteca 1,000 (Internet ya no se repite, Gasolina borrada)
+  esperar(valor("Ingresos del mes") === 15000 && valor("Total de gastos") === 1000 && valor("Te quedan") === 14000, `balance ${valor("Ingresos del mes")} ${valor("Total de gastos")} ${valor("Te quedan")}`);
+  // Dinero real: 5,000 inicial + 2,000 BanCoppel (saldos iniciales este mes) + 15,000 − 1,000 = 21,000
+  esperar(valor("= Dinero al cerrar") === 21000, `cierre ${valor("= Dinero al cerrar")}`);
+  esperar(valor("Dinero al empezar") + valor("+ Entró") - valor("− Salió") + valor("± Saldos") === valor("= Dinero al cerrar"), "no cuadra");
+  const gastos = wb.getWorksheet("Gastos").getColumn(2).values.filter(Boolean);
+  esperar(gastos.includes("Hipoteca casa"), gastos.join(","));
+});
+
+await paso("Actualizar la app: está en Más y responde (botón de arriba oculto si no hay versión nueva)", async () => {
+  esperar(await page.locator("#btn-actualizar").isHidden(), "el botón Actualizar no debería verse sin versión nueva");
+  await page.click('.tabbar a[href="#/mas"]');
+  await page.click('#app-content [data-accion="actualizar-app"]');
+  await page.waitForSelector(".toast", { hasText: /versión|actualizaci/i });
 });
 
 await paso("enlaces viejos (#/gastos) llevan a Mi mes", async () => {

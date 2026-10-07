@@ -14,18 +14,12 @@ import { perfilRepo } from "../../data/perfilRepo.js";
 import { icon } from "../../components/icons.js";
 import { segmentado, guardarLocal, leerLocal } from "../../components/fields.js";
 import { abrirCategorias } from "./categorias.js";
-import { verificarSaldos } from "./verificar.js";
-import { versionInstalada, buscarActualizacion, reinstalarArchivos } from "../../services/actualizacion.js";
+import { versionInstalada, buscarActualizacion, reinstalarArchivos, MENSAJE_ACTUALIZACION } from "../../services/actualizacion.js";
 import { toast, toastError } from "../../components/toast.js";
 import { confirmar } from "../../components/confirmation.js";
 
 export const FASE_APP = "Fase 2 · modo simple";
 
-const MENSAJE_ACTUALIZACION = {
-  "al-dia": "✓ Ya tienes la versión más reciente",
-  "sin-conexion": "Conéctate a internet para buscar actualizaciones",
-  "no-disponible": "Actualización automática no disponible en este navegador. Recarga la página.",
-};
 
 export function render(container, ctx) {
   const uid = ctx.user.uid;
@@ -66,9 +60,9 @@ export function render(container, ctx) {
       <section class="seccion">
         <h2 class="seccion__titulo">Mantenimiento</h2>
         <ul class="lista card card--lista">
-          <li><button type="button" class="fila" data-accion="verificar">
+          <li><button type="button" class="fila" data-accion="revisar-datos">
             <span class="fila__icono">${icon("escudo", { size: 18 })}</span>
-            <span class="fila__texto"><span class="fila__titulo">Verificar saldos</span><span class="fila__sub">Recalcula todos los saldos desde los movimientos</span></span>
+            <span class="fila__texto"><span class="fila__titulo">Revisar mis datos</span><span class="fila__sub">Busca errores y recalcula los saldos desde los movimientos</span></span>
             ${icon("chevron", { size: 16, clase: "fila__chevron" })}
           </button></li>
         </ul>
@@ -118,10 +112,9 @@ export function render(container, ctx) {
       perfilRepo.guardarConfig(uid, { pageSize: n });
     }
   });
-  const quitarClick = on(container, "click", "[data-accion='categorias'], [data-accion='verificar'], [data-accion='actualizar'], [data-accion='reinstalar']", async (e, el) => {
+  const quitarClick = on(container, "click", "[data-accion='categorias'], [data-accion='actualizar'], [data-accion='reinstalar']", async (e, el) => {
     const accion = el.dataset.accion;
     if (accion === "categorias") abrirCategorias(uid);
-    else if (accion === "verificar") verificarSaldos(uid).catch((err) => console.error(mensajeDeError(err)));
     else if (accion === "actualizar") {
       el.disabled = true;
       try {

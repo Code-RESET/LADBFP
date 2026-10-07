@@ -161,10 +161,12 @@ export function render(container, ctx) {
           <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
           ${icon("chevron", { size: 16, clase: "fila__chevron" })}
         </a></li>`)}</ul>
-        <p class="campo__ayuda">Lo que tiene cada caja hoy. Toca una para ver sus movimientos.</p>
+        <p class="campo__ayuda">Lo que tiene cada caja hoy. Toca una para ver sus movimientos · <a href="#/cajas">Agregar o editar cajas</a></p>
       </section>
 
-      ${graficaMeses(serie, anchoCard, { abierta: graficaAbierta })}`;
+      ${graficaMeses(serie, anchoCard, { abierta: graficaAbierta })}
+
+      <button type="button" class="btn btn--secundario btn--bloque" data-accion="descargar-excel" data-mes="${mes}">⬇ Descargar Excel de ${soloMes}</button>`;
   }
 
   function cambiarMes(nuevo) {

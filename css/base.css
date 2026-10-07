@@ -177,3 +177,13 @@ a { color: var(--accent); }
   transition: transform 0.15s var(--ease);
 }
 .tabbar__nuevo:active { transform: scale(0.92); }
+
+/* Botón que aparece arriba solo cuando hay una versión nueva de la app */
+.btn-actualizar {
+  margin-left: auto; padding: 6px 12px; border: none; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); font-size: 0.8rem; font-weight: 700;
+  box-shadow: var(--shadow); animation: latido 2s var(--ease) infinite;
+}
+.btn-actualizar[hidden] { display: none; }
+@keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .btn-actualizar { animation: none; } }
