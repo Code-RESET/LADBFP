@@ -14,13 +14,14 @@
   .tabbar { display: none; }
 
   /* El fondo de la columna lateral llega hasta abajo aunque la página sea larga. */
-  .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr;
-    background: linear-gradient(to right, var(--bg-secondary) var(--sidebar-w), var(--bg-primary) var(--sidebar-w)); }
+  .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; }
   .sidebar {
     display: flex; flex-direction: column; gap: 16px;
     position: sticky; top: 0; height: 100dvh;
     padding: calc(20px + var(--safe-top)) 14px 20px;
-    background: var(--bg-secondary);
+    background: var(--vidrio-barra);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
     border-right: 0.5px solid var(--separator);
   }
   .sidebar__marca { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-weight: 700; font-size: 1.05rem; }
@@ -38,7 +39,7 @@
   .sidebar__pie .btn-texto { align-self: flex-start; padding: 4px 0; }
 
   .topbar { padding: 12px 32px 0; }
-  .contenido { padding: 8px 32px 48px; }
+  .contenido { --pad: 32px; padding: 8px var(--pad) 48px; }
   .toasts { bottom: 24px; }
 
   /* Hojas → diálogos centrados */
@@ -67,5 +68,5 @@
 }
 
 @media (min-width: 1440px) {
-  .contenido { padding-left: 48px; padding-right: 48px; }
+  .contenido { --pad: 48px; }
 }

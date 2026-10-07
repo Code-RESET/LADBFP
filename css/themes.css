@@ -15,8 +15,8 @@
   --surface-elevated: #FFFFFF;
   --surface-muted: #F2F2F7;
   --text-primary: #111114;
-  --text-secondary: #6B6B73;
-  --text-tertiary: #9A9AA2;
+  --text-secondary: #555D6E;
+  --text-tertiary: #7D8596;
   --border: #E3E3E8;
   --separator: rgba(60, 60, 67, 0.14);
   --success: #1E8E3E;
@@ -38,21 +38,28 @@
   --serie-1: #2a78d6;   /* Ingresos (azul) */
   --serie-2: #eb6834;   /* Gastos (naranja) */
   --viz-rejilla: #EBEBF0;
+  /* Fondo de cielo (estilo Clima de Samsung) y tarjetas de vidrio */
+  --fondo-app: linear-gradient(180deg, #5FA3EC 0%, #9CC8F4 26%, #D3E7FA 58%, #EDF4FB 100%);
+  --fondo-base: #EDF4FB;
+  --barra-estado: #5FA3EC;
+  --vidrio: rgba(255, 255, 255, 0.62);
+  --vidrio-borde: rgba(255, 255, 255, 0.75);
+  --vidrio-barra: rgba(237, 244, 251, 0.55);
 }
 
 /* Oscuro manual */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-primary: #0B0B0D;
-  --bg-secondary: #151518;
-  --surface: #1C1C1F;
-  --surface-elevated: #26262A;
-  --surface-muted: #151518;
+  --bg-primary: #050B24;
+  --bg-secondary: #0B1640;
+  --surface: #13204F;
+  --surface-elevated: #1C2C62;
+  --surface-muted: rgba(255, 255, 255, 0.09);
   --text-primary: #F2F2F5;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
-  --border: #2E2E33;
-  --separator: rgba(255, 255, 255, 0.08);
+  --text-secondary: #C3CDEA;
+  --text-tertiary: #8F9CC4;
+  --border: rgba(255, 255, 255, 0.16);
+  --separator: rgba(255, 255, 255, 0.10);
   --success: #34C759;
   --success-soft: rgba(52, 199, 89, 0.16);
   --warning: #FFB340;
@@ -66,27 +73,44 @@
   --shadow: none;
   --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
   --overlay: rgba(0, 0, 0, 0.55);
-  --skeleton: #26262A;
-  --skeleton-shine: #303035;
+  --skeleton: rgba(255, 255, 255, 0.10);
+  --skeleton-shine: rgba(255, 255, 255, 0.16);
   --serie-1: #3987e5;
   --serie-2: #d95926;
-  --viz-rejilla: #2A2A2E;
+  --viz-rejilla: rgba(255, 255, 255, 0.12);
+  --fondo-app:
+    radial-gradient(1.5px 1.5px at 12% 8%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 28% 15%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 47% 5%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 63% 18%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 22%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 8% 27%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 55% 30%, rgba(255,255,255,0.45), transparent 60%),
+    radial-gradient(1px 1px at 36% 36%, rgba(255,255,255,0.4), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+  --fondo-base: #081B4D;
+  --barra-estado: #040A22;
+  --vidrio: rgba(255, 255, 255, 0.09);
+  --vidrio-borde: rgba(255, 255, 255, 0.14);
+  --vidrio-barra: rgba(5, 11, 36, 0.55);
 }
 
 /* Oscuro automático (sistema), salvo que se haya elegido claro */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg-primary: #0B0B0D;
-    --bg-secondary: #151518;
-    --surface: #1C1C1F;
-    --surface-elevated: #26262A;
-    --surface-muted: #151518;
+    --bg-primary: #050B24;
+    --bg-secondary: #0B1640;
+    --surface: #13204F;
+    --surface-elevated: #1C2C62;
+    --surface-muted: rgba(255, 255, 255, 0.09);
     --text-primary: #F2F2F5;
-    --text-secondary: #A1A1AA;
-    --text-tertiary: #71717A;
-    --border: #2E2E33;
-    --separator: rgba(255, 255, 255, 0.08);
+    --text-secondary: #C3CDEA;
+    --text-tertiary: #8F9CC4;
+    --border: rgba(255, 255, 255, 0.16);
+    --separator: rgba(255, 255, 255, 0.10);
     --success: #34C759;
     --success-soft: rgba(52, 199, 89, 0.16);
     --warning: #FFB340;
@@ -100,11 +124,28 @@
     --shadow: none;
     --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
     --overlay: rgba(0, 0, 0, 0.55);
-    --skeleton: #26262A;
-    --skeleton-shine: #303035;
+    --skeleton: rgba(255, 255, 255, 0.10);
+    --skeleton-shine: rgba(255, 255, 255, 0.16);
     --serie-1: #3987e5;
     --serie-2: #d95926;
-    --viz-rejilla: #2A2A2E;
+    --viz-rejilla: rgba(255, 255, 255, 0.12);
+  --fondo-app:
+    radial-gradient(1.5px 1.5px at 12% 8%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 28% 15%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 47% 5%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 63% 18%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 22%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 8% 27%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 55% 30%, rgba(255,255,255,0.45), transparent 60%),
+    radial-gradient(1px 1px at 36% 36%, rgba(255,255,255,0.4), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+  --fondo-base: #081B4D;
+  --barra-estado: #040A22;
+  --vidrio: rgba(255, 255, 255, 0.09);
+  --vidrio-borde: rgba(255, 255, 255, 0.14);
+  --vidrio-barra: rgba(5, 11, 36, 0.55);
   }
 }
 
@@ -129,4 +170,106 @@
   --brand-accent: #34D399;    /* esmeralda (login) */
   --brand-border: #1f1f1f;
   --brand-text-dim: #9a9a9a;
+}
+
+/* ============================================================
+   Cielo de "Mi mes" según cómo vas en el mes (estilo Clima de
+   Samsung). Mi mes pone data-estado="bien|justo|mal" en <html>;
+   las demás pantallas usan el cielo normal de arriba.
+   Todos los tonos dejan el texto blanco con contraste ≥ 4.5:1.
+   ============================================================ */
+:root {
+  --estrellas:
+    radial-gradient(1.5px 1.5px at 12% 8%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 28% 15%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 47% 5%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 63% 18%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 22%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 8% 27%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 55% 30%, rgba(255,255,255,0.45), transparent 60%),
+    radial-gradient(1px 1px at 36% 36%, rgba(255,255,255,0.4), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgba(255,255,255,0.4), transparent 60%);
+
+  /* De día */
+  --cielo-bien: linear-gradient(180deg, #0F4FAE 0%, #1A62C4 30%, #2A75D0 62%, #2470CA 100%);
+  --cielo-bien-base: #2470CA;
+  --cielo-bien-barra: #0F4FAE;
+  --cielo-justo: linear-gradient(180deg, #7C2D12 0%, #9A3412 28%, #B4461A 62%, #C2551F 100%);
+  --cielo-justo-base: #C2551F;
+  --cielo-justo-barra: #7C2D12;
+  --cielo-mal: linear-gradient(180deg, #5F1414 0%, #7F1D1D 28%, #991B1B 62%, #A61E1E 100%);
+  --cielo-mal-base: #A61E1E;
+  --cielo-mal-barra: #5F1414;
+  /* Paisaje: siluetas = sombra del color del cielo; sol de día */
+  --silueta: 6 24 62;
+  --astro: #FFE7A3;
+  --astro-halo: #FFF3C4;
+}
+
+/* De noche */
+:root[data-theme="dark"] {
+  --cielo-bien: var(--estrellas), linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+  --cielo-bien-base: #081B4D;
+  --cielo-bien-barra: #040A22;
+  --cielo-justo: var(--estrellas), linear-gradient(180deg, #1A0B2E 0%, #3B1748 28%, #7A2E3A 56%, #4A1A2E 80%, #1F0D1C 100%);
+  --cielo-justo-base: #1F0D1C;
+  --cielo-justo-barra: #1A0B2E;
+  --cielo-mal: var(--estrellas), linear-gradient(180deg, #12040A 0%, #3A0D17 28%, #7A1C2A 56%, #3C0E18 82%, #14050A 100%);
+  --cielo-mal-base: #14050A;
+  --cielo-mal-barra: #12040A;
+  --silueta: 2 6 24;
+  --astro: #F3F0D7;
+  --astro-halo: #DCE6FF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cielo-bien: var(--estrellas), linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+    --cielo-bien-base: #081B4D;
+    --cielo-bien-barra: #040A22;
+    --cielo-justo: var(--estrellas), linear-gradient(180deg, #1A0B2E 0%, #3B1748 28%, #7A2E3A 56%, #4A1A2E 80%, #1F0D1C 100%);
+    --cielo-justo-base: #1F0D1C;
+    --cielo-justo-barra: #1A0B2E;
+    --cielo-mal: var(--estrellas), linear-gradient(180deg, #12040A 0%, #3A0D17 28%, #7A1C2A 56%, #3C0E18 82%, #14050A 100%);
+    --cielo-mal-base: #14050A;
+    --cielo-mal-barra: #12040A;
+    --silueta: 2 6 24;
+    --astro: #F3F0D7;
+    --astro-halo: #DCE6FF;
+  }
+}
+
+/* Van al final para ganarle a los bloques de tema (misma especificidad). */
+:root[data-estado="bien"] { --fondo-app: var(--cielo-bien); --fondo-base: var(--cielo-bien-base); --barra-estado: var(--cielo-bien-barra); }
+:root[data-estado="justo"] { --fondo-app: var(--cielo-justo); --fondo-base: var(--cielo-justo-base); --barra-estado: var(--cielo-justo-barra); }
+:root[data-estado="mal"] { --fondo-app: var(--cielo-mal); --fondo-base: var(--cielo-mal-base); --barra-estado: var(--cielo-mal-barra); }
+
+/* En Mi mes todo lo que está sobre el cielo va en claro sobre oscuro (también de día),
+   como en el Clima. Las hojas y avisos (fuera de estas zonas) no cambian. */
+:root[data-estado] :is(#app-content, .topbar, .tabbar, .sidebar) {
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(238, 244, 255, 0.84);
+  --text-tertiary: rgba(238, 244, 255, 0.62);
+  --vidrio: rgba(255, 255, 255, 0.14);
+  --vidrio-borde: rgba(255, 255, 255, 0.22);
+  --vidrio-barra: rgba(3, 10, 35, 0.26);
+  --surface: rgba(10, 30, 70, 0.45);
+  --surface-elevated: #0E2A5E;
+  --surface-muted: rgba(255, 255, 255, 0.13);
+  --border: rgba(255, 255, 255, 0.32);
+  --separator: rgba(255, 255, 255, 0.16);
+  --accent: #A7F3D0;
+  --accent-soft: rgba(167, 243, 208, 0.18);
+  --on-accent: #053B2A;
+  --success: #86EFAC;
+  --success-soft: rgba(134, 239, 172, 0.2);
+  --danger: #FFC2C2;
+  --danger-soft: rgba(255, 150, 150, 0.24);
+  --warning: #FDE68A;
+  --warning-soft: rgba(253, 230, 138, 0.2);
+  --skeleton: rgba(255, 255, 255, 0.14);
+  --skeleton-shine: rgba(255, 255, 255, 0.24);
+  --viz-rejilla: rgba(255, 255, 255, 0.16);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  color: var(--text-primary);
 }

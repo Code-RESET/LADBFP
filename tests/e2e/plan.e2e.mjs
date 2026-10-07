@@ -166,7 +166,7 @@ await paso("ingreso fijo (cobranza) desde Mi mes y marcarlo recibido", async () 
   await registrar({ tipo: "ingreso", nombre: "Cobranza HD Crédit", monto: "5000", caja: "HD Crédit", dia: DIA });
   await page.locator('.fila--hoja:has-text("Cobranza HD Crédit") button.casilla').click();
   await page.waitForSelector('.fila--hoja:has-text("Cobranza HD Crédit") button.casilla[aria-checked="true"]');
-  await page.waitForFunction(() => document.querySelector(".hero__linea")?.innerText.includes("$5,000.00"));
+  await page.waitForFunction(() => document.querySelector(".hero__linea")?.innerText.includes("$5,000"));
   await page.screenshot({ path: `${SHOTS}/f2-mi-mes.png`, fullPage: true });
 });
 

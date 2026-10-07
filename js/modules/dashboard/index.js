@@ -6,6 +6,9 @@
 //   INGRESOS  igual; ☐ → ☑ = recibido
 //   MIS CAJAS cuánto tiene cada caja hoy
 // Tocar un renglón lo edita. ＋ registra (nombre + monto).
+// Arriba, estilo Clima de Samsung (cielo.js): el cielo cambia según
+// cómo vas (bien / justo / mal), número gigante, paisaje, los
+// próximos 7 días y una tarjeta de consejo.
 // Lo avanzado (deudas, presupuesto, proyección, cuentas) vive en Más.
 // ============================================================
 
@@ -13,20 +16,37 @@ import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { mesDe, hoy, nombreMes } from "../../core/dates.js";
 import { subscribe, getState, catalogosListos, planListo, cajaPorId, categoriaPorId } from "../../core/state.js";
+import { sincronizarBarraEstado } from "../../core/theme.js";
 import { mensajeDeError } from "../../core/errors.js";
 import { saldosPor, patrimonio } from "../../domain/saldos.js";
 import { balanceDelMes, ingresosFijosDelMes } from "../../domain/mes.js";
+import { estadoDelMes, pronosticoDias, consejo } from "../../domain/pronostico.js";
+import { diagnosticar } from "../../domain/diagnostico.js";
 import { movimientosRepo } from "../../data/movimientosRepo.js";
 import { perfilRepo } from "../../data/perfilRepo.js";
 import { reemplazarParams } from "../../router.js";
 import { skeletonTarjeta, skeletonLista, estadoVacio } from "../../components/states.js";
-import { selectorMes, moverMes } from "../../components/selectorMes.js";
+import { moverMes } from "../../components/selectorMes.js";
+import { leerLocal, guardarLocal } from "../../components/fields.js";
+import { toast } from "../../components/toast.js";
 import { activarTooltips } from "../../components/charts.js";
 import { icon } from "../../components/icons.js";
 import { abrirRegistro } from "../../components/registroSimple.js";
 import { marcarPagado, desmarcarPagado } from "../../components/marcarPagado.js";
 import { pasoCatalogos, pasoSaldosIniciales } from "./bienvenida.js";
 import { calcularSerie, graficaMeses, tooltipMetricas } from "./metricas.js";
+import { heroCielo, tarjetaPronostico, tarjetaConsejo, detalleDia } from "./cielo.js";
+
+const CLAVE_CONSEJOS = "fr.consejos.cerrados";
+
+/** El "clima" del mes pinta el cielo de toda la pantalla (themes.css: [data-estado]). */
+function ponerEstado(estado) {
+  const root = document.documentElement;
+  if ((root.dataset.estado || null) === (estado || null)) return;
+  if (estado) root.dataset.estado = estado;
+  else delete root.dataset.estado;
+  sincronizarBarraEstado();
+}
 
 /** Renglones de la hoja: fijos (marcables) + registrados de una vez, ordenados por día. */
 function renglones(fijos, sueltos, hechoSi) {
@@ -69,6 +89,7 @@ export function render(container, ctx) {
   let serie = [];
   let graficaAbierta = false;
   let modo = null; // 'cargando' | 'conectando' | 'catalogos' | 'saldos:…' | 'vista'
+  let dias = null;  // próximos 7 días (solo en el mes actual)
   let viva = true;  // false al salir de la pantalla: una carga que llegue tarde no debe pintar encima de otra
 
   async function cargarSueltos() {
@@ -97,6 +118,7 @@ export function render(container, ctx) {
     if (clave === modo && nuevoModo !== "vista") return;
     modo = clave;
 
+    if (nuevoModo !== "vista") ponerEstado(null);
     if (nuevoModo === "cargando") renderHtml(container, html`${skeletonTarjeta()}${skeletonLista(4)}`);
     else if (nuevoModo === "conectando") renderHtml(container, estadoVacio({ icono: "nube", titulo: "Conectando…", texto: "Descargando tus datos por primera vez en este dispositivo." }));
     else if (nuevoModo === "catalogos") pasoCatalogos(container);
@@ -105,7 +127,7 @@ export function render(container, ctx) {
   }
 
   function seccion({ titulo, total, lista, tipo, filasLista, vacio, ingreso }) {
-    return html`<section class="seccion">
+    return html`<section class="seccion" id="seccion-${lista}">
       <div class="seccion__cabecera">
         <h2 class="seccion__titulo">${titulo} · <span class="${ingreso ? "monto--positivo" : ""}">${formatMonto(total)}</span></h2>
         <button type="button" class="btn-texto" data-nuevo="${tipo}">+ Nuevo</button>
@@ -133,16 +155,19 @@ export function render(container, ctx) {
     const cs = getComputedStyle(container);
     const anchoCard = Math.max(0, container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 32);
 
-    return html`
-      ${selectorMes(mes)}
+    const clima = estadoDelMes(b);
+    ponerEstado(clima.estado);
+    // Pronóstico y consejo solo tienen sentido para el mes que estás viviendo.
+    const hoyF = hoy();
+    const esActual = mes === mesDe(hoyF);
+    dias = esActual ? pronosticoDias({ hoy: hoyF, obligaciones: s.obligaciones, deudas: s.deudas, recurrentes: s.recurrentes, agregados: s.agregados }) : null;
+    const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF }) : null;
+    const avisoVisible = aviso && leerLocal(CLAVE_CONSEJOS, {})[aviso.clave] !== hoyF ? aviso : null;
 
-      <section class="hero card">
-        <p class="hero__etiqueta">${b.balance < 0 ? `Te faltan en ${soloMes}` : `Te quedan en ${soloMes}`}</p>
-        <p class="hero__monto ${b.balance < 0 ? "monto--negativo" : ""}">${formatMonto(Math.abs(b.balance))}</p>
-        <p class="hero__linea">Entró <strong class="monto--positivo">${formatMonto(b.ingresos)}</strong> · Gastos <strong>${formatMonto(b.totalGastos)}</strong></p>
-        ${b.pendiente ? html`<p class="hero__frase ${b.vencido ? "texto-peligro" : ""}">De tus gastos, faltan por pagar ${formatMonto(b.pendiente)}${b.vencido ? ` (${formatMonto(b.vencido)} ya vencieron)` : ""}.</p>`
-          : b.fijos.length ? html`<p class="hero__frase">✓ Todos tus gastos fijos de ${soloMes} están pagados.</p>` : ""}
-      </section>
+    return html`
+      ${heroCielo({ b, mes, clima })}
+      ${dias ? tarjetaPronostico({ dias, hoy: hoyF }) : ""}
+      ${avisoVisible ? tarjetaConsejo(avisoVisible) : ""}
 
       ${seccion({ titulo: "Gastos", total: b.totalGastos, lista: "gastos", tipo: "gasto", filasLista: filas.gastos,
         vacio: html`<strong>+ Agrega tu primer gasto</strong><span>Los fijos (hipoteca, internet) y los del día (gasolina, comida).</span>` })}
@@ -189,8 +214,24 @@ export function render(container, ctx) {
     return f.clase === "ingreso" ? abrirRecurrente(f.ref) : abrirObligacion(f.ref);
   }
 
-  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo]", (e, el) => {
+  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo], [data-consejo], [data-dia]", (e, el) => {
     if (el.dataset.mesNav) return cambiarMes(moverMes(mes, el.dataset.mesNav));
+    if (el.dataset.dia) {
+      const d = dias?.[Number(el.dataset.dia)];
+      return d && toast(detalleDia(d, hoy()), { duracion: 4500 });
+    }
+    if (el.dataset.consejo === "ver-gastos") {
+      return document.getElementById("seccion-gastos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (el.dataset.consejo === "cerrar") {
+      // "No, gracias": no volver a mostrar ese mismo aviso hoy (solo en este dispositivo).
+      const clave = el.closest(".consejo")?.dataset.clave;
+      if (!clave) return;
+      const cerrados = Object.fromEntries(Object.entries(leerLocal(CLAVE_CONSEJOS, {})).filter(([, f]) => f === hoy()));
+      cerrados[clave] = hoy();
+      guardarLocal(CLAVE_CONSEJOS, cerrados);
+      return pintar();
+    }
     if (el.dataset.nuevo) return abrirRegistro({ tipo: el.dataset.nuevo, mes });
     const [lista, i] = (el.dataset.marcar || el.dataset.abrir).split(":");
     const r = filas[lista]?.[Number(i)];
@@ -224,6 +265,7 @@ export function render(container, ctx) {
 
   return () => {
     viva = false;
+    ponerEstado(null);
     cancelarState();
     quitarClick();
     quitarTooltips();
