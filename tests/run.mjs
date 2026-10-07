@@ -13,6 +13,7 @@ import "./core.test.js";
 import "./finanzas.test.js";
 import "./plan.test.js";
 import "./mes.test.js";
+import "./diagnostico.test.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 

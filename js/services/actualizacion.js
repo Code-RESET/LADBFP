@@ -12,6 +12,12 @@
 
 const DESACTIVADO = !("serviceWorker" in navigator) || new URLSearchParams(location.search).has("nosw");
 
+export const MENSAJE_ACTUALIZACION = {
+  "al-dia": "✓ Ya tienes la versión más reciente",
+  "sin-conexion": "Conéctate a internet para buscar actualizaciones",
+  "no-disponible": "Actualización automática no disponible en este navegador. Recarga la página.",
+};
+
 let recargando = false;
 let actualizandoManual = false;
 
@@ -28,7 +34,18 @@ function recargar() {
 export function registrarServiceWorker({ onNuevaVersion } = {}) {
   if (DESACTIVADO) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch((err) => {
+    navigator.serviceWorker.register("service-worker.js").then((reg) => {
+      // Revisar en silencio si hay versión nueva: cada 30 min y al volver a la app
+      // (en el teléfono la app casi nunca se "recarga", así que sin esto tardaría días).
+      let ultima = Date.now();
+      const revisar = () => {
+        if (!navigator.onLine || Date.now() - ultima < 5 * 60_000) return;
+        ultima = Date.now();
+        reg.update().catch(() => {});
+      };
+      setInterval(revisar, 30 * 60_000);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") revisar(); });
+    }).catch((err) => {
       console.warn("Service worker no registrado:", err);
     });
   });

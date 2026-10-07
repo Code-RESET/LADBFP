@@ -13,9 +13,9 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 |---|---|---|
 | 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
-| 3 | Metas, escenarios, reportes, Excel, CSV, PDF, backup e importación | Pendiente |
+| 3 | Metas, escenarios, reportes, CSV, PDF, backup e importación (Excel del mes ya disponible) | Pendiente |
 
-## Cómo se usa (v1.3 «Mi mes»)
+## Cómo se usa (v1.4 «Mi mes»)
 
 Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 
@@ -26,7 +26,9 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 | **Ingresos** | Igual: ☐ = recibido. |
 | **Mis cajas** | Cuánto tiene cada caja hoy; «Mover dinero» entre cajas. |
 | **＋** | Registrar: ¿Qué es? + ¿Cuánto? (la caja ya viene elegida; opcional «Se repite cada mes el día __»). La categoría, la cuenta y la fecha se ponen solas. |
-| **Más** | Cajas, todos los movimientos, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y cuentas de banco. |
+| **Más** | Cajas, todos los movimientos, **Descargar Excel**, **Revisar mis datos**, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y bancos. |
+| **Excel** | Botón al final de Mi mes: balance del mes + dinero real (al empezar + entró − salió = al cerrar), gastos, ingresos, cajas, movimientos y 12 meses. |
+| **Nueva caja** | Nombre + en qué banco está (o «＋ Otro» para crearlo) + cuánto tiene hoy. |
 
 ## Estructura
 
@@ -71,11 +73,11 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 69/69 |
+| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 73/73 |
 | Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 57/57 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
 | Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
-| Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más) | `tests/e2e/simple.e2e.mjs` | 16/16 |
+| Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más, revisar datos, nueva caja con banco, Excel con números verificados) | `tests/e2e/simple.e2e.mjs` (con `EXCELJS_FILE`) | 20/20 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
 

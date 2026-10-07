@@ -14,6 +14,14 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Excel, revisar datos y cajas simples (v1.4.0)
+
+- **Descargar Excel** (Mi mes → botón al final, o Más): `Finanzas_Reset_AAAA-MM.xlsx` con hojas Balance · Gastos · Ingresos · Cajas · Movimientos · 12 meses. La hoja Balance trae el balance como la plantilla (Ingresos − Gastos pagados y pendientes = Te quedan) y el **dinero real**: al empezar + entró − salió ± saldos iniciales/ajustes = al cerrar (cuadra con Mis cajas). Datos: `domain/reporte.js` (puro, probado); archivo: `services/exportExcel.js` con ExcelJS 4.4.0 de jsDelivr, cargado solo al exportar y guardado por el service worker. Montos numéricos con formato de moneda, fechas reales, filtros, encabezado fijo, totales `SUBTOTAL` con su resultado. En la app instalada se usa la hoja de compartir del teléfono (iOS no descarga con `<a download>`).
+- **Revisar mis datos** (Más o Configuración): `domain/diagnostico.js` busca saldos negativos (caja y banco), gastos/ingresos fijos con caja, banco o categoría desactivada, cajas sin banco, falta de saldos iniciales, vencidos sin marcar y cajas sin usar; cada hallazgo dice cómo arreglarlo. Después recalcula los saldos con todos los movimientos (lo que antes era "Verificar saldos").
+- **Crear caja** = nombre + «¿En qué banco está?» (chips; «＋ Otro» crea el banco ahí mismo) + «¿Cuánto tiene hoy?» (saldo inicial) + casilla «no es para gastar». Color automático; color y descripción en «Más opciones». En una caja existente: «＋ Agregar dinero que ya tenía». Las cuentas se llaman **Bancos** en la interfaz y solo piden el nombre.
+- Colores: acento **verde esmeralda** (#047857 claro / #34D399 oscuro).
+- **Actualizar la app**: el service worker se revisa solo cada 30 min y al volver a la app; si hay versión nueva aparece arriba el botón **⟳ Actualizar app** (se queda hasta tocarlo). También en Más → Ajustes → Actualizar la app.
+
 ## Mi mes (v1.3.0)
 
 Angel: «la app aún es muy complicada». Eligió «igual a mi Excel + mis cajas» y registrar solo «nombre + monto»:
