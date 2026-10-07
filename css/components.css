@@ -4,9 +4,13 @@
    ============================================================ */
 
 /* ---------- Tarjetas y secciones ---------- */
+/* Tarjetas de vidrio: translúcidas sobre el fondo de cielo */
 .card {
-  background: var(--surface);
-  border-radius: var(--radius);
+  background: var(--vidrio);
+  border: 1px solid var(--vidrio-borde);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 16px;
 }
@@ -244,7 +248,7 @@ textarea { resize: vertical; }
 
 .sk { display: block; border-radius: 6px; background: linear-gradient(90deg, var(--skeleton) 25%, var(--skeleton-shine) 50%, var(--skeleton) 75%); background-size: 200% 100%; animation: brillo 1.3s infinite linear; }
 @keyframes brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-.skeleton-lista { background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+.skeleton-lista { background: var(--vidrio); border-radius: var(--radius); overflow: hidden; }
 .skeleton-fila { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
 .skeleton-fila + .skeleton-fila { border-top: 0.5px solid var(--separator); }
 .sk-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
@@ -426,7 +430,7 @@ button.pag-num:hover { background: var(--surface-muted); }
 .texto-peligro { color: var(--danger) !important; }
 
 .lista-alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.alerta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: var(--text-primary); border-left: 4px solid var(--text-tertiary); }
+.alerta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius); background: var(--vidrio); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: var(--shadow); text-decoration: none; color: var(--text-primary); border-left: 4px solid var(--text-tertiary); }
 .alerta--rojo { border-left-color: var(--danger); }
 .alerta--naranja { border-left-color: var(--warning); }
 .alerta--info { border-left-color: var(--neutral); }
@@ -503,7 +507,7 @@ button.pag-num:hover { background: var(--surface-muted); }
 
 .selector-mes { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .selector-mes__nombre { font-weight: 700; font-size: 1.05rem; text-transform: capitalize; min-width: 150px; text-align: center; }
-.selector-mes .btn-icono { font-size: 1.3rem; background: var(--surface); }
+.selector-mes .btn-icono { font-size: 1.3rem; background: var(--vidrio); border: 1px solid var(--vidrio-borde); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 
 
 .dia {

@@ -35,8 +35,8 @@ function aplicar() {
   const root = document.documentElement;
   if (pref === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", pref);
-  // Color de la barra de estado del teléfono = fondo de la app.
-  const color = getComputedStyle(root).getPropertyValue("--bg-primary").trim();
+  // Color de la barra de estado del teléfono = parte de arriba del cielo.
+  const color = getComputedStyle(root).getPropertyValue("--barra-estado").trim();
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     if (color) m.setAttribute("content", color);
   });

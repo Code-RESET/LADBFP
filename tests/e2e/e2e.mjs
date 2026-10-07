@@ -286,8 +286,8 @@ await paso("Revisar mis datos: los saldos cuadran con los movimientos", async ()
 await paso("modo oscuro: se aplica y se recuerda", async () => {
   await page.locator('.segmentado__opcion:has(input[value="dark"])').click();
   esperar((await page.evaluate(() => document.documentElement.dataset.theme)) === "dark", "sin data-theme");
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  esperar(bg === "rgb(11, 11, 13)", bg);
+  const bg = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+  esperar(bg === "rgb(8, 27, 77)", bg);
   await page.reload();
   await page.waitForSelector("#app-shell:not([hidden])");
   esperar((await page.evaluate(() => document.documentElement.dataset.theme)) === "dark", "no se recordó");
@@ -309,9 +309,9 @@ await paso("tema 'Sistema' sigue al sistema operativo", async () => {
   await page.goto(URL_APP.replace(/#.*/, "") + "#/configuracion");
   await page.locator('.segmentado__opcion:has(input[value="system"])').click();
   await page.emulateMedia({ colorScheme: "dark" });
-  esperar((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === "rgb(11, 11, 13)", "no oscuro");
+  esperar((await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)) === "rgb(8, 27, 77)", "no oscuro");
   await page.emulateMedia({ colorScheme: "light" });
-  esperar((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === "rgb(242, 242, 247)", "no claro");
+  esperar((await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)) === "rgb(237, 244, 251)", "no claro");
 });
 
 // ---------------- Desktop ----------------

@@ -14,6 +14,10 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Fondo de cielo y tarjetas de vidrio (v1.5.0)
+
+Inspirado en el Clima de Samsung: detrás de toda la app hay un cielo degradado fijo (`--fondo-app` en `themes.css`, pintado en `body::before` porque iOS no soporta `background-attachment: fixed`). De día es azul claro; de noche, azul profundo con estrellas. Las tarjetas son de "vidrio" (`--vidrio`, borde claro y `backdrop-filter: blur`), igual que la barra superior, la inferior y la lateral. Las hojas que se abren desde abajo siguen sólidas para leerse bien. El login conserva su fondo de marca. Respeta claro / oscuro / sistema.
+
 ## Excel, revisar datos y cajas simples (v1.4.0)
 
 - **Descargar Excel** (Mi mes → botón al final, o Más): `Finanzas_Reset_AAAA-MM.xlsx` con hojas Balance · Gastos · Ingresos · Cajas · Movimientos · 12 meses. La hoja Balance trae el balance como la plantilla (Ingresos − Gastos pagados y pendientes = Te quedan) y el **dinero real**: al empezar + entró − salió ± saldos iniciales/ajustes = al cerrar (cuadra con Mis cajas). Datos: `domain/reporte.js` (puro, probado); archivo: `services/exportExcel.js` con ExcelJS 4.4.0 de jsDelivr, cargado solo al exportar y guardado por el service worker. Montos numéricos con formato de moneda, fechas reales, filtros, encabezado fijo, totales `SUBTOTAL` con su resultado. En la app instalada se usa la hoja de compartir del teléfono (iOS no descarga con `<a download>`).

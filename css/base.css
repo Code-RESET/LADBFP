@@ -15,7 +15,7 @@ html {
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: 16px;
@@ -129,8 +129,7 @@ a { color: var(--accent); }
   display: flex; align-items: center; gap: 12px;
   min-height: calc(var(--topbar-h) + var(--safe-top));
   padding: var(--safe-top) 16px 0;
-  background: var(--bg-primary); /* respaldo si no hay color-mix */
-  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  background: var(--vidrio-barra);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
@@ -155,8 +154,7 @@ a { color: var(--accent); }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center;
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: var(--bg-secondary);
-  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  background: var(--vidrio-barra);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.5px solid var(--separator);
@@ -187,3 +185,11 @@ a { color: var(--accent); }
 .btn-actualizar[hidden] { display: none; }
 @keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 @media (prefers-reduced-motion: reduce) { .btn-actualizar { animation: none; } }
+
+/* Fondo de cielo fijo detrás de toda la app (en iOS background-attachment: fixed no funciona,
+   por eso es una capa fija aparte). El login conserva su propio fondo. */
+html { background: var(--fondo-base); }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--fondo-app);
+}

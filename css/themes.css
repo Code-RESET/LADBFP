@@ -15,8 +15,8 @@
   --surface-elevated: #FFFFFF;
   --surface-muted: #F2F2F7;
   --text-primary: #111114;
-  --text-secondary: #6B6B73;
-  --text-tertiary: #9A9AA2;
+  --text-secondary: #555D6E;
+  --text-tertiary: #7D8596;
   --border: #E3E3E8;
   --separator: rgba(60, 60, 67, 0.14);
   --success: #1E8E3E;
@@ -38,21 +38,28 @@
   --serie-1: #2a78d6;   /* Ingresos (azul) */
   --serie-2: #eb6834;   /* Gastos (naranja) */
   --viz-rejilla: #EBEBF0;
+  /* Fondo de cielo (estilo Clima de Samsung) y tarjetas de vidrio */
+  --fondo-app: linear-gradient(180deg, #5FA3EC 0%, #9CC8F4 26%, #D3E7FA 58%, #EDF4FB 100%);
+  --fondo-base: #EDF4FB;
+  --barra-estado: #5FA3EC;
+  --vidrio: rgba(255, 255, 255, 0.62);
+  --vidrio-borde: rgba(255, 255, 255, 0.75);
+  --vidrio-barra: rgba(237, 244, 251, 0.55);
 }
 
 /* Oscuro manual */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-primary: #0B0B0D;
-  --bg-secondary: #151518;
-  --surface: #1C1C1F;
-  --surface-elevated: #26262A;
-  --surface-muted: #151518;
+  --bg-primary: #050B24;
+  --bg-secondary: #0B1640;
+  --surface: #13204F;
+  --surface-elevated: #1C2C62;
+  --surface-muted: rgba(255, 255, 255, 0.09);
   --text-primary: #F2F2F5;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
-  --border: #2E2E33;
-  --separator: rgba(255, 255, 255, 0.08);
+  --text-secondary: #C3CDEA;
+  --text-tertiary: #8F9CC4;
+  --border: rgba(255, 255, 255, 0.16);
+  --separator: rgba(255, 255, 255, 0.10);
   --success: #34C759;
   --success-soft: rgba(52, 199, 89, 0.16);
   --warning: #FFB340;
@@ -66,27 +73,44 @@
   --shadow: none;
   --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
   --overlay: rgba(0, 0, 0, 0.55);
-  --skeleton: #26262A;
-  --skeleton-shine: #303035;
+  --skeleton: rgba(255, 255, 255, 0.10);
+  --skeleton-shine: rgba(255, 255, 255, 0.16);
   --serie-1: #3987e5;
   --serie-2: #d95926;
-  --viz-rejilla: #2A2A2E;
+  --viz-rejilla: rgba(255, 255, 255, 0.12);
+  --fondo-app:
+    radial-gradient(1.5px 1.5px at 12% 8%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 28% 15%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 47% 5%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 63% 18%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 22%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 8% 27%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 55% 30%, rgba(255,255,255,0.45), transparent 60%),
+    radial-gradient(1px 1px at 36% 36%, rgba(255,255,255,0.4), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+  --fondo-base: #081B4D;
+  --barra-estado: #040A22;
+  --vidrio: rgba(255, 255, 255, 0.09);
+  --vidrio-borde: rgba(255, 255, 255, 0.14);
+  --vidrio-barra: rgba(5, 11, 36, 0.55);
 }
 
 /* Oscuro automático (sistema), salvo que se haya elegido claro */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg-primary: #0B0B0D;
-    --bg-secondary: #151518;
-    --surface: #1C1C1F;
-    --surface-elevated: #26262A;
-    --surface-muted: #151518;
+    --bg-primary: #050B24;
+    --bg-secondary: #0B1640;
+    --surface: #13204F;
+    --surface-elevated: #1C2C62;
+    --surface-muted: rgba(255, 255, 255, 0.09);
     --text-primary: #F2F2F5;
-    --text-secondary: #A1A1AA;
-    --text-tertiary: #71717A;
-    --border: #2E2E33;
-    --separator: rgba(255, 255, 255, 0.08);
+    --text-secondary: #C3CDEA;
+    --text-tertiary: #8F9CC4;
+    --border: rgba(255, 255, 255, 0.16);
+    --separator: rgba(255, 255, 255, 0.10);
     --success: #34C759;
     --success-soft: rgba(52, 199, 89, 0.16);
     --warning: #FFB340;
@@ -100,11 +124,28 @@
     --shadow: none;
     --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.6);
     --overlay: rgba(0, 0, 0, 0.55);
-    --skeleton: #26262A;
-    --skeleton-shine: #303035;
+    --skeleton: rgba(255, 255, 255, 0.10);
+    --skeleton-shine: rgba(255, 255, 255, 0.16);
     --serie-1: #3987e5;
     --serie-2: #d95926;
-    --viz-rejilla: #2A2A2E;
+    --viz-rejilla: rgba(255, 255, 255, 0.12);
+  --fondo-app:
+    radial-gradient(1.5px 1.5px at 12% 8%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1px 1px at 28% 15%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 47% 5%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1px 1px at 63% 18%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1px 1px at 90% 22%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 8% 27%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 55% 30%, rgba(255,255,255,0.45), transparent 60%),
+    radial-gradient(1px 1px at 36% 36%, rgba(255,255,255,0.4), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(180deg, #040A22 0%, #0A1A4F 26%, #1747B5 56%, #0F2F80 80%, #081B4D 100%);
+  --fondo-base: #081B4D;
+  --barra-estado: #040A22;
+  --vidrio: rgba(255, 255, 255, 0.09);
+  --vidrio-borde: rgba(255, 255, 255, 0.14);
+  --vidrio-barra: rgba(5, 11, 36, 0.55);
   }
 }
 
