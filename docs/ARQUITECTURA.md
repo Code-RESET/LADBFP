@@ -14,6 +14,13 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Bancos claros y "cada semana" (v1.7.0)
+
+- **El gasto sale del banco donde la caja tiene su dinero** (`domain/saldos.js → cuentaParaCaja`): el banco con más dinero de esa caja; si no tiene, su predeterminado. Antes se usaba siempre el predeterminado, y si el saldo inicial estaba en otro banco (p. ej. BBVA) los gastos bajaban otro banco (Mercado Pago). Al editar desde Mi mes se vuelve a calcular, así se corrigen gastos viejos con solo tocarlos y guardar.
+- El banco se ve junto a cada caja al registrar ("Alarmas RST · BBVA") y debajo de cada caja en Mis cajas.
+- **Se repite cada semana**: el registro rápido ofrece "Cada mes (día)" o "Cada semana (lunes…domingo)"; un gasto semanal aparece una vez por semana en la lista del mes, cada uno con su casilla.
+- Al anotar un gasto fijo nuevo, el aviso recuerda marcarlo ☑ cuando se pague (antes de eso no mueve dinero).
+
 ## Mi mes estilo Clima de Samsung (v1.6.0)
 
 La propuesta completa sobre el fondo de cielo de v1.5.0:

@@ -292,6 +292,78 @@ await paso("Actualizar la app: está en Más y responde (botón de arriba oculto
   await page.waitForSelector(".toast", { hasText: /versión|actualizaci/i });
 });
 
+await paso("gasto que se repite cada semana: aparece una vez por semana del mes", async () => {
+  await ir("dashboard");
+  await page.waitForSelector(".hero");
+  const dow = new Date(`${hoyMx}T12:00:00Z`).getUTCDay();
+  const [a, m] = hoyMx.split("-").map(Number);
+  const diasMes = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  const esperadas = Array.from({ length: diasMes }, (_, i) => new Date(Date.UTC(a, m - 1, i + 1)).getUTCDay()).filter((d) => d === dow).length;
+  await page.click(".tabbar__nuevo");
+  await hojaLista();
+  await page.fill('.capa input[name="nombre"]', "Chivo karen");
+  await page.fill('.capa input[name="monto"]', "2500");
+  await page.check('.capa input[name="repite"]');
+  await page.click('.capa .segmentado__opcion:has(input[value="semanal"])');
+  esperar(!(await page.locator('.capa input[name="dia"]').isVisible()) && await page.locator('.capa select[name="diaSemana"]').isVisible(), "debería pedir día de la semana");
+  await page.selectOption('.capa select[name="diaSemana"]', String(dow));
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await page.waitForSelector(".toast", { hasText: "cada" });
+  await page.waitForFunction((n) => [...document.querySelectorAll(".hoja [data-abrir^='gastos:']")].filter((b) => b.innerText.includes("Chivo karen")).length === n, esperadas);
+  // Editar: conserva "Cada semana"; "Ya no se repite" lo quita (nunca se pagó)
+  await fila("gastos", "Chivo karen").first().locator("[data-abrir]").click();
+  await hojaLista();
+  esperar(await page.locator('.capa input[name="cada"][value="semanal"]').isChecked(), "al editar debería seguir 'Cada semana'");
+  await page.click('.capa [data-accion="quitar"]');
+  await page.waitForFunction(() => document.querySelectorAll(".capa").length === 2);
+  await page.waitForTimeout(300);
+  await page.locator(".capa").last().locator('button[type="submit"]').click();
+  await sinHojas();
+  await page.waitForFunction(() => ![...document.querySelectorAll(".hoja [data-abrir]")].some((b) => b.innerText.includes("Chivo karen")));
+});
+
+await paso("el gasto sale del banco donde la caja tiene su dinero (y editar corrige uno viejo)", async () => {
+  await ir("dashboard");
+  await page.waitForSelector(".hero");
+  // Como en el caso real: HD Crédit tiene de banco predeterminado BBVA HD, pero su saldo inicial está en HSBC,
+  // y hay un gasto viejo que se anotó en BBVA HD.
+  await page.evaluate(async (hoy) => {
+    const { movimientosRepo } = await import("/js/data/movimientosRepo.js");
+    const { getState } = await import("/js/core/state.js");
+    const uid = getState().user.uid;
+    movimientosRepo.crear(uid, { tipo: "apertura", fecha: hoy, montoCentavos: 2417700, cajaId: "hd-credit", cuentaId: "hsbc", nota: "Saldo inicial" });
+    movimientosRepo.crear(uid, { tipo: "gasto", fecha: hoy, montoCentavos: 35000, cajaId: "hd-credit", cuentaId: "bbva-hd", categoriaId: "ga-otros", nota: "Gasto viejo" });
+  }, hoyMx);
+  await page.waitForSelector('.fila--hoja:has-text("Gasto viejo")');
+  const cuentaDe = (nota) => page.evaluate(async (n) => {
+    const fs = await import("/js/data/firestore.js");
+    const { getState } = await import("/js/core/state.js");
+    const snap = await fs.getDocs(fs.query(fs.col(getState().user.uid, "movimientos"), fs.where("nota", "==", n)));
+    return snap.docs.map((d) => d.data()).filter((m) => m.estado !== "anulado").map((m) => m.cuentaId).join(",");
+  }, nota);
+  // Nuevo gasto desde HD Crédit: el chip dice HSBC y ahí se anota
+  await page.click(".tabbar__nuevo");
+  await hojaLista();
+  esperar((await page.locator('.capa .chip:has-text("HD Crédit")').innerText()).includes("HSBC"), await page.locator('.capa .chip:has-text("HD Crédit")').innerText());
+  await page.fill('.capa input[name="nombre"]', "Chivo karen");
+  await page.fill('.capa input[name="monto"]', "2500");
+  await page.click('.capa .chip:has-text("HD Crédit")');
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await page.waitForSelector('.fila--hoja:has-text("Chivo karen")');
+  esperar((await cuentaDe("Chivo karen")) === "hsbc", `Chivo karen quedó en ${await cuentaDe("Chivo karen")}`);
+  // Editar el gasto viejo y guardar: pasa a HSBC
+  await fila("gastos", "Gasto viejo").locator("[data-abrir]").click();
+  await hojaLista();
+  await page.click('.capa button[type="submit"]');
+  await sinHojas();
+  await page.waitForTimeout(800);
+  esperar((await cuentaDe("Gasto viejo")) === "hsbc", `Gasto viejo quedó en ${await cuentaDe("Gasto viejo")}`);
+  // En Mis cajas, HD Crédit muestra su banco
+  esperar((await texto(".seccion:has(.total-cajas)")).includes("HSBC"), "Mis cajas debería mostrar el banco");
+});
+
 await paso("enlaces viejos (#/gastos) llevan a Mi mes", async () => {
   await ir("gastos");
   await page.waitForSelector(".hero");

@@ -79,3 +79,14 @@ test("reporte: balance real cuadra (al empezar + entró − salió + otros = al 
   assert.eq(r.meses.map((m) => m.mes), ["2026-09", "2026-10"]);
   assert.eq([montoConSigno({ tipo: "gasto", montoCentavos: 5 }), montoConSigno({ tipo: "transferencia", montoCentavos: 5 })], [-5, 0]);
 });
+
+// ---------- Banco del que sale el dinero de una caja ----------
+import { cuentaParaCaja } from "../js/domain/saldos.js";
+test("saldos: el gasto sale del banco donde la caja tiene dinero", () => {
+  const caja = { id: "alarmas", cuentaPredeterminadaId: "mercado-pago" };
+  const ag = { "2026-10": { porCajaCuenta: { "alarmas__bbva": { ape: 2417700 } } } };
+  assert.eq(cuentaParaCaja(ag, caja, ["mercado-pago", "bbva"]), "bbva");             // saldo inicial en BBVA
+  assert.eq(cuentaParaCaja({}, caja, ["mercado-pago", "bbva"]), "mercado-pago");     // sin dinero: el predeterminado
+  assert.eq(cuentaParaCaja(ag, caja, ["mercado-pago"]), "mercado-pago");             // BBVA desactivado
+  assert.eq(cuentaParaCaja({}, { id: "x" }, ["nu"]), "nu");
+});

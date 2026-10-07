@@ -64,6 +64,21 @@ export function desgloseCaja(agregados, cajaId) {
     .map(([k, saldo]) => ({ cuentaId: k.slice(`${cajaId}__`.length), saldo }));
 }
 
+/**
+ * Banco del que sale el dinero de una caja al registrar un gasto: el que
+ * tiene más dinero de esa caja; si no tiene dinero en ninguno, su banco
+ * predeterminado; si tampoco, el primero activo. `cuentasActivas` = ids.
+ * (Ej.: saldo inicial en BBVA pero predeterminado Mercado Pago → BBVA.)
+ */
+export function cuentaParaCaja(agregados, caja, cuentasActivas = []) {
+  const conDinero = desgloseCaja(agregados, caja?.id)
+    .filter((d) => d.saldo > 0 && cuentasActivas.includes(d.cuentaId))
+    .sort((a, b) => b.saldo - a.saldo);
+  if (conDinero.length) return conDinero[0].cuentaId;
+  if (cuentasActivas.includes(caja?.cuentaPredeterminadaId)) return caja.cuentaPredeterminadaId;
+  return cuentasActivas[0] || "";
+}
+
 /** ¿La caja o cuenta tiene movimientos activos? (para permitir o no borrarla) */
 export function tieneMovimientos(agregados, dimension, id) {
   return (totalesPor(agregados, dimension)[id]?.n || 0) > 0;

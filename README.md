@@ -74,11 +74,11 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 73/73 |
+| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 77/77 |
 | Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 57/57 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
 | Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
-| Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más, revisar datos, nueva caja con banco, Excel con números verificados) | `tests/e2e/simple.e2e.mjs` (con `EXCELJS_FILE`) | 20/20 |
+| Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más, revisar datos, nueva caja con banco, Excel con números verificados) | `tests/e2e/simple.e2e.mjs` (con `EXCELJS_FILE`) | 23/23 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
 
