@@ -15,10 +15,10 @@
 import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { mesDe, hoy, nombreMes } from "../../core/dates.js";
-import { subscribe, getState, catalogosListos, planListo, cajaPorId, categoriaPorId } from "../../core/state.js";
+import { subscribe, getState, catalogosListos, planListo, cajaPorId, cuentaPorId, categoriaPorId } from "../../core/state.js";
 import { sincronizarBarraEstado } from "../../core/theme.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { saldosPor, patrimonio } from "../../domain/saldos.js";
+import { saldosPor, patrimonio, desgloseCaja } from "../../domain/saldos.js";
 import { balanceDelMes, ingresosFijosDelMes } from "../../domain/mes.js";
 import { estadoDelMes, pronosticoDias, consejo } from "../../domain/pronostico.js";
 import { diagnosticar } from "../../domain/diagnostico.js";
@@ -149,6 +149,11 @@ export function render(container, ctx) {
       ingresos: renglones(ingFijos, sueltos.ingreso || [], "Recibido"),
     };
     const porCaja = saldosPor(s.agregados, "porCaja");
+    // En qué banco(s) está el dinero de cada caja; si no tiene, su banco predeterminado.
+    const bancosDe = (c) => {
+      const con = desgloseCaja(s.agregados, c.id).filter((d) => d.saldo !== 0).map((d) => cuentaPorId(d.cuentaId)?.nombre).filter(Boolean);
+      return (con.length ? con : [cuentaPorId(c.cuentaPredeterminadaId)?.nombre].filter(Boolean)).join(", ");
+    };
     const cajas = s.cajas.filter((c) => c.activa !== false || porCaja[c.id]);
     const soloMes = nombreMes(mes).split(" ")[0];
     serie = calcularSerie(s.agregados, s.categorias);
@@ -182,7 +187,7 @@ export function render(container, ctx) {
         </div>
         <ul class="lista card card--lista">${cajas.map((c) => html`<li><a class="fila" href="#/movimientos?caja=${c.id}">
           <span class="punto" style="background:${c.color || "var(--accent)"}"></span>
-          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span></span>
+          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${bancosDe(c) ? html`<span class="fila__sub">${bancosDe(c)}</span>` : ""}</span>
           <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
           ${icon("chevron", { size: 16, clase: "fila__chevron" })}
         </a></li>`)}</ul>
@@ -207,7 +212,7 @@ export function render(container, ctx) {
     if (r.mov) return abrirRegistro({ movimiento: r.mov, mes });
     const f = r.fijo;
     // Lo que no cabe en "nombre + monto + día" (deudas, quincenales, montos variables) usa su formulario completo.
-    const simple = f.clase !== "deuda" && f.ref.regla?.frecuencia === "mensual" && !f.ref.variable;
+    const simple = f.clase !== "deuda" && ["mensual", "semanal"].includes(f.ref.regla?.frecuencia) && !f.ref.variable;
     if (simple) return abrirRegistro({ fijo: f, mes });
     const { abrirObligacion, abrirDeuda, abrirRecurrente } = await import("../plan/formularios.js");
     if (f.clase === "deuda") return abrirDeuda(f.ref);

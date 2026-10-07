@@ -689,3 +689,9 @@ button.pag-num:hover { background: var(--surface-muted); }
 /* El botón ＋ conserva su verde en Mi mes */
 :root[data-estado] .tabbar__nuevo, :root[data-estado] .sidebar__nuevo { background: #059669; color: #fff; }
 :root[data-estado] #app-content .casilla--on { background: #16A34A; border-color: #16A34A; color: #fff; }
+.chip__banco { font-size: 0.8em; color: var(--text-secondary); font-weight: 400; }
+/* Se repite: cada mes (día del mes) o cada semana (día de la semana) */
+.repite__cuando { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.repite__cuando .segmentado { flex: 1 1 100%; }
+.registro[data-cada="mensual"] .solo-cada-semana, .registro[data-cada="semanal"] .solo-cada-mes { display: none; }
+.repite__semana { width: auto; min-width: 130px; }
