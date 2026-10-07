@@ -591,12 +591,12 @@ button.pag-num:hover { background: var(--surface-muted); }
 
 /* ---------- Mi mes estilo Clima (v1.6): cielo, paisaje, 7 días y consejo ---------- */
 /* Sol o luna según el tema */
-.solo-noche, .paisaje__luna { display: none; }
-:root[data-theme="dark"] .solo-dia, :root[data-theme="dark"] .paisaje__sol { display: none; }
-:root[data-theme="dark"] .solo-noche, :root[data-theme="dark"] .paisaje__luna { display: inline; }
+.solo-noche { display: none; }
+:root[data-theme="dark"] .solo-dia { display: none; }
+:root[data-theme="dark"] .solo-noche { display: inline; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .solo-dia, :root:not([data-theme="light"]) .paisaje__sol { display: none; }
-  :root:not([data-theme="light"]) .solo-noche, :root:not([data-theme="light"]) .paisaje__luna { display: inline; }
+  :root:not([data-theme="light"]) .solo-dia { display: none; }
+  :root:not([data-theme="light"]) .solo-noche { display: inline; }
 }
 
 .cielo {
@@ -637,8 +637,6 @@ button.pag-num:hover { background: var(--surface-muted); }
 .paisaje__ranura { fill: rgb(255 255 255 / 0.35); }
 .paisaje__ojo { fill: rgb(255 255 255 / 0.75); }
 .paisaje__nariz { fill: rgb(255 255 255 / 0.45); }
-.paisaje__astro { fill: var(--astro); }
-.paisaje__crater { fill: rgb(0 0 0 / 0.07); }
 .paisaje__moneda { animation: moneda 3.2s ease-in-out infinite; }
 .paisaje__moneda circle { fill: #F6C445; stroke: #D89B1E; stroke-width: 1.2; }
 .paisaje__moneda path { stroke: #B7791F; stroke-width: 1.4; stroke-linecap: round; }

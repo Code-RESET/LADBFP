@@ -1,8 +1,7 @@
 // ============================================================
 // components/paisaje.js
 // Ilustración del encabezado de "Mi mes" (estilo Clima de Samsung):
-// montañas, lago, sol (de día) o luna (de noche) y una alcancía
-// mirando al cielo con una moneda. Es una sola imagen vectorial:
+// montañas, lago y una alcancía mirando al cielo con una moneda. Es una sola imagen vectorial:
 // las siluetas son sombras del color del cielo, así combina con
 // cualquier estado (bien / justo / mal) y tema (claro / oscuro).
 // Panorama de 1200×170: en el teléfono se ve el centro; en
@@ -12,19 +11,6 @@
 import { raw } from "../core/dom.js";
 
 const SVG = `<svg class="paisaje" viewBox="0 0 1200 170" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
-  <defs>
-    <radialGradient id="paisaje-halo">
-      <stop offset="0" style="stop-color: var(--astro-halo); stop-opacity: 0.55"/>
-      <stop offset="1" style="stop-color: var(--astro-halo); stop-opacity: 0"/>
-    </radialGradient>
-  </defs>
-  <circle class="paisaje__halo" cx="708" cy="34" r="46" fill="url(#paisaje-halo)"/>
-  <circle class="paisaje__astro paisaje__sol" cx="708" cy="34" r="15"/>
-  <g class="paisaje__luna">
-    <circle class="paisaje__astro" cx="708" cy="34" r="13"/>
-    <circle class="paisaje__crater" cx="703" cy="30" r="2.6"/>
-    <circle class="paisaje__crater" cx="713" cy="39" r="1.8"/>
-  </g>
   <path class="paisaje__lejos" d="M0 118 C60 104 110 96 170 100 C230 104 270 84 340 80 C410 76 450 98 520 96 C590 94 620 70 690 72 C760 74 790 92 860 90 C930 88 970 78 1040 82 C1110 86 1150 100 1200 98 L1200 170 L0 170 Z"/>
   <path class="paisaje__medio" d="M0 134 C80 122 150 116 230 122 C310 128 360 110 440 112 C520 114 560 128 640 126 C720 124 760 110 840 114 C920 118 980 130 1060 126 C1120 123 1160 118 1200 120 L1200 170 L0 170 Z"/>
   <rect class="paisaje__agua" x="0" y="132" width="1200" height="38"/>
