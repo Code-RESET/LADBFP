@@ -75,6 +75,8 @@ export function render(container, ctx) {
     if (el.dataset.editar) {
       const [tipo, id] = el.dataset.editar.split(":");
       const item = s[LISTA[tipo]].find((x) => x.id === id);
+      // Una compra a meses se edita con su propia hoja (conserva la tarjeta y los meses).
+      if (item && tipo === "deuda" && item.tarjetaId) return import("../tarjetas/formulario.js").then(({ abrirCompraMsi }) => abrirCompraMsi(item));
       return item && ABRIR[tipo](item);
     }
     if (el.dataset.sugerencia) {

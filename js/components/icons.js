@@ -38,6 +38,7 @@ const P = {
   anular: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
   reportes: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   deudas: '<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/>',
+  tarjeta: '<rect x="2" y="5" width="20" height="14" rx="3"/><rect x="5" y="9" width="4.5" height="3.2" rx="0.8"/><path d="M5 15.5h5M13 15.5h6"/>',
   metas: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
 };
 

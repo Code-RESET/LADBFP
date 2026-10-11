@@ -14,7 +14,7 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
 | 3 | **Hecho:** Excel del mes, Revisar mis datos, Metas de ahorro, Respaldo y restauración. **Falta:** reportes con filtros, CSV, PDF, escenarios | 🟡 En curso |
-| Futura | Tarjetas de crédito (con meses sin intereses), recordatorios en el calendario, compartir con otra persona | Pendiente |
+| Futura | **Hecho:** Tarjetas de crédito con meses sin intereses. **Falta:** recordatorios en el calendario, compartir con otra persona | 🟡 En curso |
 
 ## Cómo se usa (v1.6 «Mi mes» estilo Clima)
 
@@ -27,11 +27,13 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 | **Gastos** | Fijos (↻) y de una vez, ordenados por día y con su caja. Tocar ☐ = pagado (con «Deshacer»); tocar el renglón = editar. |
 | **Ingresos** | Igual: ☐ = recibido. |
 | **Ahorro** | Si tienes metas: las aportaciones del mes con ☐ (al marcarla, el dinero pasa a la caja de la meta). |
+| **Tarjetas** | Si tienes tarjetas de crédito: cuánto pagar de cada una y antes de qué día, con botón **Pagar**. |
 | **Mis cajas** | Cuánto tiene cada caja hoy; «Mover dinero» entre cajas. |
 | **＋** | Registrar: ¿Qué es? + ¿Cuánto? (la caja ya viene elegida; opcional «Se repite cada mes el día __»). La categoría, la cuenta y la fecha se ponen solas. |
 | **Más** | Cajas, todos los movimientos, **Descargar Excel**, **Revisar mis datos**, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y bancos. |
 | **Metas de ahorro** | Más → Metas: cuánto llevas, cuánto falta, cuándo terminas y si te alcanza. Aportar o sacar dinero. |
 | **Respaldo** | Más → Respaldo de mis datos: descargar todo en un archivo o restaurarlo (solo agrega lo que falta). |
+| **Tarjetas de crédito** | Más → Tarjetas: lo que debes, disponible, **pago para no generar intereses** y fecha límite, compras a meses. Al registrar un gasto: «¿Con qué pagaste?» y «A meses sin intereses». |
 | **Excel** | Botón al final de Mi mes: balance del mes + dinero real (al empezar + entró − salió = al cerrar), gastos, ingresos, cajas, movimientos y 12 meses. |
 | **Nueva caja** | Nombre + en qué banco está (o «＋ Otro» para crearlo) + cuánto tiene hoy. |
 
@@ -51,7 +53,7 @@ js/
   domain/             LÓGICA FINANCIERA PURA (sin Firebase ni DOM) — probada en tests/
   data/               ÚNICO acceso a Firestore (repositorios, paginador, siembra inicial)
   components/         hoja inferior, confirmación, toast, paginación, formulario de movimiento…
-  modules/            una carpeta por pantalla: dashboard (Mi mes), movimientos, cajas, cuentas, plan, mas, configuracion
+  modules/            una carpeta por pantalla: dashboard (Mi mes), movimientos, cajas, cuentas, tarjetas, metas, plan, mas, configuracion
 tests/
   index.html          pruebas de lógica en el navegador (sin instalar nada)
   run.mjs             las mismas pruebas en Node + chequeo del service worker

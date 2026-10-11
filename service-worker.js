@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.8.0";
+const CACHE_VERSION = "finanzas-reset-v1.9.0";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -48,6 +48,7 @@ const CORE_ASSETS = [
   "./js/domain/pronostico.js",
   "./js/domain/metas.js",
   "./js/domain/respaldo.js",
+  "./js/domain/tarjetas.js",
   "./js/domain/reporte.js",
   "./js/domain/metricas.js",
   "./js/domain/movimientos.js",
@@ -66,6 +67,7 @@ const CORE_ASSETS = [
   "./js/services/actualizacion.js",
   "./js/services/exportExcel.js",
   "./js/services/descarga.js",
+  "./js/services/tarjetas.js",
   "./js/services/planCalculado.js",
   "./js/components/charts.js",
   "./js/components/confirmation.js",
@@ -90,6 +92,10 @@ const CORE_ASSETS = [
   "./js/modules/configuracion/respaldo.js",
   "./js/modules/metas/index.js",
   "./js/modules/metas/formulario.js",
+  "./js/modules/tarjetas/index.js",
+  "./js/modules/tarjetas/formulario.js",
+  "./js/modules/tarjetas/linea.js",
+  "./js/modules/tarjetas/pago.js",
   "./js/modules/cuentas/index.js",
   "./js/modules/dashboard/bienvenida.js",
   "./js/modules/dashboard/cielo.js",

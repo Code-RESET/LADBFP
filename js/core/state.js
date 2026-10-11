@@ -67,5 +67,8 @@ export const cuentaPorId = (id) => estado.cuentas.find((c) => c.id === id);
 export const categoriaPorId = (id) => estado.categorias.find((c) => c.id === id);
 export const cajasActivas = () => estado.cajas.filter((c) => c.activa !== false);
 export const cuentasActivas = () => estado.cuentas.filter((c) => c.activa !== false);
+/** Dónde hay dinero (débito, monedero, efectivo): sin las tarjetas de crédito. */
+export const bancosActivos = () => cuentasActivas().filter((c) => c.tipo !== "credito");
+export const tarjetasActivas = () => cuentasActivas().filter((c) => c.tipo === "credito");
 export const categoriasActivas = (tipo) =>
   estado.categorias.filter((c) => c.activa !== false && (!tipo || c.tipo === tipo));

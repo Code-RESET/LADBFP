@@ -725,3 +725,40 @@ button.pag-num:hover { background: var(--surface-muted); }
 .respaldo__restaurar { cursor: pointer; }
 .respaldo__previa { display: flex; flex-direction: column; gap: 8px; }
 .respaldo__previa p { margin: 0; }
+
+/* ---------- Tarjetas de crédito (v1.9) ---------- */
+.texto-aviso { color: var(--warning) !important; }
+/* Registro rápido: ¿Con qué pagaste? y a meses sin intereses */
+.registro:not([data-tipo="gasto"]) .pago-con { display: none; }
+.registro:not([data-pago="tarjeta"]) .solo-tarjeta, .registro[data-repite="si"] .solo-tarjeta { display: none; }
+.registro:not([data-msi="si"]) .solo-msi { display: none; }
+.registro[data-deuda="no"] .solo-deuda { display: none; }
+.msi { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-muted); }
+.msi .campo__ayuda { margin: 0; }
+.msi__resumen { margin: 0; font-weight: 600; color: var(--text-primary); }
+/* Pantalla Tarjetas */
+.tarjetas__total { margin-right: auto; align-self: center; color: var(--text-secondary); }
+.tarjetas__total strong { color: var(--text-primary); }
+.tarjeta-credito { padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.tarjeta-credito__cabecera { display: flex; align-items: center; gap: 10px; }
+.tarjeta-credito__icono { display: inline-flex; color: var(--accent); }
+.tarjeta-credito__nombre { margin: 0; font-size: 1.15rem; font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tarjeta-credito__deuda { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+.tarjeta-credito__deuda strong { color: var(--text-primary); font-size: 1.15rem; }
+.tarjeta-credito__estado { margin: 0; font-weight: 600; line-height: 1.4; }
+.tarjeta-credito__subtitulo { margin: 6px 0 0; }
+.tarjeta-credito__msi { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-sm); background: var(--surface-muted); }
+.tarjeta-credito__msi .fila { min-height: 52px; }
+.barra-meta--tarjeta span { background: linear-gradient(90deg, var(--warning), var(--danger)); }
+/* Hoja Pagar tarjeta */
+.pago-tarjeta .card--suave p { margin: 0; }
+.pago-tarjeta__titulo { margin: 0; font-size: 1.02rem; }
+.chips--centro { justify-content: center; }
+.chip-boton {
+  padding: 8px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface-muted);
+  color: var(--text-primary); font: inherit; font-size: 0.88rem; cursor: pointer; min-height: 36px;
+}
+.chip-boton:active { background: var(--accent-soft); border-color: var(--accent); }
+/* Mi mes: renglón de tarjeta con botón Pagar */
+#seccion-tarjetas .fila .btn--pastilla { min-height: 38px; padding: 0 16px; flex: none; }
+a.fila__texto--boton { text-decoration: none; color: inherit; }

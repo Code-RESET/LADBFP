@@ -14,6 +14,19 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Tarjetas de crédito y meses sin intereses (v1.9.0)
+
+Lo que la sección "Fase futura" dejó diseñado, ahora implementado (`domain/tarjetas.js`, `services/tarjetas.js`, `modules/tarjetas/`):
+- **La tarjeta es una cuenta tipo `credito`** con `credito: { limiteCentavos?, diaCorte, diaLimite }`. No aparece en Bancos (no guarda dinero): tiene su pantalla **Más → Tarjetas de crédito**. Al darla de alta se puede capturar lo que ya se debe: un **ajuste** de salida en (caja que la paga, tarjeta) con fecha del último corte.
+- **Comprar con tarjeta = gasto con la cuenta de la tarjeta.** El registro rápido pregunta «¿Con qué pagaste?» (Débito / efectivo · 💳 cada tarjeta). La caja baja en ese momento (ese dinero ya está gastado) y la tarjeta queda en negativo (lo que debes); el banco no se mueve. Gastos fijos cargados a la tarjeta (Netflix) funcionan igual.
+- **Pagar la tarjeta = transferencia (caja, banco) → (caja, tarjeta)** por cada caja que debe, proporcional a su deuda (al centavo, `repartirPago`). **No es gasto** (ya se contó al comprar). Todo el pago va en un solo `writeBatch` (`movimientosRepo.crearVarios`) y «Deshacer» lo anula completo (`anularVarios`).
+- **Pago para no generar intereses** = lo que debías al último corte − lo que pagaste después + las mensualidades a meses que vencen hasta el próximo corte. El saldo total sale de los agregados; solo se leen los movimientos de la tarjeta **posteriores al corte** (consulta `cuentaIds` + `fecha >` con el índice que ya existía). Sin conexión, se pide todo lo que debes (pedir de más nunca genera intereses). Estados: *por pagar* (fecha límite), *vencida*, *al corriente*, *sin deuda*.
+- **Compra a meses sin intereses = una deuda de la tarjeta** (`deudas` con `tarjetaId`, `meses` y `fechaCompra`): mensualidad = total ÷ meses redondeada hacia arriba (la última ajusta los centavos); la primera vence en la fecha límite del primer corte en o después de la compra. Así reutiliza todo lo de deudas: cada mensualidad aparece en **Mi mes** con ☐ ("Pantalla 1 de 12 · 💳 Liverpool"), entra al pronóstico, a lo comprometido y al Excel. La caja baja mes a mes, no todo el día de la compra. La mensualidad se paga desde el banco donde la caja tiene su dinero (o con «Pagar tarjeta», que la incluye primero). Se pueden registrar compras que ya traías (mensualidades ya pagadas) y **liquidar** lo que falta.
+- **Deuda total** = deuda normal + lo que falta de compras a meses; **disponible** = límite − deuda total.
+- Mi mes muestra la sección **Tarjetas** (qué pagar y antes de qué día, botón Pagar) y la tarjeta de consejo avisa si una tarjeta venció o vence en 3 días o menos. «Revisar mis datos» avisa de tarjetas sin día de corte y compras a meses de tarjetas desactivadas, y explica cuando una caja gastó con tarjeta más de lo que tiene.
+
+**Reglas:** `credito` validado (días 1–31, límite opcional, sin campos extra) y deudas con `tarjetaId`, `meses` (2–48) y `fechaCompra`. **Hay que publicar `firestore.rules`** en la consola de Firebase.
+
 ## Fase 3 · entrega 1: Metas de ahorro y Respaldo (v1.8.0)
 
 **Metas** (`domain/metas.js`, `modules/metas/`, colección `metas`):
@@ -627,8 +640,8 @@ Obligaciones (calendario, estados, pagar desde la ocurrencia) · Deudas · Recur
 ### Fase 3 — Metas, análisis y exportación
 Metas (con viabilidad) · Escenarios · Reportes con filtros · Excel (botón en Reportes y acción rápida en Dashboard) · CSV · PDF · Backup/Importación · Verificar saldos. Pruebas: meta 300,000 / 20,000 = 15 aportaciones con fecha, Excel (hojas, totales, formatos, fechas, montos, descarga en Android/iOS/desktop), restaurar backup en una cuenta vacía y comparar saldos.
 
-### Fase futura (diseñado, no implementado)
-Tarjetas de crédito (la cuenta tipo `credito` ya existe en el modelo: compra = gasto con cuenta tarjeta; pago al banco = transferencia débito → tarjeta, **no** gasto), notificaciones push, multiusuario.
+### Fase futura
+Tarjetas de crédito con meses sin intereses (**hecho en v1.9.0**, ver arriba) · recordatorios en el calendario · compartir con otra persona · notificaciones push.
 
 ---
 

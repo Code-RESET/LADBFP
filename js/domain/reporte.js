@@ -43,13 +43,18 @@ export function reporteMes({ mes, hoy, cajas = [], cuentas = [], categorias = []
 
   const b = balanceDelMes({ mes, obligaciones, deudas, recurrentes, agregados, categorias, hoy });
 
-  // Gastos: fijos (con su estado) + los de una vez (ya pagados).
+  // Lo que se pagó con tarjeta de crédito dice con cuál ("Tarjeta Liverpool").
+  const forma = (formaPago, cuentaId) => formaPago || (cuenta[cuentaId]?.tipo === "credito" ? `Tarjeta ${cuenta[cuentaId].nombre}` : "");
+
+  // Gastos: fijos (con su estado) + los de una vez (ya pagados). Un pago a una deuda sin
+  // mensualidad (liquidar una compra a meses) va como gasto de una vez.
   const gastos = [
-    ...b.fijos.map((g) => ({ fecha: g.fecha, concepto: g.nombre, caja: caja[g.ref.cajaId]?.nombre || "", categoria: cat[g.categoriaId]?.nombre || "",
-      monto: g.monto, pagado: Math.min(g.pagado, g.monto), estado: g.estado, fijo: "Sí", formaPago: g.formaPago || "" })),
-    ...activos.filter((m) => m.tipo === "gasto" && !m.obligacionId && !m.deudaId).map((m) => ({ fecha: m.fecha, concepto: nombre(m),
+    ...b.fijos.map((g) => ({ fecha: g.fecha, concepto: g.msi ? `${g.nombre} (${g.msi})` : g.nombre, caja: caja[g.ref.cajaId]?.nombre || "",
+      categoria: cat[g.categoriaId]?.nombre || "", monto: g.monto, pagado: Math.min(g.pagado, g.monto), estado: g.estado, fijo: "Sí",
+      formaPago: g.msi ? `Tarjeta ${cuenta[g.ref.tarjetaId]?.nombre || g.ref.acreedor} (a meses)` : forma(g.formaPago, g.clase === "obligacion" ? g.ref.cuentaId : null) })),
+    ...activos.filter((m) => m.tipo === "gasto" && !m.obligacionId && !(m.deudaId && m.deudaPeriodo)).map((m) => ({ fecha: m.fecha, concepto: nombre(m),
       caja: caja[m.cajaId]?.nombre || "", categoria: cat[m.categoriaId]?.nombre || "", monto: m.montoCentavos, pagado: m.montoCentavos,
-      estado: "Pagado", fijo: "No", formaPago: m.formaPago || "" })),
+      estado: "Pagado", fijo: "No", formaPago: forma(m.formaPago, m.cuentaId) })),
   ].sort((x, y) => x.fecha.localeCompare(y.fecha) || x.concepto.localeCompare(y.concepto, "es"));
 
   const ingresos = [
@@ -93,7 +98,8 @@ export function reporteMes({ mes, hoy, cajas = [], cuentas = [], categorias = []
       fecha: m.fecha, tipo: TIPO[m.tipo] || m.tipo, concepto: nombre(m),
       caja: m.tipo === "transferencia" ? `${caja[m.cajaId]?.nombre || ""} → ${caja[m.cajaDestinoId]?.nombre || ""}` : caja[m.cajaId]?.nombre || "",
       banco: m.tipo === "transferencia" ? `${cuenta[m.cuentaId]?.nombre || ""} → ${cuenta[m.cuentaDestinoId]?.nombre || ""}` : cuenta[m.cuentaId]?.nombre || "",
-      categoria: cat[m.categoriaId]?.nombre || "", monto: montoConSigno(m), importe: m.montoCentavos, formaPago: m.formaPago || "",
+      categoria: cat[m.categoriaId]?.nombre || "", monto: montoConSigno(m), importe: m.montoCentavos,
+      formaPago: m.tipo === "gasto" ? forma(m.formaPago, m.cuentaId) : m.formaPago || "",
     }));
 
   return {

@@ -13,7 +13,8 @@
 // Funciones puras, probadas en tests/.
 // ============================================================
 
-import { sumarDias, nombreDia } from "../core/dates.js";
+import { sumarDias, nombreDia, formatFecha } from "../core/dates.js";
+import { formatMonto } from "../core/money.js";
 import { eventos as calcularEventos } from "./compromisos.js";
 import { proyectar } from "./proyeccion.js";
 import { saldosPor } from "./saldos.js";
@@ -47,11 +48,13 @@ export function pronosticoDias({ hoy, obligaciones = [], deudas = [], recurrente
 }
 
 /**
- * La tarjeta de consejo (o null). Prioridad: vencidos → un error en tus
- * datos → el dinero no alcanza esta semana → el pago grande que se viene.
- * { clave, titulo, texto, accion: { label, tipo: 'ver-gastos' | 'revisar-datos' | 'cerrar' } }
+ * La tarjeta de consejo (o null). Prioridad: vencidos → una tarjeta de
+ * crédito vencida o que vence en 3 días o menos → un error en tus datos →
+ * el dinero no alcanza esta semana → el pago grande que se viene.
+ * `tarjetas` = [{ nombre, estado, paraNoGenerarIntereses, fechaLimite, dias }] (domain/tarjetas.js).
+ * { clave, titulo, texto, accion: { label, tipo: 'ver-gastos' | 'ver-tarjetas' | 'revisar-datos' | 'cerrar' } }
  */
-export function consejo({ balance, pronostico = [], hallazgos = [], hoy }) {
+export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjetas = [] }) {
   const vencidos = (balance?.fijos || []).filter((g) => g.estado === "Vencido");
   if (vencidos.length) {
     const nombres = vencidos.map((g) => g.nombre);
@@ -60,6 +63,22 @@ export function consejo({ balance, pronostico = [], hallazgos = [], hoy }) {
       titulo: vencidos.length === 1 ? `${nombres[0]} está vencido` : `Tienes ${vencidos.length} gastos vencidos`,
       texto: vencidos.length === 1 ? "¿Ya lo pagaste? Márcalo ☑ en tu lista de gastos." : `${nombres.join(", ")}. ¿Ya los pagaste? Márcalos ☑ en tu lista.`,
       accion: { label: "Ver gastos", tipo: "ver-gastos" },
+    };
+  }
+
+  const tarjeta = tarjetas
+    .filter((t) => t.paraNoGenerarIntereses > 0 && (t.estado === "vencida" || (t.estado === "por-pagar" && t.dias != null && t.dias <= 3)))
+    .sort((a, b) => (a.estado === "vencida" ? 0 : 1) - (b.estado === "vencida" ? 0 : 1) || a.dias - b.dias)[0];
+  if (tarjeta) {
+    const monto = formatMonto(tarjeta.paraNoGenerarIntereses);
+    const cuando = tarjeta.dias === 0 ? "hoy" : tarjeta.dias === 1 ? "mañana" : `el ${nombreDia(tarjeta.fechaLimite)}`;
+    return {
+      clave: `tarjeta:${tarjeta.nombre}:${tarjeta.fechaLimite}:${tarjeta.estado}`,
+      titulo: tarjeta.estado === "vencida" ? `Tu tarjeta ${tarjeta.nombre} está vencida` : `Paga tu tarjeta ${tarjeta.nombre}`,
+      texto: tarjeta.estado === "vencida"
+        ? `Venció el ${formatFecha(tarjeta.fechaLimite)}. Paga ${monto} cuanto antes para no pagar intereses.`
+        : `Vence ${cuando}: paga ${monto} para no generar intereses.`,
+      accion: { label: "Pagar", tipo: "ver-tarjetas" },
     };
   }
 

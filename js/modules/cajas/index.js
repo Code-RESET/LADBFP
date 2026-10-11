@@ -11,7 +11,7 @@ import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto, parseMonto } from "../../core/money.js";
 import { hoy } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, subscribe, catalogosListos, cajaPorId, cuentaPorId, cuentasActivas } from "../../core/state.js";
+import { getState, subscribe, catalogosListos, cajaPorId, cuentaPorId, bancosActivos } from "../../core/state.js";
 import { saldosPor, desgloseCaja, tieneMovimientos } from "../../domain/saldos.js";
 import { validarCaja, validarCuenta, COLORES } from "../../domain/catalogos.js";
 import { validarMovimiento } from "../../domain/movimientos.js";
@@ -43,12 +43,9 @@ function tarjeta(c, saldo, agregados) {
   </li>`;
 }
 
-/** Tipo de banco según su nombre (solo una sugerencia; se cambia en Cuentas). */
+/** Tipo de banco según su nombre (solo una sugerencia; se cambia en Bancos). Las tarjetas de crédito se agregan en Tarjetas. */
 function tipoDeBanco(nombre) {
-  const t = nombre.toLowerCase();
-  if (/efectivo|cartera|cash/.test(t)) return "efectivo";
-  if (/tarjeta de cr[eé]dito|credito$|crédito$/.test(t)) return "credito";
-  return "debito";
+  return /efectivo|cartera|cash/.test(nombre.toLowerCase()) ? "efectivo" : "debito";
 }
 
 function colorLibre() {
@@ -58,9 +55,9 @@ function colorLibre() {
 
 function formulario(c) {
   const nueva = !c.id;
-  const cuentas = cuentasActivas();
+  const cuentas = bancosActivos();
   const actual = c.cuentaPredeterminadaId && !cuentas.some((x) => x.id === c.cuentaPredeterminadaId) ? cuentaPorId(c.cuentaPredeterminadaId) : null;
-  const bancos = actual ? [...cuentas, { ...actual, nombre: `${actual.nombre} (desactivado)` }] : cuentas;
+  const bancos = actual ? [...cuentas, { ...actual, nombre: `${actual.nombre} (${actual.tipo === "credito" ? "tarjeta de crédito" : "desactivado"})` }] : cuentas;
   return html`<form class="form registro" data-banco="${c.cuentaPredeterminadaId ? "lista" : ""}" novalidate>
     ${campo({ label: "Nombre de la caja", nombre: "nombre", control: html`<input name="nombre" maxlength="40" value="${c.nombre || ""}" placeholder="Ej. Ahorro casa, Negocio, Gastos de la semana" required />` })}
 

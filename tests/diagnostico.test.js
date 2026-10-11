@@ -86,6 +86,25 @@ test("reporte: balance real cuadra (al empezar + entró − salió + otros = al 
   assert.eq([montoConSigno({ tipo: "gasto", montoCentavos: 5 }), montoConSigno({ tipo: "transferencia", montoCentavos: 5 })], [-5, 0]);
 });
 
+test("reporte: compras con tarjeta dicen con cuál; mensualidad a meses con su número; liquidación como gasto de una vez", () => {
+  const tv = { id: "tv", acreedor: "Liverpool", descripcion: "TV", tarjetaId: "liv", meses: 12, saldoInicialCentavos: 1200000, pagoCentavos: 100000,
+    regla: { frecuencia: "mensual", diaMes: 5, desde: "2026-10-05" }, cajaId: "a", cuentaId: "c1", categoriaId: "ga-vivienda", activa: true };
+  const { ag, docs } = conAgregados([
+    { tipo: "gasto", fecha: "2026-10-03", montoCentavos: 80000, cajaId: "a", cuentaId: "liv", categoriaId: "ga-vivienda", nota: "Gasolina" },
+    { tipo: "gasto", fecha: "2026-10-05", montoCentavos: 100000, cajaId: "a", categoriaId: "ga-vivienda", deudaId: "tv", deudaPeriodo: "2026-10-05", nota: "TV (1 de 12)" },
+    { tipo: "gasto", fecha: "2026-10-06", montoCentavos: 1100000, cajaId: "a", categoriaId: "ga-vivienda", deudaId: "tv", nota: "TV (liquidación)" },
+  ]);
+  const r = reporteMes({
+    mes: "2026-10", hoy: "2026-10-07", cajas: [{ id: "a", nombre: "Personal" }],
+    cuentas: [{ id: "c1", nombre: "HSBC" }, { id: "liv", nombre: "Liverpool", tipo: "credito" }],
+    categorias: [{ id: "ga-vivienda", tipo: "gasto", nombre: "Vivienda" }], deudas: [tv],
+    agregados: ag, movimientos: docs.filter((d) => d.mes === "2026-10"),
+  });
+  assert.eq(r.gastos.map((g) => [g.concepto, g.formaPago, g.monto]), [
+    ["Gasolina", "Tarjeta Liverpool", 80000], ["TV (1 de 12)", "Tarjeta Liverpool (a meses)", 100000], ["TV (liquidación)", "", 1100000]]);
+  assert.eq(r.balance.pagado, 1280000);
+});
+
 // ---------- Banco del que sale el dinero de una caja ----------
 import { cuentaParaCaja } from "../js/domain/saldos.js";
 test("saldos: el gasto sale del banco donde la caja tiene dinero", () => {
@@ -95,4 +114,20 @@ test("saldos: el gasto sale del banco donde la caja tiene dinero", () => {
   assert.eq(cuentaParaCaja({}, caja, ["mercado-pago", "bbva"]), "mercado-pago");     // sin dinero: el predeterminado
   assert.eq(cuentaParaCaja(ag, caja, ["mercado-pago"]), "mercado-pago");             // BBVA desactivado
   assert.eq(cuentaParaCaja({}, { id: "x" }, ["nu"]), "nu");
+});
+
+test("diagnóstico: tarjetas de crédito (sin día de corte, compra a meses de tarjeta desactivada, caja que gastó de más con tarjeta)", () => {
+  const d = base();
+  d.cuentas.push({ id: "liv", nombre: "Liverpool", tipo: "credito", credito: { diaCorte: 15 } }, { id: "nu", nombre: "Nu", tipo: "credito", activa: false });
+  d.deudas = [{ id: "tv", acreedor: "Nu", descripcion: "TV", tarjetaId: "nu", saldoInicialCentavos: 100000, pagoCentavos: 10000, meses: 10,
+    regla: { frecuencia: "mensual", diaMes: 5, desde: "2026-11-05" }, cajaId: "a", cuentaId: "c1", activa: true }];
+  // Personal tenía $5,000 y gastó $6,000 con Liverpool.
+  d.agregados = { "2026-10": { n: 2, porCaja: { a: { ape: 500000, gas: 600000, n: 2 } }, porCuenta: { c1: { ape: 500000, n: 1 }, liv: { gas: 600000, n: 1 } },
+    porCajaCuenta: { a__c1: { ape: 500000 }, a__liv: { gas: 600000 } } } };
+  const h = diagnosticar(d);
+  const t = titulos(h);
+  assert.ok(t[0] === "error:Personal tiene saldo negativo" && h[0].detalle.startsWith("Gastaste con tarjeta de crédito"), t.join(" | "));
+  assert.ok(t.includes("aviso:A la tarjeta Liverpool le falta su día de corte o de pago"), t.join(" | "));
+  assert.ok(t.includes("aviso:La compra a meses «TV» es de una tarjeta desactivada o borrada"), t.join(" | "));
+  assert.no(t.some((x) => x.includes("Liverpool quedó en negativo")), "una tarjeta en negativo es normal (es lo que debes)");
 });

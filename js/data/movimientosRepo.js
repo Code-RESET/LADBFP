@@ -39,6 +39,15 @@ function aplicarDeltas(batch, uid, deltasPorMes) {
   }
 }
 
+/** Suma deltas anidados de `origen` en `destino` (varios movimientos en un solo batch). */
+function sumarDeltas(destino, origen) {
+  for (const [k, v] of Object.entries(origen)) {
+    if (typeof v === "number") destino[k] = (destino[k] || 0) + v;
+    else sumarDeltas(destino[k] ??= {}, v);
+  }
+  return destino;
+}
+
 /** Quita campos de UI (_pendiente, id) antes de comparar o recalcular. */
 function datosDe(mov) {
   const { id, _pendiente, ...resto } = mov;
@@ -57,6 +66,27 @@ export const movimientosRepo = {
     aplicarDeltas(batch, uid, deltasAgregados(null, datos));
     confirmarSinEsperar(batch, onError);
     return id;
+  },
+
+  /**
+   * Varios movimientos en UN solo batch (p. ej. el pago de una tarjeta,
+   * que toca varias cajas): se guardan todos o ninguno. Devuelve sus ids.
+   */
+  crearVarios(uid, entradas, { onError, origen = "manual" } = {}) {
+    const batch = writeBatch(db);
+    const ts = Date.now();
+    const deltas = {};
+    const ids = entradas.map((entrada) => {
+      const id = nuevoId(uid, MOV);
+      const datos = construirMovimiento(entrada);
+      batch.set(docRef(uid, MOV, id), conMarcas({ ...datos, ts, origen }, { nuevo: true }));
+      batch.set(historialRef(uid, id), { accion: "crear", cambios: cambiosRelevantes(null, datos), ts, en: serverTimestamp() });
+      sumarDeltas(deltas, deltasAgregados(null, datos));
+      return id;
+    });
+    aplicarDeltas(batch, uid, deltas);
+    confirmarSinEsperar(batch, onError);
+    return ids;
   },
 
   editar(uid, anterior, entrada, { onError } = {}) {
@@ -92,6 +122,26 @@ export const movimientosRepo = {
       motivo: motivo.trim(), ts: Date.now(), en: serverTimestamp(),
     });
     aplicarDeltas(batch, uid, deltasAgregados(previo, { ...previo, estado: "anulado" }));
+    confirmarSinEsperar(batch, onError);
+  },
+
+  /** Anula varios en UN solo batch ("Deshacer" de un pago de tarjeta). */
+  anularVarios(uid, movimientos, motivo, { onError } = {}) {
+    const vivos = movimientos.filter((m) => m.estado !== "anulado");
+    if (!vivos.length) return;
+    const batch = writeBatch(db);
+    const deltas = {};
+    const ts = Date.now();
+    for (const anterior of vivos) {
+      const previo = datosDe(anterior);
+      batch.update(docRef(uid, MOV, anterior.id), { estado: "anulado", anulacion: { motivo: motivo.trim(), ts }, updatedAt: serverTimestamp() });
+      batch.set(historialRef(uid, anterior.id), {
+        accion: "anular", cambios: { estado: { antes: "activo", despues: "anulado" } },
+        motivo: motivo.trim(), ts, en: serverTimestamp(),
+      });
+      sumarDeltas(deltas, deltasAgregados(previo, { ...previo, estado: "anulado" }));
+    }
+    aplicarDeltas(batch, uid, deltas);
     confirmarSinEsperar(batch, onError);
   },
 
@@ -156,6 +206,17 @@ export const movimientosRepo = {
     const q = query(col(uid, MOV), ...this.restricciones({ mes, tipo }), limit(300));
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data(), _pendiente: d.metadata.hasPendingWrites }));
+  },
+
+  /**
+   * Movimientos activos de una cuenta con fecha posterior a `fecha` (estado
+   * de cuenta de una tarjeta: lo de después del corte). Índice cuentaIds + estado + fecha + ts.
+   */
+  async deCuentaDespuesDe(uid, cuentaId, fecha) {
+    const q = query(col(uid, MOV), where("estado", "==", "activo"), where("cuentaIds", "array-contains", cuentaId),
+      where("fecha", ">", fecha), orderBy("fecha", "desc"), orderBy("ts", "desc"), limit(500));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   },
 
   /** Pagos vinculados a una deuda u obligación (sin índice compuesto: un solo filtro de igualdad). */

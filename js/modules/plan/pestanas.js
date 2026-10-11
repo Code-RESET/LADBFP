@@ -160,8 +160,8 @@ export function pestanaDeudas(s, plan) {
         const evento = plan.eventos.find((e) => e.clase === "deuda" && e.ref.id === dd.id);
         return html`<div class="card tarjeta-deuda ${dd.activa === false ? "atenuada" : ""}">
           <button type="button" class="tarjeta-deuda__cabecera" data-editar="deuda:${dd.id}">
-            <span class="fila__texto"><span class="fila__titulo">${dd.acreedor}</span>
-              <span class="fila__sub">${dd.descripcion ? `${dd.descripcion} · ` : ""}${describirRegla(dd.regla)} · ${formatMonto(dd.pagoCentavos)}</span></span>
+            <span class="fila__texto"><span class="fila__titulo">${dd.tarjetaId ? `${dd.descripcion || dd.acreedor} · 💳 ${dd.acreedor}` : dd.acreedor}</span>
+              <span class="fila__sub">${dd.tarjetaId ? `${dd.meses} meses sin intereses · ` : dd.descripcion ? `${dd.descripcion} · ` : ""}${describirRegla(dd.regla)} · ${formatMonto(dd.pagoCentavos)}</span></span>
             ${icon("chevron", { size: 16, clase: "fila__chevron" })}
           </button>
           <div class="tarjeta-deuda__cifras">
