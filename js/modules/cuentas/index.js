@@ -5,6 +5,7 @@
 // quedan en "Más opciones". (También se crean desde Nueva caja.)
 // Una cuenta puede guardar dinero de varias cajas (BBVA como
 // hub): aquí se ve el desglose por caja.
+// Las tarjetas de crédito viven en su propia pantalla (Tarjetas).
 // ============================================================
 
 import { html, render as renderHtml, on } from "../../core/dom.js";
@@ -47,7 +48,8 @@ function formulario(c, agregados) {
     <details class="mas-detalles">
       <summary>Más opciones <span class="texto-sec">(tipo, institución)</span></summary>
       <div class="grupo">
-        ${campo({ label: "Tipo", nombre: "tipo", control: html`<select name="tipo">${Object.entries(TIPOS_CUENTA).map(([k, v]) => html`<option value="${k}" ${k === (c.tipo || "debito") ? "selected" : ""}>${v}</option>`)}</select>` })}
+        ${campo({ label: "Tipo", nombre: "tipo", control: html`<select name="tipo">${Object.entries(TIPOS_CUENTA).filter(([k]) => k !== "credito" || c.tipo === "credito")
+          .map(([k, v]) => html`<option value="${k}" ${k === (c.tipo || "debito") ? "selected" : ""}>${v}</option>`)}</select>` })}
         ${campo({ label: "Institución", nombre: "institucion", control: html`<input name="institucion" maxlength="40" value="${c.institucion || ""}" placeholder="Igual que el nombre" />` })}
         ${campo({ label: "Caja sugerida", nombre: "cajaPredeterminadaId", control: html`<select name="cajaPredeterminadaId">${opciones(cajasActivas(), c.cajaPredeterminadaId, { vacio: "Ninguna" })}</select>`,
           ayuda: "Un banco puede guardar dinero de varias cajas." })}
@@ -124,12 +126,19 @@ export function render(container, ctx) {
     const s = getState();
     if (!catalogosListos()) { renderHtml(container, skeletonLista(5)); return; }
     const saldos = saldosPor(s.agregados, "porCuenta");
-    const activas = s.cuentas.filter((c) => c.activa !== false);
-    const inactivas = s.cuentas.filter((c) => c.activa === false);
+    const bancos = s.cuentas.filter((c) => c.tipo !== "credito");
+    const tarjetas = s.cuentas.filter((c) => c.tipo === "credito" && c.activa !== false);
+    const activas = bancos.filter((c) => c.activa !== false);
+    const inactivas = bancos.filter((c) => c.activa === false);
     renderHtml(container, html`
       <div class="barra-acciones"><button type="button" class="btn btn--primario" data-accion="nueva">+ Nuevo banco</button></div>
       ${activas.length === 0 ? estadoVacio({ icono: "cuentas", titulo: "Todavía no tienes bancos.", texto: "Es donde está el dinero: un banco, una app o efectivo." })
         : html`<ul class="lista card card--lista">${activas.map((c) => fila(c, saldos[c.id] || 0, s.agregados))}</ul>`}
+      <ul class="lista card card--lista"><li><a class="fila" href="#/tarjetas">
+        <span class="fila__icono">${icon("tarjeta", { size: 18 })}</span>
+        <span class="fila__texto"><span class="fila__titulo">Tarjetas de crédito</span>
+          <span class="fila__sub">${tarjetas.length ? tarjetas.map((t) => t.nombre).join(", ") : "Agrega tus tarjetas para saber cuánto pagar"}</span></span>
+        ${icon("chevron", { size: 16, clase: "fila__chevron" })}</a></li></ul>
       ${inactivas.length ? html`<h2 class="seccion__titulo">Desactivadas</h2>
         <ul class="lista card card--lista atenuada">${inactivas.map((c) => fila(c, saldos[c.id] || 0, s.agregados))}</ul>` : ""}`);
   }

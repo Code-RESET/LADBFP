@@ -7,7 +7,7 @@
 // Funciones puras, probadas en tests/.
 // ============================================================
 
-import { saldosPor } from "./saldos.js";
+import { saldosPor, desgloseCaja } from "./saldos.js";
 import { gastosFijosDelMes } from "./mes.js";
 
 const activo = (lista, id) => lista.some((x) => x.id === id && x.activa !== false);
@@ -19,18 +19,23 @@ const activo = (lista, id) => lista.some((x) => x.id === id && x.activa !== fals
 export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], metas = [], agregados = {}, perfil = null, hoy }) {
   const out = [];
   const cajasActivas = cajas.filter((c) => c.activa !== false);
-  const cuentasActivas = cuentas.filter((c) => c.activa !== false);
+  // Las tarjetas de crédito no guardan dinero: los "bancos" son débito, monedero y efectivo.
+  const cuentasActivas = cuentas.filter((c) => c.activa !== false && c.tipo !== "credito");
+  const tarjetas = new Set(cuentas.filter((c) => c.tipo === "credito").map((c) => c.id));
   const saldoCaja = saldosPor(agregados, "porCaja");
   const saldoCuenta = saldosPor(agregados, "porCuenta");
 
   if (!cajasActivas.length) out.push({ nivel: "error", titulo: "No tienes cajas activas", detalle: "Crea al menos una caja para registrar dinero.", ruta: "cajas" });
   if (!cuentasActivas.length) out.push({ nivel: "error", titulo: "No tienes bancos/cuentas activos", detalle: "Crea al menos una (por ejemplo «Efectivo»).", ruta: "cuentas" });
 
-  // Saldos negativos: casi siempre falta el saldo inicial o hay un gasto de más.
+  // Saldos negativos: casi siempre falta el saldo inicial o hay un gasto de más (o se gastó con tarjeta más de lo que hay).
   for (const c of cajas) {
     if ((saldoCaja[c.id] || 0) < 0) {
+      const enTarjetas = desgloseCaja(agregados, c.id).filter((d) => tarjetas.has(d.cuentaId) && d.saldo < 0).reduce((a, d) => a - d.saldo, 0);
       out.push({ nivel: "error", titulo: `${c.nombre} tiene saldo negativo`, ruta: "cajas",
-        detalle: "Salió más dinero del que entró. Si ya tenía dinero antes de usar la app, agrégalo en Cajas → la caja → «Agregar dinero que ya tenía». Si no, revisa sus movimientos." });
+        detalle: enTarjetas
+          ? "Gastaste con tarjeta de crédito más de lo que tiene esta caja: no le alcanzaría para pagar la tarjeta. Pásale dinero de otra caja o, si ya tenía dinero antes de usar la app, agrégalo en Cajas → la caja → «Agregar dinero que ya tenía»."
+          : "Salió más dinero del que entró. Si ya tenía dinero antes de usar la app, agrégalo en Cajas → la caja → «Agregar dinero que ya tenía». Si no, revisa sus movimientos." });
     }
   }
   for (const c of cuentas) {
@@ -64,6 +69,20 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
       out.push({ nivel: "error", titulo: `La meta «${m.nombre}» usa ${mal.join(" y ")} desactivada o borrada`, ruta: "metas",
         detalle: "Ábrela en Metas de ahorro y elige otra caja, o vuelve a activar la que tenía." });
     }
+  }
+
+  // Tarjetas de crédito sin día de corte o de pago: no se puede saber cuánto pagar ni cuándo.
+  for (const t of cuentas.filter((c) => c.tipo === "credito" && c.activa !== false)) {
+    const dia = (d) => Number.isInteger(Number(d)) && Number(d) >= 1 && Number(d) <= 31;
+    if (!dia(t.credito?.diaCorte) || !dia(t.credito?.diaLimite)) {
+      out.push({ nivel: "aviso", titulo: `A la tarjeta ${t.nombre} le falta su día de corte o de pago`, ruta: "tarjetas",
+        detalle: "Ábrela en Tarjetas de crédito → Completar datos. Con eso la app sabe cuánto pagar para no generar intereses." });
+    }
+  }
+  // Compras a meses de una tarjeta desactivada o borrada.
+  for (const d of deudas.filter((x) => x.activa !== false && x.tarjetaId && !activo(cuentas, x.tarjetaId))) {
+    out.push({ nivel: "aviso", titulo: `La compra a meses «${d.descripcion || d.acreedor}» es de una tarjeta desactivada o borrada`, ruta: "tarjetas",
+      detalle: "Sigue apareciendo en Mi mes. Si ya la terminaste de pagar, ábrela y toca «Ya no la estoy pagando»; si no, vuelve a activar la tarjeta." });
   }
 
   // Cajas sin banco asignado: se usaría el primer banco de la lista, que puede no ser el correcto.

@@ -47,6 +47,14 @@ service cloud.firestore {
         && marcas(m);
     }
 
+    // Tarjeta de crédito: día de corte y límite de pago (1–31) y límite de crédito opcional.
+    function diaMes(v) { return v is int && v >= 1 && v <= 31; }
+    function creditoValido(c) {
+      return c is map && c.keys().hasOnly(['limiteCentavos', 'diaCorte', 'diaLimite'])
+        && diaMes(c.diaCorte) && diaMes(c.diaLimite)
+        && (!('limiteCentavos' in c) || c.limiteCentavos == null || centavos(c.limiteCentavos));
+    }
+
     function cuentaValida(m) {
       return m.keys().hasOnly(['nombre', 'institucion', 'tipo', 'cajaPredeterminadaId', 'credito',
           'activa', 'orden', 'createdAt', 'updatedAt', 'schemaVersion'])
@@ -54,7 +62,7 @@ service cloud.firestore {
         && m.tipo in ['debito', 'monedero', 'efectivo', 'credito']
         && txtOpc(m, 'institucion', 40)
         && idOpc(m, 'cajaPredeterminadaId')
-        && (!('credito' in m) || m.credito is map)
+        && (!('credito' in m) || creditoValido(m.credito))
         && boolOpc(m, 'activa')
         && (!('orden' in m) || m.orden is int)
         && marcas(m);
@@ -90,14 +98,19 @@ service cloud.firestore {
         && marcas(m);
     }
 
-    // Deuda: nunca sin caja (sección 37)
+    // Deuda: nunca sin caja (sección 37). Una compra a meses sin intereses es una
+    // deuda de una tarjeta (tarjetaId) con su número de meses (2–48) y fecha de compra.
     function deudaValida(m) {
       return m.keys().hasOnly(['acreedor', 'descripcion', 'saldoInicialCentavos', 'pagoCentavos', 'regla',
-          'cajaId', 'cuentaId', 'categoriaId', 'tasaAnual', 'formaPago', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
+          'cajaId', 'cuentaId', 'categoriaId', 'tasaAnual', 'formaPago', 'tarjetaId', 'meses', 'fechaCompra',
+          'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
         && txt(m.acreedor, 60) && txtOpc(m, 'descripcion', 200)
         && centavos(m.saldoInicialCentavos) && centavos(m.pagoCentavos) && reglaValida(m.regla)
         && txt(m.cajaId, 100) && txt(m.cuentaId, 100) && idOpc(m, 'categoriaId')
         && (!('tasaAnual' in m) || m.tasaAnual is number) && boolOpc(m, 'activa') && txtOpc(m, 'formaPago', 20)
+        && idOpc(m, 'tarjetaId')
+        && (!('meses' in m) || (m.meses is int && m.meses >= 2 && m.meses <= 48))
+        && (!('fechaCompra' in m) || fecha(m.fechaCompra))
         && marcas(m);
     }
 

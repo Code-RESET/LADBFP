@@ -25,6 +25,7 @@ export const MODULES = [
   { path: "movimientos", label: "Todos los movimientos", icon: "movimientos", nav: { movil: "mas", desktop: true }, load: () => import("./modules/movimientos/index.js") },
   { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cajas/index.js") },
   { path: "metas", label: "Metas de ahorro", icon: "metas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/metas/index.js") },
+  { path: "tarjetas", label: "Tarjetas de crédito", icon: "tarjeta", nav: { movil: "mas", desktop: true }, load: () => import("./modules/tarjetas/index.js") },
   { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: true }, load: () => import("./modules/mas/index.js") },
   { path: "plan", label: "Deudas y proyección", icon: "plan", nav: { movil: "mas", desktop: false }, load: () => import("./modules/plan/index.js") },
   { path: "cuentas", label: "Bancos", icon: "cuentas", nav: { movil: "mas", desktop: false }, load: () => import("./modules/cuentas/index.js") },

@@ -14,6 +14,7 @@ import { mesSiguiente, sumarDias } from "../core/dates.js";
 import { ocurrencias } from "./periodos.js";
 import { claveVinculo, pagadoVinculo, pagadoDeuda } from "./compromisos.js";
 import { flujoDelMes } from "./metricas.js";
+import { etiquetaMsi } from "./tarjetas.js";
 
 export const FORMAS_PAGO = ["Efectivo", "Transferencia", "Tarjeta", "Domiciliado", "Depósito"];
 
@@ -27,8 +28,10 @@ export function estadoGasto({ monto, pagado, fecha, hoy }) {
 
 /**
  * Gastos fijos que vencen en `mes` (pagos fijos y cuotas de deuda),
- * ordenados por fecha de vencimiento, con su estado.
- * [{ clase, ref, nombre, categoriaId, formaPago, nota, fecha, dia, monto, pagado, pendiente, estado, periodo }]
+ * ordenados por fecha de vencimiento, con su estado. Las mensualidades
+ * de compras a meses llevan el nombre de lo que compraste y `msi`
+ * ("3 de 12").
+ * [{ clase, ref, nombre, categoriaId, formaPago, nota, fecha, dia, monto, pagado, pendiente, estado, periodo, msi? }]
  */
 export function gastosFijosDelMes({ mes, obligaciones = [], deudas = [], agregados, hoy }) {
   const { inicio, fin } = rangoMes(mes);
@@ -48,9 +51,11 @@ export function gastosFijosDelMes({ mes, obligaciones = [], deudas = [], agregad
       // Una deuda ya liquidada no genera cuotas pendientes (sí muestra las ya pagadas).
       const monto = pagado > 0 ? Math.max(pagado, Math.min(dd.pagoCentavos, pagado + saldo)) : Math.min(dd.pagoCentavos, saldo);
       if (monto <= 0) continue;
-      out.push({ clase: "deuda", ref: dd, nombre: dd.acreedor, categoriaId: dd.categoriaId || "ga-deudas", formaPago: dd.formaPago || "", nota: dd.descripcion || "",
+      const msi = dd.tarjetaId ? etiquetaMsi(dd, f) : "";
+      out.push({ clase: "deuda", ref: dd, nombre: msi ? dd.descripcion || dd.acreedor : dd.acreedor, categoriaId: dd.categoriaId || "ga-deudas",
+        formaPago: dd.formaPago || "", nota: msi ? dd.acreedor : dd.descripcion || "",
         fecha: f, dia: Number(f.slice(8)), monto, pagado, pendiente: Math.max(0, monto - pagado),
-        estado: estadoGasto({ monto, pagado, fecha: f, hoy }), periodo: f });
+        estado: estadoGasto({ monto, pagado, fecha: f, hoy }), periodo: f, ...(msi ? { msi } : {}) });
     }
   }
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.nombre.localeCompare(b.nombre, "es"));

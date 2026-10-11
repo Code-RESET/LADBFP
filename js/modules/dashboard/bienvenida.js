@@ -8,7 +8,7 @@ import { html, render } from "../../core/dom.js";
 import { parseMonto, formatMonto } from "../../core/money.js";
 import { hoy } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cajasActivas, cuentasActivas } from "../../core/state.js";
+import { getState, cajasActivas, bancosActivos } from "../../core/state.js";
 import { validarMovimiento } from "../../domain/movimientos.js";
 import { sembrarCatalogos, CAJAS_INICIALES, CUENTAS_INICIALES } from "../../data/seed.js";
 import { movimientosRepo } from "../../data/movimientosRepo.js";
@@ -45,7 +45,7 @@ export function pasoCatalogos(container) {
 /** Captura de saldos iniciales: una fila por caja (con su cuenta predeterminada). */
 export function pasoSaldosIniciales(container, { onListo }) {
   const cajas = cajasActivas();
-  const cuentas = cuentasActivas();
+  const cuentas = bancosActivos();
   render(container, html`<section class="card bienvenida">
     <h2 class="card__titulo-grande">Saldos iniciales</h2>
     <p class="texto-sec">¿Cuánto dinero tiene hoy cada caja? Se registra como <strong>saldo inicial</strong>: no cuenta como ingreso en los reportes. Deja en blanco lo que no quieras capturar ahora.</p>

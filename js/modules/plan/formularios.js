@@ -193,6 +193,8 @@ export function abrirDeuda(item = {}) {
       saldoInicialCentavos: parseMonto(form.saldoInicial.value), pagoCentavos: parseMonto(form.pago.value),
       regla: leerRegla(form), cajaId: form.cajaId.value, cuentaId: form.cuentaId.value,
       categoriaId: dd.categoriaId || "ga-deudas", tasaAnual: dd.tasaAnual || 0, activa: dd.activa !== false,
+      // Compra a meses (v1.9): no perder la tarjeta, los meses ni la fecha de compra.
+      ...(dd.tarjetaId ? { tarjetaId: dd.tarjetaId, meses: dd.meses, ...(dd.fechaCompra ? { fechaCompra: dd.fechaCompra } : {}) } : {}),
     };
     const { ok, errores } = validarDeuda(datos);
     if (!ok) { mostrarErrores(form, errores); return; }

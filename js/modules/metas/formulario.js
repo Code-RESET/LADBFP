@@ -12,7 +12,7 @@ import { html } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy, mesDe } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, cajasActivas, cuentasActivas } from "../../core/state.js";
+import { getState, cajaPorId, cuentaPorId, cajasActivas, bancosActivos } from "../../core/state.js";
 import { validarMeta, aportacionesDelMes } from "../../domain/metas.js";
 import { validarCaja, COLORES } from "../../domain/catalogos.js";
 import { DIAS_SEMANA } from "../../domain/periodos.js";
@@ -92,7 +92,7 @@ export function abrirMeta(meta = {}) {
         <div class="solo-ahorro-nueva grupo">
           <input name="nombreCaja" maxlength="40" placeholder="Nombre de la caja (ej. Ahorro remodelación)" value="${meta.nombre ? `Ahorro ${meta.nombre}`.slice(0, 40) : ""}" aria-label="Nombre de la caja nueva" />
           <span class="campo__label">¿En qué banco estará?</span>
-          <div class="chips" role="radiogroup">${cuentasActivas().map((c, i) => html`<label class="chip">
+          <div class="chips" role="radiogroup">${bancosActivos().map((c, i) => html`<label class="chip">
             <input type="radio" name="bancoCaja" value="${c.id}" ${i === 0 ? "checked" : ""} /><span>${c.nombre}</span></label>`)}</div>
         </div>
         <p class="campo__ayuda">Lo que tenga esa caja cuenta como lo que llevas juntado.</p>

@@ -4,6 +4,7 @@
 //   Te quedan = Ingresos − Gastos del mes (pagados y pendientes)
 //   GASTOS    fijos y de una vez, por día; ☐ → ☑ = pagado
 //   INGRESOS  igual; ☐ → ☑ = recibido
+//   TARJETAS  cuánto pagar de cada tarjeta y antes de qué día
 //   MIS CAJAS cuánto tiene cada caja hoy
 // Tocar un renglón lo edita. ＋ registra (nombre + monto).
 // Arriba, estilo Clima de Samsung (cielo.js): el cielo cambia según
@@ -31,6 +32,8 @@ import { moverMes } from "../../components/selectorMes.js";
 import { leerLocal, guardarLocal } from "../../components/fields.js";
 import { toast } from "../../components/toast.js";
 import { activarTooltips } from "../../components/charts.js";
+import { estadosTarjetas } from "../../services/tarjetas.js";
+import { lineaEstado } from "../tarjetas/linea.js";
 import { icon } from "../../components/icons.js";
 import { abrirRegistro } from "../../components/registroSimple.js";
 import { marcarPagado, desmarcarPagado } from "../../components/marcarPagado.js";
@@ -59,12 +62,20 @@ function renglones(fijos, sueltos, hechoSi) {
   ].sort((a, b) => a.dia - b.dia || a.nombre.localeCompare(b.nombre, "es"));
 }
 
+/** "💳 Liverpool" si el renglón se paga con tarjeta de crédito (compra, gasto fijo o mensualidad a meses). */
+function conTarjeta(r) {
+  if (r.fijo?.msi) return `💳 ${cuentaPorId(r.fijo.ref.tarjetaId)?.nombre || r.fijo.ref.acreedor}`;
+  const cuenta = cuentaPorId(r.mov?.cuentaId || (r.fijo?.clase === "obligacion" ? r.fijo.ref.cuentaId : null));
+  return cuenta?.tipo === "credito" ? `💳 ${cuenta.nombre}` : "";
+}
+
 function filaHoja(r, i, lista, ingreso) {
   const ahorro = lista === "ahorro";
   const etiqueta = ahorro ? (r.hecho ? "Aportado" : "Marcar como aportado")
     : ingreso ? (r.hecho ? "Recibido" : "Marcar como recibido") : (r.hecho ? "Pagado" : "Marcar como pagado");
   const sub = [
     ahorro ? `${cajaPorId(r.cajaId)?.nombre || "—"} → ${cajaPorId(r.cajaDestinoId)?.nombre || "—"}` : cajaPorId(r.cajaId)?.nombre,
+    ingreso || ahorro ? "" : conTarjeta(r),
     r.vencido ? "Vencido" : "",
     r.falta ? `faltan ${formatMonto(r.falta)}` : "",
     r.prestamo ? "préstamo, no cuenta" : "",
@@ -76,7 +87,8 @@ function filaHoja(r, i, lista, ingreso) {
       : html`<span class="casilla casilla--on casilla--fija" aria-hidden="true">✓</span>`}
     <span class="dia ${r.vencido ? "dia--vencido" : ""}">${r.dia}</span>
     <button type="button" class="fila__texto fila__texto--boton" data-abrir="${lista}:${i}">
-      <span class="fila__titulo">${r.nombre}${r.fijo ? html` <span class="fijo" title="Se repite cada mes">↻</span>` : ""}</span>
+      <span class="fila__titulo">${r.nombre}${r.fijo?.msi ? html` <span class="fijo" title="Mensualidad de una compra a meses">${r.fijo.msi}</span>`
+        : r.fijo ? html` <span class="fijo" title="Se repite cada mes">↻</span>` : ""}</span>
       ${sub ? html`<span class="fila__sub ${r.vencido ? "texto-peligro" : ""}">${sub}</span>` : ""}
     </button>
     <span class="fila__monto ${r.vencido ? "monto--negativo" : ""}">${formatMonto(r.monto)}</span>
@@ -93,15 +105,37 @@ export function render(container, ctx) {
   let graficaAbierta = false;
   let modo = null; // 'cargando' | 'conectando' | 'catalogos' | 'saldos:…' | 'vista'
   let dias = null;  // próximos 7 días (solo en el mes actual)
+  let tarjetas = null; // [{ cuenta, estado }] (services/tarjetas.js)
+  let pedidoTarjetas = 0;
   let viva = true;  // false al salir de la pantalla: una carga que llegue tarde no debe pintar encima de otra
+
+  /** Estado de las tarjetas (lee solo lo de después de su corte; se recuerda si nada cambió). */
+  async function cargarTarjetas() {
+    const s = getState();
+    if (!catalogosListos() || !planListo() || !s.cuentas.some((c) => c.tipo === "credito")) {
+      if (tarjetas?.length) { tarjetas = null; pintar(); }
+      return;
+    }
+    const n = ++pedidoTarjetas;
+    try {
+      const lista = await estadosTarjetas(s);
+      if (!viva || n !== pedidoTarjetas) return;
+      const antes = JSON.stringify(tarjetas?.map((x) => [x.cuenta, x.estado]));
+      tarjetas = lista;
+      if (JSON.stringify(lista.map((x) => [x.cuenta, x.estado])) !== antes) pintar();
+    } catch {
+      /* sin tarjetas en Mi mes; la pantalla Tarjetas muestra el error */
+    }
+  }
 
   async function cargarSueltos() {
     const pedido = mes;
     try {
       const [g, i] = await Promise.all([movimientosRepo.delMes(uid, mes, "gasto"), movimientosRepo.delMes(uid, mes, "ingreso")]);
       if (pedido !== mes || !viva) return;
-      // Los pagos de gastos/ingresos fijos ya aparecen en su renglón (☑).
-      sueltos = { gasto: g.filter((m) => !m.obligacionId && !m.deudaId), ingreso: i.filter((m) => !m.recurrenteId) };
+      // Los pagos de gastos/ingresos fijos ya aparecen en su renglón (☑). Un pago a una deuda sin
+      // mensualidad (p. ej. liquidar una compra a meses) sí va como renglón propio.
+      sueltos = { gasto: g.filter((m) => !m.obligacionId && !(m.deudaId && m.deudaPeriodo)), ingreso: i.filter((m) => !m.recurrenteId) };
       errorSueltos = null;
     } catch (err) {
       if (!viva) return;
@@ -170,7 +204,10 @@ export function render(container, ctx) {
     const hoyF = hoy();
     const esActual = mes === mesDe(hoyF);
     dias = esActual ? pronosticoDias({ hoy: hoyF, obligaciones: s.obligaciones, deudas: s.deudas, recurrentes: s.recurrentes, agregados: s.agregados }) : null;
-    const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF }) : null;
+    // Tarjetas activas, o desactivadas que aún deben algo.
+    const visibles = (tarjetas || []).filter((x) => x.cuenta.activa !== false || x.estado.deudaTotal > 0);
+    const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF,
+      tarjetas: visibles.map((x) => ({ nombre: x.cuenta.nombre, ...x.estado })) }) : null;
     const avisoVisible = aviso && leerLocal(CLAVE_CONSEJOS, {})[aviso.clave] !== hoyF ? aviso : null;
 
     return html`
@@ -191,6 +228,25 @@ export function render(container, ctx) {
         </div>
         <ul class="lista card card--lista hoja">${filas.ahorro.map((r, i) => filaHoja(r, i, "ahorro", false))}</ul>
         <p class="campo__ayuda">Toca ☐ cuando apartes el dinero: pasa de una caja a la otra (no cuenta como gasto).</p>
+      </section>` : ""}
+
+      ${visibles.length ? html`<section class="seccion" id="seccion-tarjetas">
+        <div class="seccion__cabecera">
+          <h2 class="seccion__titulo">Tarjetas · Debes ${formatMonto(visibles.reduce((a, x) => a + x.estado.deudaTotal, 0))}</h2>
+          <a class="btn-texto" href="#/tarjetas">Ver tarjetas</a>
+        </div>
+        <ul class="lista card card--lista">${visibles.map((x) => {
+          const linea = lineaEstado(x.estado, { corto: true });
+          return html`<li><div class="fila">
+            <span class="fila__icono">${icon("tarjeta", { size: 18 })}</span>
+            <a class="fila__texto fila__texto--boton" href="#/tarjetas"><span class="fila__titulo">${x.cuenta.nombre}</span>
+              <span class="fila__sub ${linea.clase}">${linea.texto}</span></a>
+            ${x.estado.paraNoGenerarIntereses > 0 && x.cuenta.activa !== false
+              ? html`<button type="button" class="btn btn--pastilla" data-pagar-tarjeta="${x.cuenta.id}">Pagar</button>`
+              : html`<span class="fila__monto">${formatMonto(x.estado.deudaTotal)}</span>`}
+          </div></li>`;
+        })}</ul>
+        <p class="campo__ayuda">Lo que compras con tarjeta ya está en tus gastos: pagarla no es otro gasto, solo baja el dinero del banco.</p>
       </section>` : ""}
 
       <section class="seccion">
@@ -225,6 +281,10 @@ export function render(container, ctx) {
     if (r.mov) return abrirRegistro({ movimiento: r.mov, mes });
     const f = r.fijo;
     if (f.clase === "meta") { location.hash = "#/metas"; return; }
+    if (f.clase === "deuda" && f.ref.tarjetaId) {
+      const { abrirCompraMsi } = await import("../tarjetas/formulario.js");
+      return abrirCompraMsi(f.ref);
+    }
     // Lo que no cabe en "nombre + monto + día" (deudas, quincenales, montos variables) usa su formulario completo.
     const simple = f.clase !== "deuda" && ["mensual", "semanal"].includes(f.ref.regla?.frecuencia) && !f.ref.variable;
     if (simple) return abrirRegistro({ fijo: f, mes });
@@ -233,8 +293,16 @@ export function render(container, ctx) {
     return f.clase === "ingreso" ? abrirRecurrente(f.ref) : abrirObligacion(f.ref);
   }
 
-  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo], [data-consejo], [data-dia]", (e, el) => {
+  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo], [data-consejo], [data-dia], [data-pagar-tarjeta]", (e, el) => {
     if (el.dataset.mesNav) return cambiarMes(moverMes(mes, el.dataset.mesNav));
+    if (el.dataset.pagarTarjeta) {
+      const x = tarjetas?.find((t) => t.cuenta.id === el.dataset.pagarTarjeta);
+      if (x) import("../tarjetas/pago.js").then(({ abrirPagoTarjeta }) => abrirPagoTarjeta(cuentaPorId(x.cuenta.id) || x.cuenta, x.estado));
+      return;
+    }
+    if (el.dataset.consejo === "ver-tarjetas") {
+      return document.getElementById("seccion-tarjetas")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     if (el.dataset.dia) {
       const d = dias?.[Number(el.dataset.dia)];
       return d && toast(detalleDia(d, hoy()), { duracion: 4500 });
@@ -278,9 +346,11 @@ export function render(container, ctx) {
     const nueva = firmaMes();
     if (nueva !== firma) { firma = nueva; cargarSueltos(); }
     pintar();
+    cargarTarjetas();
   });
   pintar();
   cargarSueltos();
+  cargarTarjetas();
 
   return () => {
     viva = false;

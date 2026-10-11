@@ -204,6 +204,50 @@ await prueba("rechaza: periodo de meta sin metaId", () => assertFails(setDoc(doc
 await prueba("agregado con vínculo de meta permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "agregados/2026-11")),
   { mes: "2026-11", porVinculo: { "m:m1__2026-11-01": increment(2000000) } }, { merge: true })));
 
+// ---------- v1.9: tarjetas de crédito y compras a meses ----------
+const tarjeta = { nombre: "Liverpool", institucion: "Liverpool", tipo: "credito", activa: true, orden: 5,
+  credito: { limiteCentavos: 3000000, diaCorte: 15, diaLimite: 5 } };
+await prueba("tarjeta de crédito válida (con y sin límite)", async () => {
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/liv")), tarjeta));
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/nu-tc")), { ...tarjeta, nombre: "Nu", credito: { limiteCentavos: null, diaCorte: 1, diaLimite: 21 } }));
+});
+await prueba("rechaza: tarjeta con día de corte 0 o 32", async () => {
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/t2")), { ...tarjeta, credito: { diaCorte: 0, diaLimite: 5 } }));
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/t3")), { ...tarjeta, credito: { diaCorte: 15, diaLimite: 32 } }));
+});
+await prueba("rechaza: tarjeta con campos extra en credito o límite negativo", async () => {
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/t4")), { ...tarjeta, credito: { ...tarjeta.credito, tasa: 60 } }));
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/t5")), { ...tarjeta, credito: { ...tarjeta.credito, limiteCentavos: -1 } }));
+});
+const msi = { ...deudaOk, acreedor: "Liverpool", descripcion: "TV", saldoInicialCentavos: 1200000, pagoCentavos: 100000,
+  regla: { frecuencia: "mensual", diaMes: 5, desde: "2026-12-05" }, cuentaId: "bbva-hd", tarjetaId: "liv", meses: 12, fechaCompra: "2026-10-20" };
+await prueba("compra a meses válida (deuda con tarjetaId, meses y fecha de compra)", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/tv")), msi)));
+await prueba("rechaza: compra a 1 mes o a 60 meses", async () => {
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/msi2")), { ...msi, meses: 1 }));
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/msi3")), { ...msi, meses: 60 }));
+});
+await prueba("rechaza: compra a meses con fecha inválida", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "deudas/msi4")), { ...msi, fechaCompra: "20/10/2026" })));
+await prueba("compra con tarjeta (gasto en la cuenta de la tarjeta) y pago de la tarjeta (transferencia a la misma caja) permitidos", async () => {
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/tc1")), { ...movBase, cuentaId: "liv", cuentaIds: ["liv"] }));
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/tc2")), { ...transferencia, cajaDestinoId: "hd-credit", cuentaDestinoId: "liv",
+    cajaIds: ["hd-credit"], cuentaIds: ["bbva-hd", "liv"], nota: "Pago tarjeta Liverpool" }));
+});
+await prueba("pago de la tarjeta en un solo batch (mensualidad + transferencias + agregados) permitido", async () => {
+  const f = db(ANGEL);
+  const b = writeBatch(f);
+  b.set(doc(f, ruta(ANGEL, "movimientos/pb1")), { ...movBase, cuentaId: "bbva-hd", cuentaIds: ["bbva-hd"], categoriaId: "ga-electrodomesticos",
+    deudaId: "tv", deudaPeriodo: "2026-12-05", fecha: "2026-12-05", mes: "2026-12" });
+  b.set(doc(f, ruta(ANGEL, "movimientos/pb2")), { ...transferencia, cajaDestinoId: "hd-credit", cuentaDestinoId: "liv", cajaIds: ["hd-credit"], cuentaIds: ["bbva-hd", "liv"] });
+  b.set(doc(f, ruta(ANGEL, "agregados/2026-12")), { mes: "2026-12", porDeuda: { tv: increment(100000) }, porVinculo: { "d:tv__2026-12-05": increment(100000) } }, { merge: true });
+  await assertSucceeds(b.commit());
+});
+await prueba("otro usuario NO puede leer ni escribir tarjetas ni compras a meses", async () => {
+  await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "cuentas/liv"))));
+  await assertFails(setDoc(doc(db(INTRUSO), ruta(ANGEL, "cuentas/liv")), tarjeta));
+  await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "deudas/tv"))));
+  await assertFails(setDoc(doc(db(INTRUSO), ruta(ANGEL, "deudas/tv2")), msi));
+});
+
 await env.cleanup();
 console.log(`\n${ok} de ${ok + fallas.length} pruebas de reglas correctas`);
 process.exit(fallas.length ? 1 : 0);

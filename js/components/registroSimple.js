@@ -2,9 +2,13 @@
 // components/registroSimple.js
 // Registro rápido "nombre + monto" (lo único que hay que llenar):
 //   ¿Qué es?  ·  ¿Cuánto?  ·  caja (ya elegida, un toque cambia)
+//   ¿Con qué pagaste?  Débito / efectivo | 💳 tarjeta (si tienes)
+//     ☐ A meses sin intereses  [3 | 6 | 9 | 12 | 18 | 24]
 //   ☐ Se repite  [Cada mes | Cada semana]  el día __ / el lunes
 // La categoría se elige sola por el nombre (Gasolina → Combustible),
-// la cuenta es la de la caja y la fecha es hoy.
+// la cuenta es la de la caja (o la tarjeta) y la fecha es hoy.
+// Una compra a meses no es un gasto de hoy: se guarda como deuda de
+// la tarjeta y cada mensualidad aparece en Mi mes.
 // Sirve también para editar un gasto/ingreso fijo o uno de una vez.
 // ============================================================
 
@@ -12,14 +16,15 @@ import { html } from "../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../core/money.js";
 import { hoy, mesDe, sumarDias, mesSiguiente, nombreMes } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, cajasActivas, cuentasActivas, categoriasActivas } from "../core/state.js";
+import { getState, cajaPorId, cuentaPorId, cajasActivas, cuentasActivas, bancosActivos, tarjetasActivas, categoriasActivas } from "../core/state.js";
 import { validarMovimiento, buscarDuplicado } from "../domain/movimientos.js";
 import { validarObligacion, validarRecurrente } from "../domain/compromisos.js";
 import { categoriaSugerida, fechaParaMes } from "../domain/mes.js";
 import { DIAS_SEMANA } from "../domain/periodos.js";
 import { cuentaParaCaja } from "../domain/saldos.js";
+import { validarMsi, deudaDeMsi, MESES_MSI, esTarjeta } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
-import { obligacionesRepo, recurrentesRepo } from "../data/planRepo.js";
+import { obligacionesRepo, recurrentesRepo, deudasRepo } from "../data/planRepo.js";
 import { abrirCapa } from "./modal.js";
 import { confirmar } from "./confirmation.js";
 import { toast, toastError } from "./toast.js";
@@ -29,9 +34,10 @@ const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
 const CLAVE_CAJA = (tipo) => `fr.simple.caja.${tipo}`;
 const CLAVE_NOMBRES = "fr.simple.nombres";
 
-/** Banco con que se mueve el dinero de una caja: donde la caja tiene más dinero (domain/saldos.js). */
+/** Banco con que se mueve el dinero de una caja: donde la caja tiene más dinero (domain/saldos.js). Nunca una tarjeta de crédito. */
 export function cuentaDeCaja(cajaId) {
-  return cuentaParaCaja(getState().agregados, cajaPorId(cajaId), cuentasActivas().map((c) => c.id));
+  const bancos = bancosActivos();
+  return cuentaParaCaja(getState().agregados, cajaPorId(cajaId), (bancos.length ? bancos : cuentasActivas()).map((c) => c.id));
 }
 
 function cajaInicial(tipo, preferida) {
@@ -81,11 +87,17 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
   };
   // Si la caja del registro ya no está activa, se muestra igual para no perderla.
   const listaCajas = cajas.some((c) => c.id === v.cajaId) ? cajas : [...cajas, cajaPorId(v.cajaId)].filter(Boolean);
+  // ¿Con qué pagaste? Solo si tienes tarjetas de crédito. Al editar, la tarjeta que ya tenía.
+  const cuentaPrevia = cuentaPorId(ref?.cuentaId || movimiento?.cuentaId);
+  const tarjetas = tarjetasActivas();
+  const listaTarjetas = esTarjeta(cuentaPrevia) && !tarjetas.some((t) => t.id === cuentaPrevia.id) ? [...tarjetas, cuentaPrevia] : tarjetas;
+  const pagoCon = esTarjeta(cuentaPrevia) ? cuentaPrevia.id : "";
 
   const titulo = nuevo ? "Nuevo" : fijo ? (tipo === "ingreso" ? "Ingreso fijo" : "Gasto fijo") : (tipo === "ingreso" ? "Ingreso" : "Gasto");
   const capa = abrirCapa({
     titulo,
-    contenido: html`<form class="form registro" data-tipo="${tipo}" data-repite="${fijo ? "si" : "no"}" data-cada="${v.frecuencia}" novalidate>
+    contenido: html`<form class="form registro" data-tipo="${tipo}" data-repite="${fijo ? "si" : "no"}" data-cada="${v.frecuencia}"
+      data-pago="${pagoCon ? "tarjeta" : "banco"}" data-msi="no" novalidate>
       ${nuevo ? segmentado("tipo", [{ valor: "gasto", label: "Gasto" }, { valor: "ingreso", label: "Ingreso" }], tipo) : ""}
 
       <label class="campo">
@@ -110,6 +122,23 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
             ? html`<small class="chip__banco"> · ${cuentaPorId(cuentaDeCaja(c.id)).nombre}</small>` : ""}</span></label>`)}</div>
         <span class="campo__error" data-error="cajaId"></span>
       </div>
+
+      ${listaTarjetas.length ? html`<div class="campo pago-con">
+        <span class="campo__label">¿Con qué pagaste?</span>
+        <div class="chips" role="radiogroup">
+          <label class="chip"><input type="radio" name="pagoCon" value="" ${pagoCon ? "" : "checked"} /><span>Débito / efectivo</span></label>
+          ${listaTarjetas.map((t) => html`<label class="chip"><input type="radio" name="pagoCon" value="${t.id}" ${t.id === pagoCon ? "checked" : ""} />
+            <span>💳 ${t.nombre}</span></label>`)}
+        </div>
+        ${nuevo ? html`<div class="solo-tarjeta msi">
+          <label class="repite__check"><input type="checkbox" name="msi" /> <span>A meses sin intereses</span></label>
+          <div class="solo-msi">
+            ${segmentado("meses", MESES_MSI.map((m) => ({ valor: String(m), label: String(m) })), "12")}
+            <p class="campo__ayuda">No cuenta todo hoy: cada mensualidad aparece en tus gastos del mes en que se paga.</p>
+          </div>
+        </div>` : ""}
+        <span class="campo__error" data-error="meses"></span>
+      </div>` : ""}
 
       ${movimiento ? "" : html`<div class="repite">
         ${fijo ? "" : html`<label class="repite__check"><input type="checkbox" name="repite" /> <span>Se repite</span></label>`}
@@ -143,6 +172,8 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
     if (e.target.name === "repite") {
       form.dataset.repite = form.repite.checked ? "si" : "no";
     }
+    if (e.target.name === "pagoCon") form.dataset.pago = form.querySelector('input[name="pagoCon"]:checked')?.value ? "tarjeta" : "banco";
+    if (e.target.name === "msi") form.dataset.msi = form.msi.checked ? "si" : "no";
   });
   form.monto.addEventListener("blur", () => {
     const c = parseMonto(form.monto.value);
@@ -189,7 +220,10 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
 
     // El banco es siempre el que se muestra junto a la caja (donde la caja tiene su dinero),
     // también al editar: así se corrigen gastos que se habían anotado en otro banco.
-    const cuentaId = cuentaDeCaja(caja);
+    // Si pagaste con tarjeta de crédito, la cuenta es la tarjeta (la caja baja igual; el banco no).
+    const tarjetaId = t === "gasto" ? form.querySelector('input[name="pagoCon"]:checked')?.value || "" : "";
+    const cuentaId = tarjetaId || cuentaDeCaja(caja);
+    const aMeses = nuevo && tarjetaId && !repite && form.msi?.checked;
     const nombreCambio = nombre !== v.nombre;
     const categoriaId = !nombreCambio && (ref?.categoriaId || movimiento?.categoriaId)
       ? (ref?.categoriaId || movimiento?.categoriaId)
@@ -197,7 +231,15 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
 
     enviando = true;
     try {
-      if (repite) guardarFijo({ uid, t, ref, nombre, montoCentavos, cajaId: caja, cuentaId, categoriaId, dia, cada, diaSemana, mes });
+      if (aMeses) {
+        const x = { descripcion: nombre, montoCentavos, meses: Number(form.querySelector('input[name="meses"]:checked')?.value), pagadas: 0,
+          fechaCompra: fechaParaMes(mes, hoy()), cajaId: caja, tarjetaId };
+        const r = validarMsi(x);
+        if (!r.ok) { mostrarErrores(form, r.errores.descripcion ? { nombre: r.errores.descripcion } : r.errores); return; }
+        const datos = deudaDeMsi(x, cuentaPorId(tarjetaId), { cuentaPagoId: cuentaDeCaja(caja), categoriaId });
+        deudasRepo.guardar(uid, datos, { onError });
+        toast(`✓ ${nombre} a ${x.meses} meses: ${formatMonto(datos.pagoCentavos)} al mes, la primera el ${Number(datos.regla.desde.slice(8))} de ${nombreMes(datos.regla.desde.slice(0, 7))}`, { duracion: 6000 });
+      } else if (repite) guardarFijo({ uid, t, ref, nombre, montoCentavos, cajaId: caja, cuentaId, categoriaId, dia, cada, diaSemana, mes });
       else if (movimiento) guardarEdicion({ uid, movimiento, nombre, montoCentavos, cajaId: caja, cuentaId, categoriaId });
       else if (!(await guardarNuevo({ uid, t, nombre, montoCentavos, cajaId: caja, cuentaId, categoriaId, mes }))) return;
     } catch (err) {

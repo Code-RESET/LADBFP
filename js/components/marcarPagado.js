@@ -6,13 +6,16 @@
 //          El aviso trae "Deshacer".
 //   ☑ → ☐  quita (anula) el pago de ese mes. Queda en el historial.
 // También sirve para las aportaciones a metas (transferencia a la
-// caja de ahorro con metaId + metaPeriodo).
+// caja de ahorro con metaId + metaPeriodo) y para las mensualidades
+// de compras a meses (gasto desde el banco donde la caja tiene su
+// dinero, vinculado a la compra).
 // ============================================================
 
 import { hoy, mesDe } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
 import { getState } from "../core/state.js";
 import { validarMovimiento, construirMovimiento } from "../domain/movimientos.js";
+import { etiquetaMsi } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
 import { confirmar } from "./confirmation.js";
 import { toast, toastError } from "./toast.js";
@@ -46,15 +49,17 @@ export function entradaDePago(item, mes, hoyF = hoy()) {
     };
   }
   const tipo = item.clase === "ingreso" ? "ingreso" : "gasto";
+  // Mensualidad de una compra a meses: se paga desde el banco donde la caja tiene su dinero.
+  const msi = item.clase === "deuda" && item.ref.tarjetaId;
   return {
     tipo,
     montoCentavos: item.pendiente,
     // En el mes actual el pago es de hoy; en otro mes, del día en que tocaba.
     fecha: mes === mesDe(hoyF) ? hoyF : item.periodo,
     cajaId: item.ref.cajaId,
-    cuentaId: item.ref.cuentaId,
+    cuentaId: msi ? cuentaDeCaja(item.ref.cajaId) : item.ref.cuentaId,
     categoriaId: item.categoriaId || (item.clase === "deuda" ? "ga-deudas" : ""),
-    nota: item.nombre,
+    nota: msi ? `${item.nombre} (${etiquetaMsi(item.ref, item.periodo)})` : item.nombre,
     formaPago: item.ref.formaPago || "",
     [campoId]: item.ref.id,
     [campoPeriodo]: item.periodo,

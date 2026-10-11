@@ -108,7 +108,8 @@ export function tarjetaConsejo(c) {
   const cerrar = html`<button type="button" class="btn btn--pastilla" data-consejo="cerrar">${c.accion.tipo === "cerrar" ? c.accion.label : "No, gracias"}</button>`;
   const accion = c.accion.tipo === "revisar-datos"
     ? html`<button type="button" class="btn btn--pastilla" data-accion="revisar-datos">${c.accion.label}</button>`
-    : c.accion.tipo === "ver-gastos" ? html`<button type="button" class="btn btn--pastilla" data-consejo="ver-gastos">${c.accion.label}</button>` : "";
+    : c.accion.tipo === "ver-gastos" || c.accion.tipo === "ver-tarjetas"
+      ? html`<button type="button" class="btn btn--pastilla" data-consejo="${c.accion.tipo}">${c.accion.label}</button>` : "";
   return html`<section class="card consejo" data-clave="${c.clave}" aria-label="Consejo">
     <p class="consejo__etiqueta">${icon(c.accion.tipo === "cerrar" ? "plan" : "alerta", { size: 16 })} ${c.accion.tipo === "cerrar" ? "Para esta semana" : "Revisa esto"}</p>
     <p class="consejo__titulo">${c.titulo}${c.monto ? ` · ${formatMonto(c.monto)}` : ""}</p>

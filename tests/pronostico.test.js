@@ -47,3 +47,17 @@ test("pronóstico: consejo según prioridad", () => {
   assert.eq([c.titulo, c.texto.startsWith("Vence el viernes")], ["Se viene Tarjeta", true]);
   assert.eq(consejo({ balance: { fijos: [] }, pronostico: [dia("2026-10-07", 10)], hoy: HOY }), null);
 });
+
+test("pronóstico: consejo de tarjeta de crédito (vencida primero; por pagar solo si faltan 3 días o menos)", () => {
+  const HOY = "2026-10-07";
+  const t = (x) => ({ nombre: "Liverpool", estado: "por-pagar", paraNoGenerarIntereses: 345000, fechaLimite: "2026-10-09", dias: 2, ...x });
+  const error = [{ nivel: "error", titulo: "X", detalle: "d" }];
+  const c = consejo({ balance: { fijos: [] }, hallazgos: error, hoy: HOY, tarjetas: [t()] });
+  assert.eq([c.titulo, c.texto, c.accion.tipo], ["Paga tu tarjeta Liverpool", "Vence el viernes: paga $3,450.00 para no generar intereses.", "ver-tarjetas"]);
+  const v = consejo({ balance: { fijos: [] }, hoy: HOY, tarjetas: [t(), t({ nombre: "Nu", estado: "vencida", fechaLimite: "2026-10-01", dias: -6 })] });
+  assert.eq([v.titulo, v.texto], ["Tu tarjeta Nu está vencida", "Venció el 1 oct 2026. Paga $3,450.00 cuanto antes para no pagar intereses."]);
+  // Con más de 3 días o ya pagada, no estorba.
+  assert.eq(consejo({ balance: { fijos: [] }, hoy: HOY, tarjetas: [t({ dias: 10 }), t({ estado: "al-corriente", paraNoGenerarIntereses: 0 })] }), null);
+  // Los gastos vencidos van antes.
+  assert.eq(consejo({ balance: { fijos: [{ nombre: "Hipoteca", estado: "Vencido" }] }, hoy: HOY, tarjetas: [t()] }).titulo, "Hipoteca está vencido");
+});
