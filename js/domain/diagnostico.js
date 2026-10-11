@@ -16,7 +16,7 @@ const activo = (lista, id) => lista.some((x) => x.id === id && x.activa !== fals
  * Devuelve [{ nivel: 'error' | 'aviso' | 'info', titulo, detalle, ruta }]
  * ordenados de más a menos grave. Lista vacía = todo bien.
  */
-export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], agregados = {}, hoy }) {
+export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], metas = [], agregados = {}, perfil = null, hoy }) {
   const out = [];
   const cajasActivas = cajas.filter((c) => c.activa !== false);
   const cuentasActivas = cuentas.filter((c) => c.activa !== false);
@@ -57,6 +57,15 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
     }
   }
 
+  // Metas (Fase 3) que apuntan a una caja desactivada: no se puede aportar.
+  for (const m of metas.filter((x) => x.activa !== false)) {
+    const mal = [!activo(cajas, m.cajaOrigenId) && "su caja de origen", !activo(cajas, m.cajaAhorroId) && "su caja de ahorro"].filter(Boolean);
+    if (mal.length) {
+      out.push({ nivel: "error", titulo: `La meta «${m.nombre}» usa ${mal.join(" y ")} desactivada o borrada`, ruta: "metas",
+        detalle: "Ábrela en Metas de ahorro y elige otra caja, o vuelve a activar la que tenía." });
+    }
+  }
+
   // Cajas sin banco asignado: se usaría el primer banco de la lista, que puede no ser el correcto.
   for (const c of cajasActivas) {
     if (!activo(cuentas, c.cuentaPredeterminadaId)) {
@@ -85,11 +94,21 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
 
   // Cajas que nunca se usan: desactivarlas simplifica las listas.
   if (hayMovimientos) {
-    const usadas = new Set(fijos.flatMap((f) => [f.cajaId, f.cajaDestinoId]));
+    const usadas = new Set([...fijos.flatMap((f) => [f.cajaId, f.cajaDestinoId]), ...metas.flatMap((m) => [m.cajaOrigenId, m.cajaAhorroId])]);
     const sinUsar = cajasActivas.filter((c) => !usadas.has(c.id) && !Object.values(agregados).some((m) => m?.porCaja?.[c.id]?.n));
     if (sinUsar.length) {
       out.push({ nivel: "info", titulo: sinUsar.length === 1 ? `${sinUsar[0].nombre} no se ha usado` : `${sinUsar.length} cajas no se han usado`, ruta: "cajas",
         detalle: `${sinUsar.length === 1 ? "" : `${sinUsar.map((c) => c.nombre).join(", ")}. `}Si no las necesitas, desactívalas en Cajas para que no aparezcan al registrar.` });
+    }
+  }
+
+  // Respaldo (Fase 3): recordar descargarlo al menos cada mes.
+  if (hayMovimientos && hoy) {
+    const ultimo = perfil?.config?.ultimoRespaldo;
+    const dias = ultimo ? Math.round((Date.parse(`${hoy}T12:00:00Z`) - Date.parse(`${ultimo}T12:00:00Z`)) / 86_400_000) : null;
+    if (dias == null || dias > 30) {
+      out.push({ nivel: "info", titulo: dias == null ? "Aún no tienes un respaldo de tus datos" : `Tu último respaldo es de hace ${dias} días`, ruta: "configuracion",
+        detalle: "Descárgalo en Más → Respaldo de mis datos y guárdalo en tu correo o Drive." });
     }
   }
 

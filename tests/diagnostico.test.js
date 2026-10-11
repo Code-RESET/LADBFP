@@ -8,12 +8,18 @@ const base = () => ({
   categorias: [{ id: "ga-vivienda", tipo: "gasto", nombre: "Vivienda" }],
   obligaciones: [], deudas: [], recurrentes: [],
   agregados: { "2026-10": { n: 1, porCaja: { a: { ape: 500000, n: 1 } }, porCuenta: { c1: { ape: 500000, n: 1 } } } },
+  perfil: { config: { ultimoRespaldo: "2026-10-01" } },
   hoy: HOY,
 });
 const titulos = (d) => d.map((h) => `${h.nivel}:${h.titulo}`);
 
 test("diagnóstico: datos sanos → sin hallazgos", () => {
   assert.eq(diagnosticar(base()), []);
+});
+
+test("diagnóstico: recuerda descargar el respaldo (nunca o hace más de 30 días)", () => {
+  assert.eq(titulos(diagnosticar({ ...base(), perfil: null })), ["info:Aún no tienes un respaldo de tus datos"]);
+  assert.eq(titulos(diagnosticar({ ...base(), perfil: { config: { ultimoRespaldo: "2026-08-01" } } })), ["info:Tu último respaldo es de hace 67 días"]);
 });
 
 test("diagnóstico: saldo negativo, caja sin banco y sin saldos iniciales", () => {

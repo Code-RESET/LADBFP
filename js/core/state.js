@@ -16,9 +16,11 @@ const estadoInicial = () => ({
   deudas: [],
   recurrentes: [],
   presupuestos: [],
+  metas: [],
+  metasError: null,     // p. ej. si aún no se publican las reglas de Firebase con "metas"
   perfil: null,         // users/{uid}
   listo: { cajas: false, cuentas: false, categorias: false, agregados: false, perfil: false,
-    obligaciones: false, deudas: false, recurrentes: false, presupuestos: false },
+    obligaciones: false, deudas: false, recurrentes: false, presupuestos: false, metas: false },
   pendientesSync: false,
 });
 

@@ -30,6 +30,7 @@ export function pasoCatalogos(container) {
       </div>
     </div>
     <button type="button" class="btn btn--primario btn--bloque" data-accion="sembrar">Crear cajas y cuentas</button>
+    <button type="button" class="btn-texto btn--bloque" data-accion="respaldo">¿Tienes un respaldo? Restáuralo</button>
   </section>`);
 
   container.querySelector('[data-accion="sembrar"]').addEventListener("click", (e) => {

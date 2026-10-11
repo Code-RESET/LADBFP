@@ -7,6 +7,7 @@
 //   Ingresos     fijos y de una vez, con estado
 //   Cajas        al empezar · entró · salió · transferencias · al cerrar
 //   Movimientos  todo lo registrado en el mes
+//   Metas        cuánto llevas, cuánto falta y cuándo terminas (si hay)
 //   12 meses     entró · salió · quedó
 // Los datos salen de domain/reporte.js. ExcelJS (versión fijada) se
 // descarga solo la primera vez que se exporta y queda en caché.
@@ -18,6 +19,7 @@ import { getState } from "../core/state.js";
 import { hoy, nombreMes, mesCorto } from "../core/dates.js";
 import { reporteMes } from "../domain/reporte.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
+import { entregarArchivo } from "./descarga.js";
 
 const EXCELJS_URL = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
 const MONEDA = '"$"#,##0.00;[Red]-"$"#,##0.00';
@@ -187,6 +189,21 @@ export async function construirLibro(mes) {
     filas: r.movimientos, totales: ["monto"],
   });
 
+  if (r.metas.length) {
+    const ws = tabla(wb.addWorksheet("Metas"), {
+      columnas: [
+        { titulo: "Meta", clave: "meta", ancho: 22 }, { titulo: "Objetivo", clave: "objetivo", tipo: "moneda" },
+        { titulo: "Llevas", clave: "acumulado", tipo: "moneda" }, { titulo: "Falta", clave: "faltante", tipo: "moneda" },
+        { titulo: "Avance", clave: "avance", ancho: 10 }, { titulo: "Aportación", clave: "aportacion", tipo: "moneda" },
+        { titulo: "Cada cuándo", clave: "cuando", ancho: 26 }, { titulo: "Terminas", clave: "fechaEstimada", tipo: "fecha", ancho: 12 },
+        { titulo: "¿Te alcanza?", clave: "estado", ancho: 14 }, { titulo: "Se guarda en", clave: "cajaAhorro", ancho: 18 },
+        { titulo: "Sale de", clave: "cajaOrigen", ancho: 18 },
+      ],
+      filas: r.metas, totales: ["objetivo", "acumulado", "faltante"],
+    });
+    ws.getColumn(5).numFmt = "0%";
+  }
+
   tabla(wb.addWorksheet("12 meses"), {
     columnas: [
       { titulo: "Mes", clave: "nombre", ancho: 12 }, { titulo: "Entró", clave: "ingresos", tipo: "moneda" },
@@ -203,20 +220,6 @@ export async function construirLibro(mes) {
 export async function descargarExcel(mes) {
   const { wb } = await construirLibro(mes);
   const buffer = await wb.xlsx.writeBuffer();
-  const nombre = `Finanzas_Reset_${mes}.xlsx`;
   const tipo = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  const archivo = new File([buffer], nombre, { type: tipo });
-  // En la app instalada de iOS un <a download> solo abre una vista previa: mejor la hoja de compartir.
-  const instalada = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone;
-  if (instalada && navigator.canShare?.({ files: [archivo] })) {
-    try { await navigator.share({ files: [archivo], title: nombre }); return "compartido"; }
-    catch (err) { if (err?.name === "AbortError") return "cancelado"; }
-  }
-  const url = URL.createObjectURL(archivo);
-  const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return "descargado";
+  return entregarArchivo(new File([buffer], `Finanzas_Reset_${mes}.xlsx`, { type: tipo }));
 }

@@ -111,6 +111,8 @@ export function construirMovimiento(m) {
   if ((m.tipo === "ingreso" || m.tipo === "transferencia") && m.recurrenteId) {
     doc.recurrenteId = m.recurrenteId; doc.recurrentePeriodo = m.recurrentePeriodo;
   }
+  // Fase 3: aportación a una meta (transferencia a su caja de ahorro) o retiro (sin periodo).
+  if (m.tipo === "transferencia" && m.metaId) { doc.metaId = m.metaId; if (m.metaPeriodo) doc.metaPeriodo = m.metaPeriodo; }
   doc.cajaIds = [...new Set([doc.cajaId, doc.cajaDestinoId].filter(Boolean))];
   doc.cuentaIds = [...new Set([doc.cuentaId, doc.cuentaDestinoId].filter(Boolean))];
   return doc;
@@ -161,6 +163,7 @@ export function aplicarMovimiento(acc, mov, signo = 1) {
     if (mov.deudaPeriodo) sumarEn(acc, ["porVinculo", `d:${mov.deudaId}__${mov.deudaPeriodo}`], m);
   }
   if (mov.recurrenteId && mov.recurrentePeriodo) sumarEn(acc, ["porVinculo", `r:${mov.recurrenteId}__${mov.recurrentePeriodo}`], m);
+  if (mov.metaId && mov.metaPeriodo) sumarEn(acc, ["porVinculo", `m:${mov.metaId}__${mov.metaPeriodo}`], m);
 
   // Conteos para "Mostrando 1–25 de N" sin consultar al servidor.
   sumarEn(acc, ["n"], signo);
@@ -213,7 +216,7 @@ export function agregadosDesdeMovimientos(movs) {
 /** Campos editables que se comparan para el historial de auditoría. */
 const CAMPOS_AUDITADOS = ["tipo", "fecha", "montoCentavos", "cajaId", "cuentaId",
   "cajaDestinoId", "cuentaDestinoId", "categoriaId", "direccion", "nota", "estado",
-  "obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo", "formaPago"];
+  "obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo", "metaId", "metaPeriodo", "formaPago"];
 
 export function cambiosRelevantes(antes, despues) {
   const out = {};

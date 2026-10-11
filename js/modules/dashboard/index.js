@@ -20,6 +20,7 @@ import { sincronizarBarraEstado } from "../../core/theme.js";
 import { mensajeDeError } from "../../core/errors.js";
 import { saldosPor, patrimonio, desgloseCaja } from "../../domain/saldos.js";
 import { balanceDelMes, ingresosFijosDelMes } from "../../domain/mes.js";
+import { aportacionesDelMes } from "../../domain/metas.js";
 import { estadoDelMes, pronosticoDias, consejo } from "../../domain/pronostico.js";
 import { diagnosticar } from "../../domain/diagnostico.js";
 import { movimientosRepo } from "../../data/movimientosRepo.js";
@@ -51,7 +52,7 @@ function ponerEstado(estado) {
 /** Renglones de la hoja: fijos (marcables) + registrados de una vez, ordenados por día. */
 function renglones(fijos, sueltos, hechoSi) {
   return [
-    ...fijos.map((f) => ({ fijo: f, dia: f.dia, nombre: f.nombre, monto: f.monto, cajaId: f.ref.cajaId,
+    ...fijos.map((f) => ({ fijo: f, dia: f.dia, nombre: f.nombre, monto: f.monto, cajaId: f.cajaId || f.ref.cajaId, cajaDestinoId: f.cajaDestinoId,
       hecho: f.estado === hechoSi, vencido: f.estado === "Vencido", falta: f.pagado > 0 && f.pendiente > 0 ? f.pendiente : 0 })),
     ...sueltos.map((m) => ({ mov: m, dia: Number(m.fecha.slice(8)), nombre: m.nota || categoriaPorId(m.categoriaId)?.nombre || "Sin nombre",
       monto: m.montoCentavos, cajaId: m.cajaId, hecho: true, prestamo: !!categoriaPorId(m.categoriaId)?.esFinanciamiento })),
@@ -59,9 +60,11 @@ function renglones(fijos, sueltos, hechoSi) {
 }
 
 function filaHoja(r, i, lista, ingreso) {
-  const etiqueta = ingreso ? (r.hecho ? "Recibido" : "Marcar como recibido") : (r.hecho ? "Pagado" : "Marcar como pagado");
+  const ahorro = lista === "ahorro";
+  const etiqueta = ahorro ? (r.hecho ? "Aportado" : "Marcar como aportado")
+    : ingreso ? (r.hecho ? "Recibido" : "Marcar como recibido") : (r.hecho ? "Pagado" : "Marcar como pagado");
   const sub = [
-    cajaPorId(r.cajaId)?.nombre,
+    ahorro ? `${cajaPorId(r.cajaId)?.nombre || "—"} → ${cajaPorId(r.cajaDestinoId)?.nombre || "—"}` : cajaPorId(r.cajaId)?.nombre,
     r.vencido ? "Vencido" : "",
     r.falta ? `faltan ${formatMonto(r.falta)}` : "",
     r.prestamo ? "préstamo, no cuenta" : "",
@@ -85,7 +88,7 @@ export function render(container, ctx) {
   let mes = /^\d{4}-\d{2}$/.test(ctx.params.get("mes") || "") ? ctx.params.get("mes") : mesDe(hoy());
   let sueltos = { gasto: null, ingreso: null };
   let errorSueltos = null;
-  let filas = { gastos: [], ingresos: [] };
+  let filas = { gastos: [], ingresos: [], ahorro: [] };
   let serie = [];
   let graficaAbierta = false;
   let modo = null; // 'cargando' | 'conectando' | 'catalogos' | 'saldos:…' | 'vista'
@@ -147,6 +150,7 @@ export function render(container, ctx) {
     filas = {
       gastos: renglones(b.fijos, sueltos.gasto || [], "Pagado"),
       ingresos: renglones(ingFijos, sueltos.ingreso || [], "Recibido"),
+      ahorro: renglones(aportacionesDelMes({ mes, metas: s.metas, agregados: s.agregados, hoy: hoy() }), [], "Aportado"),
     };
     const porCaja = saldosPor(s.agregados, "porCaja");
     // En qué banco(s) está el dinero de cada caja; si no tiene, su banco predeterminado.
@@ -180,6 +184,15 @@ export function render(container, ctx) {
       ${seccion({ titulo: "Ingresos", total: b.ingresos, lista: "ingresos", tipo: "ingreso", filasLista: filas.ingresos, ingreso: true,
         vacio: html`<strong>+ Agrega tu primer ingreso</strong><span>Nómina, honorarios, cobranza…</span>` })}
 
+      ${filas.ahorro.length ? html`<section class="seccion" id="seccion-ahorro">
+        <div class="seccion__cabecera">
+          <h2 class="seccion__titulo">Ahorro · ${formatMonto(filas.ahorro.reduce((a, r) => a + r.monto, 0))}</h2>
+          <a class="btn-texto" href="#/metas">Mis metas</a>
+        </div>
+        <ul class="lista card card--lista hoja">${filas.ahorro.map((r, i) => filaHoja(r, i, "ahorro", false))}</ul>
+        <p class="campo__ayuda">Toca ☐ cuando apartes el dinero: pasa de una caja a la otra (no cuenta como gasto).</p>
+      </section>` : ""}
+
       <section class="seccion">
         <div class="seccion__cabecera">
           <h2 class="seccion__titulo">Mis cajas · <span class="total-cajas">${formatMonto(patrimonio(s.agregados))}</span></h2>
@@ -211,6 +224,7 @@ export function render(container, ctx) {
   async function abrir(r) {
     if (r.mov) return abrirRegistro({ movimiento: r.mov, mes });
     const f = r.fijo;
+    if (f.clase === "meta") { location.hash = "#/metas"; return; }
     // Lo que no cabe en "nombre + monto + día" (deudas, quincenales, montos variables) usa su formulario completo.
     const simple = f.clase !== "deuda" && ["mensual", "semanal"].includes(f.ref.regla?.frecuencia) && !f.ref.variable;
     if (simple) return abrirRegistro({ fijo: f, mes });

@@ -182,6 +182,28 @@ await prueba("gasto con forma de pago permitido", () => assertSucceeds(setDoc(do
 await prueba("rechaza: forma de pago demasiado larga", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/fp2")), { ...movBase, formaPago: "x".repeat(30) })));
 await prueba("gasto fijo con forma de pago y nota permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "obligaciones/fp")), { ...obligacion, formaPago: "Tarjeta", nota: "BBVA" })));
 
+// ---------- Fase 3: metas de ahorro ----------
+const meta = { nombre: "Remodelación", objetivoCentavos: 30000000, aportacionCentavos: 2000000,
+  regla: { frecuencia: "mensual", diaMes: 1, desde: "2026-11-01" }, cajaOrigenId: "hd-credit", cajaAhorroId: "ahorro-casa", activa: true };
+await prueba("meta válida", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "metas/m1")), meta)));
+await prueba("rechaza: meta sin caja de origen", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "metas/m2")), (({ cajaOrigenId, ...r }) => r)(meta))));
+await prueba("rechaza: meta que se guarda en la misma caja de origen", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "metas/m3")), { ...meta, cajaAhorroId: "hd-credit" })));
+await prueba("rechaza: aportación mayor que la meta", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "metas/m4")), { ...meta, aportacionCentavos: 40000000 })));
+await prueba("rechaza: meta con campos extra", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "metas/m5")), { ...meta, esAdmin: true })));
+await prueba("otro usuario NO puede leer ni escribir metas", async () => {
+  await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "metas/m1"))));
+  await assertFails(getDocs(collection(db(INTRUSO), ruta(ANGEL, "metas"))));
+  await assertFails(setDoc(doc(db(INTRUSO), ruta(ANGEL, "metas/m9")), meta));
+});
+const aportacion = { ...transferencia, cajaId: "hd-credit", cajaDestinoId: "ahorro-casa", cajaIds: ["hd-credit", "ahorro-casa"], metaId: "m1", metaPeriodo: "2026-11-01" };
+await prueba("aportación a meta (transferencia con metaId y periodo) permitida", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/am1")), aportacion)));
+await prueba("retiro de meta (transferencia con metaId sin periodo) permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/am2")),
+  (({ metaPeriodo, ...r }) => r)(aportacion))));
+await prueba("rechaza: gasto que dice ser aportación a meta", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/am3")), { ...movBase, metaId: "m1" })));
+await prueba("rechaza: periodo de meta sin metaId", () => assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/am4")), { ...transferencia, metaPeriodo: "2026-11-01" })));
+await prueba("agregado con vínculo de meta permitido", () => assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "agregados/2026-11")),
+  { mes: "2026-11", porVinculo: { "m:m1__2026-11-01": increment(2000000) } }, { merge: true })));
+
 await env.cleanup();
 console.log(`\n${ok} de ${ok + fallas.length} pruebas de reglas correctas`);
 process.exit(fallas.length ? 1 : 0);

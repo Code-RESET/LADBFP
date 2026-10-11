@@ -14,6 +14,24 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Fase 3 · entrega 1: Metas de ahorro y Respaldo (v1.8.0)
+
+**Metas** (`domain/metas.js`, `modules/metas/`, colección `metas`):
+- Una meta = para qué, cuánto necesitas, cuánto apartas y cada cuándo (mes / quincena / semana), de qué caja sale y **en qué caja se guarda** (se puede crear la caja ahí mismo, tipo *ahorro*, con su banco).
+- **Cambio respecto a E8:** el acumulado es el **saldo de la caja de ahorro** (no la suma de transferencias con `metaId`). Es más simple de entender ("lo que hay en esa caja es lo que llevas"), cuenta lo que ya tenías ahorrado y nunca se descuadra con Mis cajas. Por eso una caja guarda **una sola meta activa** (se valida).
+- Aportar = transferencia origen → caja de ahorro con `metaId` + `metaPeriodo`; los agregados la suman en `porVinculo["m:<id>__<periodo>"]`, así **Mi mes** muestra la sección **Ahorro** con ☐/☑ como los pagos fijos (no cuenta como gasto). Sacar dinero = transferencia de vuelta con `metaId` sin periodo.
+- Fecha estimada = última de las aportaciones que faltan (se saltan las ya hechas). *Prueba E8: $300,000 a $20,000/mes desde nov-2026 → 15 aportaciones → enero 2028.*
+- **¿Te alcanza?** La aportación mensual se compara con lo que en promedio le sobra a la caja de origen en los últimos 3 meses completos (ingresos − gastos ± transferencias, sumando de vuelta lo ya aportado a metas y restando lo que piden otras metas de esa caja). Si no alcanza, dice en qué mes terminarías con lo que sí sobra.
+- Las aportaciones pendientes entran a lo comprometido y a la proyección por caja ("¿Cuánto puedo gastar?"), al Excel (hoja Metas) y a "Revisar mis datos" (meta con caja desactivada).
+
+**Respaldo** (`domain/respaldo.js`, `data/respaldoRepo.js`, `modules/configuracion/respaldo.js`):
+- Más → Respaldo de mis datos → **Descargar**: `Finanzas_Reset_respaldo_AAAA-MM-DD.json` con todas las colecciones, todos los movimientos (con su historial y los anulados) y la configuración. Timestamps como milisegundos.
+- **Restaurar**: valida el archivo (app, versión, movimientos dañados), muestra qué se va a agregar, y solo **agrega lo que falta** (mismo id = ya existe → no se toca). Los movimientos se crean activos y los que eran anulados se anulan después con su motivo (así lo exigen las reglas). Al final los saldos se recalculan desde todos los movimientos. Restaurar dos veces no duplica. Si un lote no pasa las reglas, se reintenta documento por documento. *Prueba: restaurar en una cuenta vacía da exactamente los mismos saldos.*
+- "Revisar mis datos" recuerda descargar un respaldo si nunca se ha hecho o pasó más de un mes. El asistente de primera vez ofrece "¿Tienes un respaldo? Restáuralo".
+- `services/descarga.js` entrega cualquier archivo (Excel y respaldo): hoja de compartir en la app instalada, descarga normal en el navegador.
+
+**Reglas:** nueva colección `metas` (sin caja de origen o de ahorro ✗, misma caja ✗, aportación > meta ✗) y movimientos con `metaId` solo como transferencia (`metaPeriodo` opcional, fecha válida). **Hay que publicar `firestore.rules`** en la consola de Firebase; mientras no se publiquen, la app sigue funcionando y Metas avisa del paso que falta.
+
 ## Bancos claros y "cada semana" (v1.7.0)
 
 - **El gasto sale del banco donde la caja tiene su dinero** (`domain/saldos.js → cuentaParaCaja`): el banco con más dinero de esa caja; si no tiene, su predeterminado. Antes se usaba siempre el predeterminado, y si el saldo inicial estaba en otro banco (p. ej. BBVA) los gastos bajaban otro banco (Mercado Pago). Al editar desde Mi mes se vuelve a calcular, así se corrigen gastos viejos con solo tocarlos y guardar.
