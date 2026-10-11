@@ -1,7 +1,7 @@
 // ============================================================
 // data/planRepo.js
-// Obligaciones, deudas, ingresos/transferencias programados y
-// presupuestos. Colecciones pequeñas: se escuchan completas al
+// Obligaciones, deudas, ingresos/transferencias programados,
+// presupuestos y metas de ahorro. Colecciones pequeñas: se escuchan completas al
 // iniciar sesión (como los catálogos).
 // Se guardan con reemplazo completo (no merge) para que al
 // cambiar la frecuencia no queden campos viejos en la regla.
@@ -51,3 +51,4 @@ export const obligacionesRepo = crearRepo("obligaciones");
 export const deudasRepo = crearRepo("deudas", "acreedor");
 export const recurrentesRepo = crearRepo("recurrentes");
 export const presupuestosRepo = crearRepo("presupuestos");
+export const metasRepo = crearRepo("metas"); // Fase 3: metas de ahorro

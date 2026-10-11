@@ -13,7 +13,8 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 |---|---|---|
 | 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
-| 3 | Metas, escenarios, reportes, CSV, PDF, backup e importación (Excel del mes ya disponible) | Pendiente |
+| 3 | **Hecho:** Excel del mes, Revisar mis datos, Metas de ahorro, Respaldo y restauración. **Falta:** reportes con filtros, CSV, PDF, escenarios | 🟡 En curso |
+| Futura | Tarjetas de crédito (con meses sin intereses), recordatorios en el calendario, compartir con otra persona | Pendiente |
 
 ## Cómo se usa (v1.6 «Mi mes» estilo Clima)
 
@@ -25,9 +26,12 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 | **Próximos 7 días** | Como el pronóstico del clima: qué vence cada día y cómo queda tu dinero. Abajo, una tarjeta con el consejo más útil (vencidos, errores, si no alcanza, el pago grande que viene). |
 | **Gastos** | Fijos (↻) y de una vez, ordenados por día y con su caja. Tocar ☐ = pagado (con «Deshacer»); tocar el renglón = editar. |
 | **Ingresos** | Igual: ☐ = recibido. |
+| **Ahorro** | Si tienes metas: las aportaciones del mes con ☐ (al marcarla, el dinero pasa a la caja de la meta). |
 | **Mis cajas** | Cuánto tiene cada caja hoy; «Mover dinero» entre cajas. |
 | **＋** | Registrar: ¿Qué es? + ¿Cuánto? (la caja ya viene elegida; opcional «Se repite cada mes el día __»). La categoría, la cuenta y la fecha se ponen solas. |
 | **Más** | Cajas, todos los movimientos, **Descargar Excel**, **Revisar mis datos**, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y bancos. |
+| **Metas de ahorro** | Más → Metas: cuánto llevas, cuánto falta, cuándo terminas y si te alcanza. Aportar o sacar dinero. |
+| **Respaldo** | Más → Respaldo de mis datos: descargar todo en un archivo o restaurarlo (solo agrega lo que falta). |
 | **Excel** | Botón al final de Mi mes: balance del mes + dinero real (al empezar + entró − salió = al cerrar), gastos, ingresos, cajas, movimientos y 12 meses. |
 | **Nueva caja** | Nombre + en qué banco está (o «＋ Otro» para crearlo) + cuánto tiene hoy. |
 
@@ -74,10 +78,11 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 77/77 |
-| Reglas de Firestore (incluye "otro usuario no ve nada") | `cd tests/rules && npm install && npm test` (requiere Java) | 57/57 |
+| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes, metas, respaldo | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 87/87 |
+| Reglas de Firestore (incluye "otro usuario no ve nada", metas) | `cd tests/rules && npm install && npm test` (requiere Java) | 68/68 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
 | Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
+| Punta a punta Fase 3 (meta $300,000 a $20,000/mes, ¿te alcanza?, aportar con ☐, aportar/sacar, respaldo y restauración en cuenta vacía con los mismos saldos, sin duplicar) | `tests/e2e/fase3.e2e.mjs` | 11/11 |
 | Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más, revisar datos, nueva caja con banco, Excel con números verificados) | `tests/e2e/simple.e2e.mjs` (con `EXCELJS_FILE`) | 23/23 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).

@@ -8,7 +8,7 @@ import { setState, marcarListo, resetState, getState } from "../core/state.js";
 import { cajasRepo, cuentasRepo, categoriasRepo } from "./catalogosRepo.js";
 import { perfilRepo, agregadosRepo } from "./perfilRepo.js";
 import { asegurarCategorias } from "./seed.js";
-import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo } from "./planRepo.js";
+import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo, metasRepo } from "./planRepo.js";
 import { sincronizarDesdeNube } from "../core/theme.js";
 import { mensajeDeError } from "../core/errors.js";
 
@@ -42,6 +42,9 @@ export function iniciarSync(user, { onError } = {}) {
     deudasRepo.escuchar(uid, (deudas) => { setState({ deudas }); marcarListo("deudas"); }, error),
     recurrentesRepo.escuchar(uid, (recurrentes) => { setState({ recurrentes }); marcarListo("recurrentes"); }, error),
     presupuestosRepo.escuchar(uid, (presupuestos) => { setState({ presupuestos }); marcarListo("presupuestos"); }, error),
+    // Metas (Fase 3): si falla (p. ej. reglas sin publicar), la app sigue funcionando sin ellas.
+    metasRepo.escuchar(uid, (metas) => { setState({ metas, metasError: null }); marcarListo("metas"); },
+      (err) => { setState({ metas: [], metasError: mensajeDeError(err) }); marcarListo("metas"); }),
     perfilRepo.escuchar(uid, (perfil) => {
       setState({ perfil });
       marcarListo("perfil");

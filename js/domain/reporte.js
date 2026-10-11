@@ -15,6 +15,8 @@ import { mesAnterior } from "../core/dates.js";
 import { saldosPor, totalesPor } from "./saldos.js";
 import { serieMensual, saldoAlCierre, primerMesConDatos } from "./metricas.js";
 import { balanceDelMes, ingresosFijosDelMes } from "./mes.js";
+import { resumenMeta, viabilidadMeta } from "./metas.js";
+import { describirRegla } from "./periodos.js";
 
 const porId = (lista) => Object.fromEntries((lista || []).map((x) => [x.id, x]));
 
@@ -32,7 +34,7 @@ const TIPO = { ingreso: "Ingreso", gasto: "Gasto", transferencia: "Transferencia
  * reporteMes({ mes, hoy, cajas, cuentas, categorias, obligaciones, deudas, recurrentes, agregados, movimientos })
  * `movimientos` = movimientos ACTIVOS del mes (todos los tipos).
  */
-export function reporteMes({ mes, hoy, cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], agregados = {}, movimientos = [] }) {
+export function reporteMes({ mes, hoy, cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], metas = [], agregados = {}, movimientos = [] }) {
   const caja = porId(cajas);
   const cuenta = porId(cuentas);
   const cat = porId(categorias);
@@ -104,5 +106,16 @@ export function reporteMes({ mes, hoy, cajas = [], cuentas = [], categorias = []
     movimientos: filasMovs,
     // Hasta 12 meses, sin los anteriores a tu primer registro.
     meses: serieMensual(agregados, categorias, mes, 12).filter((p) => p.mes >= (primerMesConDatos(agregados) || mes)),
+    // Fase 3: metas de ahorro (cómo van hoy)
+    metas: metas.map((m) => {
+      const r = resumenMeta({ meta: m, agregados, hoy });
+      const v = viabilidadMeta({ meta: m, metas, agregados, hoy });
+      return {
+        meta: m.nombre, objetivo: m.objetivoCentavos, acumulado: r.acumulado, faltante: r.faltante, avance: r.pct / 100,
+        aportacion: m.aportacionCentavos, cuando: describirRegla(m.regla), fechaEstimada: r.fechaEstimada || "",
+        estado: m.activa === false ? "En pausa" : r.cumplida ? "Cumplida" : v.estado === "viable" ? "Te alcanza" : v.estado === "inviable" ? "No alcanza" : "Sin datos aún",
+        cajaAhorro: caja[m.cajaAhorroId]?.nombre || "", cajaOrigen: caja[m.cajaOrigenId]?.nombre || "",
+      };
+    }),
   };
 }

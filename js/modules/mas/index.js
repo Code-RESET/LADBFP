@@ -10,6 +10,7 @@ import { icon } from "../../components/icons.js";
 
 const GRUPOS = [
   { titulo: "Mi dinero", items: [
+    { label: "Metas de ahorro", sub: "Junta para algo: cuánto llevas y cuándo terminas", icon: "metas", ruta: "metas" },
     { label: "Cajas", sub: "Crear, renombrar o quitar cajas", icon: "cajas", ruta: "cajas" },
     { label: "Todos los movimientos", sub: "Buscar y revisar todo lo registrado", icon: "movimientos", ruta: "movimientos" },
     { label: "Descargar Excel", sub: "Balance real del mes: gastos, ingresos, cajas y movimientos", icon: "reportes", accion: "descargar-excel" },
@@ -18,10 +19,11 @@ const GRUPOS = [
   { titulo: "Avanzado (opcional)", items: [
     { label: "Deudas", sub: "Cuánto debes y cuándo terminas", icon: "deudas", ruta: "plan?tab=deudas" },
     { label: "¿Cuánto puedo gastar?", sub: "Proyección de los próximos días", icon: "plan", ruta: "plan" },
-    { label: "Presupuesto", sub: "Límite por semana o mes", icon: "metas", ruta: "plan?tab=presupuesto" },
+    { label: "Presupuesto", sub: "Límite por semana o mes", icon: "reportes", ruta: "plan?tab=presupuesto" },
     { label: "Bancos", sub: "Dónde está el dinero de cada caja", icon: "cuentas", ruta: "cuentas" },
   ] },
   { titulo: "Ajustes", items: [
+    { label: "Respaldo de mis datos", sub: "Descarga todo en un archivo o restáuralo", icon: "nube", accion: "respaldo" },
     { label: "Actualizar la app", sub: "Busca e instala la versión más reciente", icon: "nube", accion: "actualizar-app" },
     { label: "Configuración", sub: "Apariencia, categorías, actualizar la app", icon: "config", ruta: "configuracion" },
   ] },

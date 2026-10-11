@@ -60,6 +60,11 @@ export function render(container, ctx) {
       <section class="seccion">
         <h2 class="seccion__titulo">Mantenimiento</h2>
         <ul class="lista card card--lista">
+          <li><button type="button" class="fila" data-accion="respaldo">
+            <span class="fila__icono">${icon("nube", { size: 18 })}</span>
+            <span class="fila__texto"><span class="fila__titulo">Respaldo de mis datos</span><span class="fila__sub">Descargar todo en un archivo o restaurarlo</span></span>
+            ${icon("chevron", { size: 16, clase: "fila__chevron" })}
+          </button></li>
           <li><button type="button" class="fila" data-accion="revisar-datos">
             <span class="fila__icono">${icon("escudo", { size: 18 })}</span>
             <span class="fila__texto"><span class="fila__titulo">Revisar mis datos</span><span class="fila__sub">Busca errores y recalcula los saldos desde los movimientos</span></span>

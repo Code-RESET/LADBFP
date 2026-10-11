@@ -123,12 +123,24 @@ service cloud.firestore {
         && boolOpc(m, 'activa') && marcas(m);
     }
 
+    // ---------- Fase 3: metas de ahorro ----------
+    // Nunca sin caja de origen ni caja de ahorro, y distintas entre sí.
+    function metaValida(m) {
+      return m.keys().hasOnly(['nombre', 'objetivoCentavos', 'aportacionCentavos', 'regla', 'cajaOrigenId', 'cajaAhorroId',
+          'nota', 'activa', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && txt(m.nombre, 60) && centavos(m.objetivoCentavos) && centavos(m.aportacionCentavos)
+        && m.aportacionCentavos <= m.objetivoCentavos && reglaValida(m.regla)
+        && txt(m.cajaOrigenId, 100) && txt(m.cajaAhorroId, 100) && m.cajaOrigenId != m.cajaAhorroId
+        && txtOpc(m, 'nota', 200) && boolOpc(m, 'activa')
+        && marcas(m);
+    }
+
     // Integridad de movimientos (sección 37 del prompt maestro)
     function movimientoValido(m) {
       return m.keys().hasOnly(['tipo', 'fecha', 'mes', 'montoCentavos', 'cajaId', 'cuentaId',
           'cajaDestinoId', 'cuentaDestinoId', 'categoriaId', 'direccion', 'nota', 'estado', 'anulacion',
           'cajaIds', 'cuentaIds', 'ts', 'origen', 'obligacionId', 'obligacionPeriodo', 'deudaId', 'deudaPeriodo', 'metaId',
-          'recurrenteId', 'recurrentePeriodo', 'formaPago', 'createdAt', 'updatedAt', 'schemaVersion'])
+          'recurrenteId', 'recurrentePeriodo', 'metaPeriodo', 'formaPago', 'createdAt', 'updatedAt', 'schemaVersion'])
         && m.tipo in ['ingreso', 'gasto', 'transferencia', 'apertura', 'ajuste']
         && txtOpc(m, 'formaPago', 20)
         && centavos(m.montoCentavos)                                   // monto entero > 0
@@ -158,6 +170,9 @@ service cloud.firestore {
         && (!('deudaId' in m) || (m.tipo == 'gasto' && txt(m.deudaId, 100)))
         && (!('deudaPeriodo' in m) || fecha(m.deudaPeriodo))
         && (!('recurrenteId' in m) || (m.tipo in ['ingreso', 'transferencia'] && txt(m.recurrenteId, 100) && fecha(m.recurrentePeriodo)))
+        // Fase 3: aportación o retiro de una meta = transferencia (el periodo es opcional: los retiros no lo llevan)
+        && (!('metaId' in m) || (m.tipo == 'transferencia' && txt(m.metaId, 100)))
+        && (!('metaPeriodo' in m) || ('metaId' in m && fecha(m.metaPeriodo)))
         // Anulado: con motivo
         && (m.estado != 'anulado' || (m.anulacion is map && txt(m.anulacion.motivo, 300)))
         && marcas(m);
@@ -225,6 +240,12 @@ service cloud.firestore {
       match /presupuestos/{id} {
         allow read: if esDueno(uid);
         allow create, update: if esDueno(uid) && presupuestoValido(d());
+        allow delete: if esDueno(uid);
+      }
+
+      match /metas/{id} {
+        allow read: if esDueno(uid);
+        allow create, update: if esDueno(uid) && metaValida(d());
         allow delete: if esDueno(uid);
       }
 

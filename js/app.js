@@ -111,6 +111,9 @@ document.addEventListener("click", async (e) => {
     } finally {
       el.disabled = false;
     }
+  } else if (accion === "respaldo") {
+    const { abrirRespaldo } = await import("./modules/configuracion/respaldo.js");
+    abrirRespaldo(getState().user.uid);
   } else if (accion === "revisar-datos") {
     const { revisarDatos } = await import("./modules/configuracion/verificar.js");
     revisarDatos(getState().user.uid).catch((err) => toastError(mensajeDeError(err)));

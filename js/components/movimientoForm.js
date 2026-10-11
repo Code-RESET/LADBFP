@@ -58,7 +58,7 @@ function valoresIniciales(mov, preset) {
 }
 
 // Campos que vinculan el movimiento con una obligación, deuda o ingreso programado.
-const CAMPOS_VINCULO = ["obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo"];
+const CAMPOS_VINCULO = ["obligacionId", "obligacionPeriodo", "deudaId", "deudaPeriodo", "recurrenteId", "recurrentePeriodo", "metaId", "metaPeriodo"];
 const vinculoDe = (obj) => Object.fromEntries(CAMPOS_VINCULO.filter((k) => obj?.[k]).map((k) => [k, obj[k]]));
 
 function plantilla(v, cat, editando) {

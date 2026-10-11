@@ -13,6 +13,7 @@ import { saldosPor } from "../domain/saldos.js";
 import { cuentaParaGasto } from "../domain/catalogos.js";
 import { eventos as calcularEventos } from "../domain/compromisos.js";
 import { comprometidoPorCaja, disponibleReal, proyectar } from "../domain/proyeccion.js";
+import { eventosMetas } from "../domain/metas.js";
 import { generarAlertas } from "../domain/alertas.js";
 
 export const HORIZONTE_DIAS = 30;
@@ -23,7 +24,7 @@ let cache = { clave: null, valor: null };
 export function calcularPlan(s) {
   const hoy = hoyMx();
   const horizonte = Number(s.perfil?.config?.horizonteComprometidoDias) || HORIZONTE_DIAS;
-  const clave = [s.agregados, s.cajas, s.cuentas, s.obligaciones, s.deudas, s.recurrentes, s.presupuestos, hoy, horizonte];
+  const clave = [s.agregados, s.cajas, s.cuentas, s.obligaciones, s.deudas, s.recurrentes, s.presupuestos, s.metas, hoy, horizonte];
   if (cache.clave && cache.clave.every((v, i) => v === clave[i])) return cache.valor;
 
   const saldos = saldosPor(s.agregados, "porCaja");
@@ -31,9 +32,13 @@ export function calcularPlan(s) {
     obligaciones: s.obligaciones, deudas: s.deudas, recurrentes: s.recurrentes,
     agregados: s.agregados, hoy, hasta: sumarDias(hoy, DIAS_PROYECCION_MAX),
   });
-  const comprometido = comprometidoPorCaja({ eventos: ev, presupuestos: s.presupuestos, hoy, horizonteDias: horizonte });
+  // Las aportaciones a metas (Fase 3) mueven dinero de la caja de origen a la de ahorro:
+  // cuentan en lo comprometido y en la proyección por caja, pero no se listan como pagos.
+  const conMetas = [...ev, ...eventosMetas({ metas: s.metas || [], agregados: s.agregados, hoy, hasta: sumarDias(hoy, DIAS_PROYECCION_MAX) })]
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const comprometido = comprometidoPorCaja({ eventos: conMetas, presupuestos: s.presupuestos, hoy, horizonteDias: horizonte });
   const disponible = disponibleReal({ cajas: s.cajas, saldos, comprometido, cuentaParaGasto });
-  const proyeccion = proyectar({ saldos, eventos: ev, presupuestos: s.presupuestos, hoy, dias: DIAS_PROYECCION_MAX });
+  const proyeccion = proyectar({ saldos, eventos: conMetas, presupuestos: s.presupuestos, hoy, dias: DIAS_PROYECCION_MAX });
   const proyeccion90 = { ...proyeccion, primerNegativo: Object.fromEntries(
     Object.entries(proyeccion.primerNegativo).filter(([, f]) => f <= sumarDias(hoy, 90))) };
   const alertas = generarAlertas({

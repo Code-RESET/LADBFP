@@ -18,7 +18,7 @@ import { sumarDias } from "../core/dates.js";
 import { textoRequerido, textoOpcional, resultado } from "../core/validation.js";
 import { ocurrencias, proximas, erroresRegla } from "./periodos.js";
 
-export const PREFIJO = { obligacion: "o", deuda: "d", recurrente: "r" };
+export const PREFIJO = { obligacion: "o", deuda: "d", recurrente: "r", meta: "m" };
 export const claveVinculo = (tipo, id, periodo) => `${PREFIJO[tipo]}:${id}__${periodo}`;
 
 /** Lo pagado (o recibido) para una ocurrencia concreta, sumando todos los meses. */
