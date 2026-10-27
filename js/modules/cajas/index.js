@@ -98,6 +98,12 @@ function formulario(c) {
   </form>`;
 }
 
+/** Abre el formulario desde otras pantallas (p. ej. Cuadrar con mis bancos). */
+export function abrirCaja(caja = {}) {
+  const uid = getState().user?.uid;
+  if (uid) abrirEditor(uid, caja);
+}
+
 function abrirEditor(uid, caja = {}) {
   const capa = abrirCapa({ titulo: caja.id ? caja.nombre : "Nueva caja", contenido: formulario(caja) });
   const form = capa.cuerpo.querySelector("form");

@@ -762,3 +762,30 @@ button.pag-num:hover { background: var(--surface-muted); }
 /* Mi mes: renglón de tarjeta con botón Pagar */
 #seccion-tarjetas .fila .btn--pastilla { min-height: 38px; padding: 0 16px; flex: none; }
 a.fila__texto--boton { text-decoration: none; color: inherit; }
+
+/* ---------- Cuadrar con mis bancos (v1.10) ---------- */
+.cuadre__resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 16px; text-align: center; margin-bottom: 8px; }
+.cuadre__resumen .kpi__etiqueta { justify-content: center; }
+.cuadre__resumen strong { display: block; margin-top: 2px; font-size: 1.05rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lista-cuadre { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cuadre { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.cuadre__cabecera { display: flex; align-items: center; gap: 10px; }
+.cuadre__nombre { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.cuadre__app { font-size: 0.8rem; color: var(--text-secondary); text-align: right; }
+.cuadre__app strong { display: block; color: var(--text-primary); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.cuadre__real { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-secondary); }
+.cuadre__real span { flex: 1; }
+.cuadre input, .cuadre select {
+  min-height: 44px; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid transparent;
+  background: var(--surface-muted); color: var(--text-primary); font-size: 1rem; /* ≥16px: iOS no hace zoom */
+}
+.cuadre input { width: 48%; text-align: right; font-variant-numeric: tabular-nums; }
+.cuadre input:focus, .cuadre select:focus { outline: none; border-color: var(--accent); background-color: var(--surface); }
+.cuadre__resultado { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.cuadre__resultado:empty { display: none; }
+.cuadre__diferencia { font-weight: 600; }
+.cuadre__caja { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
+.cuadre__caja select { flex: 1; min-width: 0; }
+.cuadre__aviso { font-size: 0.82rem; }
+.cuadre__agregar { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 18px; }
+.barra-acciones { flex-wrap: wrap; gap: 10px; }

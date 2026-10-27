@@ -43,6 +43,7 @@ export async function revisarDatos(uid) {
   const capa = abrirCapa({ titulo: "Revisar mis datos", contenido: html`<div class="revision">
     <p class="texto-sec">${graves ? `Encontré ${graves} ${graves === 1 ? "cosa" : "cosas"} por revisar.` : "Revisé tus cajas, bancos, gastos fijos y saldos."}</p>
     ${hallazgosHtml(hallazgos)}
+    <p class="aviso">¿Lo que dice la app no es lo que dice tu banco? <a href="#/cuadrar" class="link">Cuadrar con mis bancos</a>: escribes lo que tienes en cada uno y la app se ajusta.</p>
     <h3 class="seccion__titulo">Saldos contra movimientos</h3>
     <div data-v></div>
   </div>` });
