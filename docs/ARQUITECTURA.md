@@ -14,6 +14,16 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Cuadrar con mis bancos (v1.10.0)
+
+Angel: «las cuentas no me cuadran nada en la app». La app solo sabe lo que se registra; la realidad trae dinero que nunca pasa por ella: apartados y cajitas, rendimientos de inversiones, descuentos automáticos de nómina a una caja de ahorro, bancos y tarjetas que no se habían capturado. En lugar de pedir que se registre todo eso a mano (`domain/cuadre.js`, `modules/cuadrar/`):
+- **Más → Cuadrar con mis bancos**: una tarjeta por banco y por tarjeta con lo que dice la app. Escribes lo que dice tu banco hoy (sumando apartados y cajitas) o el saldo actual de la tarjeta, y la app muestra «Faltan / Sobran $X» o «Debes $X más / menos».
+- La diferencia va a **la caja con más dinero en ese banco** (en una tarjeta, la que más debe ahí; si no hay, la caja sugerida del banco o la primera operativa); se puede cambiar, y avisa si esa caja quedaría en negativo.
+- **Cuadrar** guarda todos los cambios en un solo batch con «Deshacer»: un **saldo inicial** (`apertura`) si el banco no tenía movimientos, o un **ajuste** de entrada/salida con nota «Cuadre con BBVA del 27 oct 2026». Los ajustes no cuentan como ingreso ni gasto (Mi mes no cambia), quedan en Todos los movimientos y se pueden anular. En tarjetas se compara con lo que debes incluyendo las compras a meses, y se ajusta solo la deuda normal.
+- Arriba: **lo que tienes** (bancos), **lo que debes** (tarjetas + compras a meses + deudas) y **lo que te queda**.
+- Se llega desde Más, desde Bancos («Cuadrar con mi banco») y desde Revisar mis datos. Desde ahí mismo se agregan el banco o la caja que falten.
+- Sin cambios en reglas ni en el modelo de datos.
+
 ## Tarjetas de crédito y meses sin intereses (v1.9.0)
 
 Lo que la sección "Fase futura" dejó diseñado, ahora implementado (`domain/tarjetas.js`, `services/tarjetas.js`, `modules/tarjetas/`):

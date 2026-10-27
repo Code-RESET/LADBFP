@@ -12,6 +12,7 @@ const GRUPOS = [
   { titulo: "Mi dinero", items: [
     { label: "Metas de ahorro", sub: "Junta para algo: cuánto llevas y cuándo terminas", icon: "metas", ruta: "metas" },
     { label: "Tarjetas de crédito", sub: "Cuánto debes, cuánto pagar y tus compras a meses", icon: "tarjeta", ruta: "tarjetas" },
+    { label: "Cuadrar con mis bancos", sub: "Escribe lo que dice cada banco y la app se ajusta", icon: "ajuste", ruta: "cuadrar" },
     { label: "Cajas", sub: "Crear, renombrar o quitar cajas", icon: "cajas", ruta: "cajas" },
     { label: "Todos los movimientos", sub: "Buscar y revisar todo lo registrado", icon: "movimientos", ruta: "movimientos" },
     { label: "Descargar Excel", sub: "Balance real del mes: gastos, ingresos, cajas y movimientos", icon: "reportes", accion: "descargar-excel" },

@@ -64,6 +64,12 @@ function formulario(c, agregados) {
   </form>`;
 }
 
+/** Abre el formulario desde otras pantallas (p. ej. Cuadrar con mis bancos). */
+export function abrirBanco(cuenta = {}) {
+  const uid = getState().user?.uid;
+  if (uid) abrirEditor(uid, cuenta);
+}
+
 function abrirEditor(uid, cuenta = {}) {
   const capa = abrirCapa({ titulo: cuenta.id ? cuenta.nombre : "Nuevo banco", contenido: formulario(cuenta, getState().agregados) });
   const form = capa.cuerpo.querySelector("form");
@@ -131,7 +137,8 @@ export function render(container, ctx) {
     const activas = bancos.filter((c) => c.activa !== false);
     const inactivas = bancos.filter((c) => c.activa === false);
     renderHtml(container, html`
-      <div class="barra-acciones"><button type="button" class="btn btn--primario" data-accion="nueva">+ Nuevo banco</button></div>
+      <div class="barra-acciones"><a class="btn btn--secundario" href="#/cuadrar">Cuadrar con mi banco</a>
+        <button type="button" class="btn btn--primario" data-accion="nueva">+ Nuevo banco</button></div>
       ${activas.length === 0 ? estadoVacio({ icono: "cuentas", titulo: "Todavía no tienes bancos.", texto: "Es donde está el dinero: un banco, una app o efectivo." })
         : html`<ul class="lista card card--lista">${activas.map((c) => fila(c, saldos[c.id] || 0, s.agregados))}</ul>`}
       <ul class="lista card card--lista"><li><a class="fila" href="#/tarjetas">

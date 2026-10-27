@@ -33,6 +33,7 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 | **Más** | Cajas, todos los movimientos, **Descargar Excel**, **Revisar mis datos**, configuración y, como opcional: deudas, ¿cuánto puedo gastar?, presupuesto y bancos. |
 | **Metas de ahorro** | Más → Metas: cuánto llevas, cuánto falta, cuándo terminas y si te alcanza. Aportar o sacar dinero. |
 | **Respaldo** | Más → Respaldo de mis datos: descargar todo en un archivo o restaurarlo (solo agrega lo que falta). |
+| **Cuadrar con mis bancos** | Más → Cuadrar: escribes lo que dice cada banco hoy (con apartados y cajitas) y el saldo de cada tarjeta; la app muestra la diferencia, a qué caja va, y la corrige con un toque (ajustes que no cuentan como ingreso ni gasto, con «Deshacer»). Arriba: lo que tienes, lo que debes y lo que te queda. |
 | **Tarjetas de crédito** | Más → Tarjetas: lo que debes, disponible, **pago para no generar intereses** y fecha límite, compras a meses. Al registrar un gasto: «¿Con qué pagaste?» y «A meses sin intereses». |
 | **Excel** | Botón al final de Mi mes: balance del mes + dinero real (al empezar + entró − salió = al cerrar), gastos, ingresos, cajas, movimientos y 12 meses. |
 | **Nueva caja** | Nombre + en qué banco está (o «＋ Otro» para crearlo) + cuánto tiene hoy. |
