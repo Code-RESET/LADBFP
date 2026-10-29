@@ -61,3 +61,15 @@ test("pronóstico: consejo de tarjeta de crédito (vencida primero; por pagar so
   // Los gastos vencidos van antes.
   assert.eq(consejo({ balance: { fijos: [{ nombre: "Hipoteca", estado: "Vencido" }] }, hoy: HOY, tarjetas: [t()] }).titulo, "Hipoteca está vencido");
 });
+
+test("pronóstico: con el aviso «Por pagar» en pantalla, el consejo solo dice errores y si no alcanza", () => {
+  const HOY = "2026-10-07";
+  const dia = (fecha, saldo, eventos = []) => ({ fecha, saldo, entradas: 0, salidas: 0, eventos });
+  const vencido = { nombre: "Hipoteca", estado: "Vencido" };
+  const tarjeta = { nombre: "Cimaco", estado: "vencida", paraNoGenerarIntereses: 289227, fechaLimite: "2026-10-03", dias: -4 };
+  const grande = [dia("2026-10-07", 9000), dia("2026-10-09", 7000, [{ nombre: "Renta", clase: "obligacion", monto: 2300 }])];
+  assert.eq(consejo({ balance: { fijos: [vencido] }, pronostico: grande, tarjetas: [tarjeta], hoy: HOY, omitirPagos: true }), null);
+  const error = [{ nivel: "error", titulo: "X tiene saldo negativo", detalle: "d" }];
+  assert.eq(consejo({ balance: { fijos: [vencido] }, hallazgos: error, tarjetas: [tarjeta], hoy: HOY, omitirPagos: true }).accion.tipo, "revisar-datos");
+  assert.eq(consejo({ balance: { fijos: [] }, pronostico: [dia("2026-10-08", -10)], hoy: HOY, omitirPagos: true }).titulo, "Tu dinero no alcanza esta semana");
+});

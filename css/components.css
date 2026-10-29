@@ -789,3 +789,46 @@ a.fila__texto--boton { text-decoration: none; color: inherit; }
 .cuadre__aviso { font-size: 0.82rem; }
 .cuadre__agregar { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 18px; }
 .barra-acciones { flex-wrap: wrap; gap: 10px; }
+
+/* ---------- Aviso grande «Por pagar» de Mi mes (v1.11) ----------
+   Colores fijos (no dependen del tema) con contraste ≥ 4.5:1. */
+.por-pagar {
+  margin: 4px 0 18px; padding: 18px 16px 14px; border-radius: var(--radius-lg, 20px);
+  display: flex; flex-direction: column; gap: 12px;
+  color: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.por-pagar--rojo { background: linear-gradient(135deg, #B91C1C, #7F1D1D); }
+.por-pagar--naranja { background: linear-gradient(135deg, #C2410C, #9A3412); }
+.por-pagar--amarillo { background: linear-gradient(135deg, #FDE68A, #FCD34D); color: #422006; }
+.por-pagar__cabecera { display: flex; align-items: center; gap: 12px; }
+.por-pagar__icono { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+.por-pagar--amarillo .por-pagar__icono { background: rgba(66, 32, 6, 0.1); }
+.por-pagar__titulos { min-width: 0; }
+.por-pagar__titulo { margin: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.por-pagar__sub { margin: 2px 0 0; font-size: 0.92rem; opacity: 0.92; }
+.por-pagar__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.por-pagar__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.14);
+}
+.por-pagar--amarillo .por-pagar__item { background: rgba(255, 255, 255, 0.55); }
+.por-pagar__item--vencido, .por-pagar__item--hoy { background: rgba(0, 0, 0, 0.22); box-shadow: inset 4px 0 0 #fff; }
+.por-pagar__texto { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.por-pagar__nombre { font-size: 1.08rem; font-weight: 700; overflow-wrap: anywhere; }
+.por-pagar__cuando { font-size: 0.88rem; font-weight: 600; opacity: 0.95; }
+.por-pagar__item--vencido .por-pagar__cuando, .por-pagar__item--hoy .por-pagar__cuando { text-transform: uppercase; letter-spacing: 0.02em; }
+.por-pagar__lado { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.por-pagar__monto { font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.por-pagar__boton {
+  min-height: 40px; padding: 0 14px; border: none; border-radius: 999px; cursor: pointer;
+  background: #fff; color: #7F1D1D; font: inherit; font-size: 0.9rem; font-weight: 800; white-space: nowrap;
+}
+.por-pagar--naranja .por-pagar__boton { color: #9A3412; }
+.por-pagar--amarillo .por-pagar__boton { background: #422006; color: #FDE68A; }
+.por-pagar__boton:active { transform: scale(0.96); }
+.por-pagar__mas { margin: 0; font-size: 0.88rem; opacity: 0.92; }
+.por-pagar__calendario {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+  padding: 0; border: none; background: none; cursor: pointer;
+  color: inherit; font: inherit; font-size: 0.9rem; font-weight: 700; text-decoration: underline; text-underline-offset: 3px;
+}

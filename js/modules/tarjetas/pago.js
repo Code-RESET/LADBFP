@@ -63,7 +63,7 @@ export function abrirPagoTarjeta(tarjeta, e) {
     contenido: html`<form class="form registro pago-tarjeta" novalidate>
       ${e.configurada && e.paraNoGenerarIntereses ? html`<div class="card card--suave">
         <p class="pago-tarjeta__titulo">Para no generar intereses: <strong>${formatMonto(e.paraNoGenerarIntereses)}</strong></p>
-        <p class="campo__ayuda">${e.estado === "vencida" ? `Venció el ${formatFecha(e.fechaLimite)}: págalo cuanto antes.` : `Antes del ${formatFecha(e.fechaLimite)}.`}</p>
+        <p class="campo__ayuda">${e.estado === "vencida" ? `Venció el ${formatFecha(e.vencidaDesde || e.fechaLimite)}: págalo cuanto antes.` : `Antes del ${formatFecha(e.fechaLimite)}.`}</p>
         <ul class="sublista">
           ${e.pendienteCorte ? html`<li><span>Lo que debías al corte del ${formatFecha(e.corte)}</span><span>${formatMonto(e.pendienteCorte)}</span></li>` : ""}
           ${e.cuotas.map((c) => html`<li><span>${c.deuda.descripcion || c.deuda.acreedor} · ${etiquetaMsi(c.deuda, c.periodo)}</span><span>${formatMonto(c.monto)}</span></li>`)}

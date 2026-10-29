@@ -76,7 +76,7 @@ const TV = { id: "tv", ...deudaDeMsi({ descripcion: "TV", montoCentavos: 1200000
 test("tarjetas: pago para no generar intereses = deuda al corte + mensualidad; lo de después del corte va al siguiente", () => {
   const ag = agregadosDe(MOVS);
   const movsTarjeta = conId(MOVS).filter((m) => m.cuentaIds.includes("liv"));
-  const e = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: movsTarjeta.filter((m) => m.fecha > "2026-10-15"), hoy: "2026-10-25" });
+  const e = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: movsTarjeta, hoy: "2026-10-25" });
   assert.eq([e.corte, e.fechaLimite, e.proximoCorte, e.dias], ["2026-10-15", "2026-11-05", "2026-11-15", 11]);
   assert.eq([e.deudaRegular, e.deudaAlCorte, e.comprasDespues, e.pendienteCorte, e.paraElSiguiente], [320000, 245000, 75000, 245000, 75000]);
   assert.eq([e.cuotas.length, e.cuotas[0].periodo, e.pendienteMsi, e.paraNoGenerarIntereses, e.todo], [1, "2026-11-05", 100000, 345000, 420000]);
@@ -84,13 +84,16 @@ test("tarjetas: pago para no generar intereses = deuda al corte + mensualidad; l
   assert.eq(e.porCaja, [{ cajaId: "casa", deuda: 275000 }, { cajaId: "comida", deuda: 45000 }]);
   assert.eq([e.msi[0].numero, e.msi[0].resumen.proximaFecha], [1, "2026-11-05"]);
   // Sin pagar al 8 de noviembre: vencida.
-  const tarde = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: movsTarjeta.filter((m) => m.fecha > "2026-10-15"), hoy: "2026-11-08" });
-  assert.eq([tarde.estado, tarde.paraNoGenerarIntereses], ["vencida", 345000]);
+  const tarde = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: movsTarjeta, hoy: "2026-11-08" });
+  assert.eq([tarde.estado, tarde.paraNoGenerarIntereses, tarde.vencidaDesde, tarde.dias], ["vencida", 345000, "2026-11-05", -3]);
+  // Ya pasó el siguiente corte (15 nov) y no pagó el de octubre: sigue vencida (antes decía «paga antes del 5 dic»).
+  const otroCorte = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: movsTarjeta, hoy: "2026-11-16" });
+  assert.eq([otroCorte.estado, otroCorte.vencidaDesde, otroCorte.fechaLimite, otroCorte.paraNoGenerarIntereses], ["vencida", "2026-11-05", "2026-12-05", 520000]);
 });
 
 test("tarjetas: pagar $3,450 → mensualidad como gasto y el resto proporcional por caja; queda al corriente", () => {
   const ag = agregadosDe(MOVS);
-  const despues = (movs) => conId(movs).filter((m) => m.cuentaIds.includes("liv") && m.fecha > "2026-10-15");
+  const despues = (movs) => conId(movs).filter((m) => m.cuentaIds.includes("liv"));
   const e = estadoTarjeta({ cuenta: LIVERPOOL, agregados: ag, deudas: [TV], movimientos: despues(MOVS), hoy: "2026-10-25" });
   const reparto = repartirPago({ monto: e.paraNoGenerarIntereses, cuotas: e.cuotas, porCaja: e.porCaja });
   assert.eq([reparto.cuotas.map((c) => [c.periodo, c.monto]), reparto.cajas, reparto.sobrante],
@@ -138,7 +141,7 @@ test("tarjetas: sin día de corte se muestra lo que debes; deuda inicial con fec
   const aj = ajusteDeudaInicial({ tarjeta: LIVERPOOL, cajaId: "casa", montoCentavos: 400000, hoy: "2026-10-25" });
   assert.eq([aj.tipo, aj.direccion, aj.fecha, aj.cuentaId], ["ajuste", "salida", "2026-10-15", "liv"]);
   assert.ok(validarMovimiento(aj).ok, "ajuste válido");
-  const e2 = estadoTarjeta({ cuenta: LIVERPOOL, agregados: agregadosDe([aj]), hoy: "2026-10-25" });
+  const e2 = estadoTarjeta({ cuenta: LIVERPOOL, agregados: agregadosDe([aj]), movimientos: conId([aj]), hoy: "2026-10-25" });
   assert.eq([e2.deudaAlCorte, e2.paraNoGenerarIntereses, e2.estado], [400000, 400000, "por-pagar"]);
 });
 
@@ -151,4 +154,22 @@ test("tarjetas: validaciones de tarjeta y de compra a meses", () => {
   assert.eq(Object.keys(validarMsi({ ...ok, meses: 1, descripcion: "" }).errores), ["descripcion", "meses"]);
   assert.eq(Object.keys(validarMsi({ ...ok, pagadas: 12 }).errores), ["pagadas"]);
   assert.eq(Object.keys(validarMsi({ ...ok, montoCentavos: 500 }).errores), ["montoCentavos"]);
+});
+
+test("tarjetas: fecha límite el mismo día del corte (Cimaco: corte 3, paga el 3) — ese día vence el anterior; al otro, vencida", () => {
+  const CIMACO = { id: "cim", nombre: "Cimaco", tipo: "credito", credito: { limiteCentavos: 2500000, diaCorte: 3, diaLimite: 3 } };
+  const movs = [
+    { tipo: "gasto", fecha: "2026-09-20", montoCentavos: 289227, cajaId: "casa", cuentaId: "cim", categoriaId: "ga-casa" },
+    { tipo: "gasto", fecha: "2026-10-20", montoCentavos: 50000, cajaId: "casa", cuentaId: "cim", categoriaId: "ga-casa" },
+  ];
+  const ag = agregadosDe(movs);
+  const todos = conId(movs);
+  const el3 = estadoTarjeta({ cuenta: CIMACO, agregados: ag, movimientos: todos, hoy: "2026-11-03" });
+  assert.eq([el3.estado, el3.fechaLimite, el3.paraNoGenerarIntereses, el3.dias, el3.paraElSiguiente], ["por-pagar", "2026-11-03", 289227, 0, 50000]);
+  const el4 = estadoTarjeta({ cuenta: CIMACO, agregados: ag, movimientos: todos, hoy: "2026-11-04" });
+  assert.eq([el4.estado, el4.vencidaDesde, el4.dias, el4.fechaLimite, el4.paraNoGenerarIntereses], ["vencida", "2026-11-03", -1, "2026-12-03", 339227]);
+  // Paga lo vencido el 5: ya no está vencida; lo de octubre se paga hasta el 3 dic.
+  const pago = { tipo: "transferencia", fecha: "2026-11-05", montoCentavos: 289227, cajaId: "casa", cuentaId: "bbva", cajaDestinoId: "casa", cuentaDestinoId: "cim" };
+  const el5 = estadoTarjeta({ cuenta: CIMACO, agregados: agregadosDe([pago], agregadosDe(movs)), movimientos: conId([...movs, pago]), hoy: "2026-11-05" });
+  assert.eq([el5.estado, el5.vencidaDesde, el5.fechaLimite, el5.paraNoGenerarIntereses], ["por-pagar", null, "2026-12-03", 50000]);
 });

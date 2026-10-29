@@ -14,6 +14,16 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Aviso grande «Por pagar» y avisos en el calendario (v1.11.0)
+
+Angel: «se me pasó pagar Cimaco y tuve que pagar recargos». Antes los pagos vencidos solo salían como consejo (que se podía cerrar) y las tarjetas no avisaban:
+- **`domain/porPagar.js`**: junta lo vencido (hasta un mes atrás) y lo que vence en 7 días: gastos fijos, deudas, mensualidades a meses y **tarjetas** (pago para no generar intereses). Lo cargado a una tarjeta no se repite (va dentro del pago de la tarjeta). Urgencia: vencido · hoy · pronto (≤ 3 días) · semana.
+- **Mi mes**: el aviso va **hasta arriba**, antes del cielo, en rojo/naranja/amarillo, con cada pago, su monto, «Se venció hace 2 días» / «Vence HOY» y un botón: «Ya lo pagué» (lo marca ☑, con Deshacer) o «Pagar» (abre el pago de la tarjeta). No se puede cerrar. El consejo ya no repite pagos (`consejo({ omitirPagos })`).
+- **En todas las pantallas** (`services/avisos.js`): globo «⚠ N por pagar» en la barra de arriba (rojo con latido si algo venció o vence hoy; naranja si vence en 3 días) que lleva a Mi mes, y el número en el ícono de la app donde el sistema lo permite (Badging API).
+- **Tarjetas vencidas de verdad** (`domain/tarjetas.js`): ahora se revisa también el estado de cuenta **anterior** (se leen los movimientos de los dos últimos cortes). Si no se pagó a tiempo, la tarjeta queda **vencida** aunque ya haya pasado el corte siguiente (antes mostraba la nueva fecha límite). Y en tarjetas cuya fecha límite cae el mismo día del corte siguiente (Cimaco: corte 3, paga el 3), ese día se pide el estado anterior («Vence HOY») y al día siguiente queda vencida. `vencidaDesde` dice desde cuándo.
+- **Calendario** (`domain/calendario.js`, `services/recordatorios.js`): «Que mi teléfono me avise» descarga `Finanzas_Reset_pagos.ics` (RFC 5545): un evento de todo el día que se repite por cada gasto fijo (RRULE con día 31 = último día del mes, quincena 15 y último, semana, año, cada N días), deuda (COUNT = pagos que faltan) y tarjeta (su fecha límite cada mes), con **dos alarmas**: 9 am del día anterior y 9 am del mismo día. UID fijo por cosa (para que, si se vuelve a importar, el calendario pueda reconocerlo como el mismo evento; depende de cada app), texto escapado y renglones de máximo 75 bytes.
+- Sin cambios en reglas ni en el modelo de datos.
+
 ## Cuadrar con mis bancos (v1.10.0)
 
 Angel: «las cuentas no me cuadran nada en la app». La app solo sabe lo que se registra; la realidad trae dinero que nunca pasa por ella: apartados y cajitas, rendimientos de inversiones, descuentos automáticos de nómina a una caja de ahorro, bancos y tarjetas que no se habían capturado. En lugar de pedir que se registre todo eso a mano (`domain/cuadre.js`, `modules/cuadrar/`):

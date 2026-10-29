@@ -126,7 +126,10 @@ await paso("PUEDES GASTAR (Más → ¿Cuánto puedo gastar?): $14,000 − $8,000
   await page.goto(URL_APP.replace(/#.*/, "") + "#/plan");
   await page.waitForSelector(".tabla-plan tfoot");
   const pie = await texto(".tabla-plan tfoot");
-  esperar(pie.includes("$17,000.00") && pie.includes("-$8,000.00") && pie.includes("$9,000.00"), pie);
+  // Si el día ${DIA} ya pasó este mes (hoy + 5 cae en el mes siguiente), la ocurrencia de este mes sigue
+  // pendiente (vencida) y también cuenta: $16,000 apartados y quedan $1,000.
+  const [apartado, quedan] = MISMO_MES ? ["-$8,000.00", "$9,000.00"] : ["-$16,000.00", "$1,000.00"];
+  esperar(pie.includes("$17,000.00") && pie.includes(apartado) && pie.includes(quedan), pie);
   esperar((await texto(".lista-alertas")).includes("-$521.00"), "aviso de déficit");
   await page.goto(URL_APP.replace(/#.*/, "") + "#/dashboard");
   await page.waitForSelector(".hero");

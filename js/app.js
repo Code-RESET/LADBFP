@@ -10,7 +10,8 @@ import { mensajeDeError } from "./core/errors.js";
 import { hoy } from "./core/dates.js";
 import { subscribe, getState } from "./core/state.js";
 import { iniciarSync, detenerSync } from "./data/sync.js";
-import { initRouter, detenerRouter, parseHash } from "./router.js";
+import { initRouter, detenerRouter, parseHash, navegar } from "./router.js";
+import { iniciarAvisos, detenerAvisos } from "./services/avisos.js";
 import { CONFIG_PENDIENTE } from "./firebase-config.js";
 import { toast, toastError } from "./components/toast.js";
 import { cerrarTodas } from "./components/modal.js";
@@ -111,6 +112,22 @@ document.addEventListener("click", async (e) => {
     } finally {
       el.disabled = false;
     }
+  } else if (accion === "recordatorios") {
+    // Avisos de pago en el calendario del teléfono (.ics con alarmas).
+    if (el.disabled) return;
+    el.disabled = true;
+    try {
+      const { descargarRecordatorios } = await import("./services/recordatorios.js");
+      const { cuantos, resultado } = await descargarRecordatorios();
+      if (!cuantos) toastError("Aún no tienes gastos fijos, deudas ni tarjetas con fecha para avisarte.");
+      else if (resultado !== "cancelado") {
+        toast(`✓ ${cuantos} ${cuantos === 1 ? "aviso listo" : "avisos listos"}: abre el archivo con tu calendario y toca «Agregar». Te avisará un día antes y el día que vence.`, { duracion: 9000 });
+      }
+    } catch (err) {
+      toastError(mensajeDeError(err, "No se pudo crear el archivo del calendario."));
+    } finally {
+      el.disabled = false;
+    }
   } else if (accion === "respaldo") {
     const { abrirRespaldo } = await import("./modules/configuracion/respaldo.js");
     abrirRespaldo(getState().user.uid);
@@ -146,8 +163,15 @@ alCambiarSesion((user) => {
     iniciarSync(user, { onError: toastError });
     initRouter({ user });
     pintarSync();
+    // Globo "⚠ 2 por pagar" arriba, en todas las pantallas: lleva al aviso grande de Mi mes.
+    iniciarAvisos($("aviso-pagos"), () => {
+      if (parseHash().path === "dashboard") window.scrollTo({ top: 0, behavior: "smooth" });
+      else navegar("dashboard");
+    });
   } else {
     cerrarTodas({ mantenerHistorial: true });
+    detenerAvisos();
+    $("aviso-pagos").hidden = true;
     detenerRouter();
     detenerSync();
     appShell.hidden = true;

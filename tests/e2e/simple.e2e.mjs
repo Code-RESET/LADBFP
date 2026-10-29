@@ -125,7 +125,7 @@ await paso("Te faltan = gastos del mes (pagados y pendientes) sin ingresos", asy
   esperar((await texto(".hero__frase")).includes("$1,600"), await texto(".hero__frase"));
 });
 
-await paso("estilo Clima: cielo rojo, 7 días y consejo de vencido con «No, gracias»", async () => {
+await paso("estilo Clima: cielo rojo, 7 días y el aviso grande «Por pagar» con lo vencido", async () => {
   const estado = () => page.evaluate(() => document.documentElement.dataset.estado);
   esperar((await estado()) === "mal", `estado ${await estado()}`);
   esperar((await texto(".cielo__estado")) === "Mes en rojo", await texto(".cielo__estado"));
@@ -133,11 +133,10 @@ await paso("estilo Clima: cielo rojo, 7 días y consejo de vencido con «No, gra
   esperar((await page.locator(".pronostico__fecha").first().innerText()) === "Hoy", "el primer día es Hoy");
   await page.locator(".pronostico__fecha").first().click();
   await page.waitForSelector(".toast", { hasText: "Hoy:" });
-  if (diaAntes < DIA_HOY) { // Hipoteca vence ayer → aviso de vencido
-    await page.waitForSelector('.consejo[data-clave^="vencidos:"]');
-    esperar((await texto(".consejo")).includes("Hipoteca casa está vencido"), await texto(".consejo"));
-    await page.click('.consejo [data-consejo="cerrar"]');
-    await page.waitForFunction(() => !document.querySelector('.consejo[data-clave^="vencidos:"]'));
+  if (diaAntes < DIA_HOY) { // Hipoteca vence ayer → aviso grande en rojo hasta arriba (v1.11; ya no es un consejo que se cierra)
+    await page.waitForSelector(".por-pagar.por-pagar--rojo");
+    esperar((await texto(".por-pagar")).includes("Hipoteca casa"), await texto(".por-pagar"));
+    esperar(!(await page.locator('.consejo[data-clave^="vencidos:"]').count()), "el consejo ya no repite lo vencido");
   }
   await page.screenshot({ path: `${SHOTS}/m-clima-rojo.png` });
 });

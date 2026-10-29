@@ -10,6 +10,8 @@
 // Arriba, estilo Clima de Samsung (cielo.js): el cielo cambia según
 // cómo vas (bien / justo / mal), número gigante, paisaje, los
 // próximos 7 días y una tarjeta de consejo.
+// Hasta arriba, si algo venció o vence en 7 días: el aviso grande
+// "Por pagar" (porPagar.js), que no se puede cerrar.
 // Lo avanzado (deudas, presupuesto, proyección, cuentas) vive en Más.
 // ============================================================
 
@@ -40,6 +42,8 @@ import { marcarPagado, desmarcarPagado } from "../../components/marcarPagado.js"
 import { pasoCatalogos, pasoSaldosIniciales } from "./bienvenida.js";
 import { calcularSerie, graficaMeses, tooltipMetricas } from "./metricas.js";
 import { heroCielo, tarjetaPronostico, tarjetaConsejo, detalleDia } from "./cielo.js";
+import { avisoPorPagar } from "./porPagar.js";
+import { porPagar } from "../../domain/porPagar.js";
 
 const CLAVE_CONSEJOS = "fr.consejos.cerrados";
 
@@ -106,6 +110,7 @@ export function render(container, ctx) {
   let modo = null; // 'cargando' | 'conectando' | 'catalogos' | 'saldos:…' | 'vista'
   let dias = null;  // próximos 7 días (solo en el mes actual)
   let tarjetas = null; // [{ cuenta, estado }] (services/tarjetas.js)
+  let pagos = [];      // lo que vence pronto o ya venció (domain/porPagar.js)
   let pedidoTarjetas = 0;
   let viva = true;  // false al salir de la pantalla: una carga que llegue tarde no debe pintar encima de otra
 
@@ -206,11 +211,13 @@ export function render(container, ctx) {
     dias = esActual ? pronosticoDias({ hoy: hoyF, obligaciones: s.obligaciones, deudas: s.deudas, recurrentes: s.recurrentes, agregados: s.agregados }) : null;
     // Tarjetas activas, o desactivadas que aún deben algo.
     const visibles = (tarjetas || []).filter((x) => x.cuenta.activa !== false || x.estado.deudaTotal > 0);
-    const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF,
-      tarjetas: visibles.map((x) => ({ nombre: x.cuenta.nombre, ...x.estado })) }) : null;
+    // El aviso grande ya dice qué pagar: el consejo solo avisa lo demás (errores, si no alcanza).
+    pagos = porPagar({ obligaciones: s.obligaciones, deudas: s.deudas, agregados: s.agregados, cuentas: s.cuentas, tarjetas: visibles, hoy: hoyF });
+    const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF, omitirPagos: true }) : null;
     const avisoVisible = aviso && leerLocal(CLAVE_CONSEJOS, {})[aviso.clave] !== hoyF ? aviso : null;
 
     return html`
+      ${avisoPorPagar(pagos)}
       ${heroCielo({ b, mes, clima })}
       ${dias ? tarjetaPronostico({ dias, hoy: hoyF }) : ""}
       ${avisoVisible ? tarjetaConsejo(avisoVisible) : ""}
@@ -293,7 +300,19 @@ export function render(container, ctx) {
     return f.clase === "ingreso" ? abrirRecurrente(f.ref) : abrirObligacion(f.ref);
   }
 
-  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo], [data-consejo], [data-dia], [data-pagar-tarjeta]", (e, el) => {
+  const quitarClick = on(container, "click", "[data-mes-nav], [data-marcar], [data-abrir], [data-nuevo], [data-consejo], [data-dia], [data-pagar-tarjeta], [data-por-pagar]", (e, el) => {
+    if (el.dataset.porPagar) {
+      const x = pagos[Number(el.dataset.porPagar)];
+      if (!x) return;
+      if (x.tipo === "tarjeta") {
+        import("../tarjetas/pago.js").then(({ abrirPagoTarjeta }) => abrirPagoTarjeta(cuentaPorId(x.cuenta.id) || x.cuenta, x.estado));
+        return;
+      }
+      // Gasto fijo o deuda: se marca ☑ igual que en la lista (con «Deshacer»).
+      const e = x.evento;
+      marcarPagado({ ...e, nombre: e.ref.tarjetaId ? e.ref.descripcion || e.ref.acreedor : e.nombre, pendiente: e.monto }, mesDe(e.periodo));
+      return;
+    }
     if (el.dataset.mesNav) return cambiarMes(moverMes(mes, el.dataset.mesNav));
     if (el.dataset.pagarTarjeta) {
       const x = tarjetas?.find((t) => t.cuenta.id === el.dataset.pagarTarjeta);

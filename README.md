@@ -14,7 +14,7 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | 1 | Login, arquitectura modular, navegación, claro/oscuro/sistema, cajas, cuentas, movimientos, transferencias, saldos, Dashboard, paginación, PWA offline, reglas de seguridad | ✅ |
 | 2 | Obligaciones, deudas, presupuesto, ingresos esperados y transferencias programadas, alertas, próximos pagos, flujo proyectado (7/30/90 días, 12 meses), disponible real | ✅ |
 | 3 | **Hecho:** Excel del mes, Revisar mis datos, Metas de ahorro, Respaldo y restauración. **Falta:** reportes con filtros, CSV, PDF, escenarios | 🟡 En curso |
-| Futura | **Hecho:** Tarjetas de crédito con meses sin intereses. **Falta:** recordatorios en el calendario, compartir con otra persona | 🟡 En curso |
+| Futura | **Hecho:** Tarjetas de crédito con meses sin intereses, aviso «Por pagar» y avisos en el calendario. **Falta:** compartir con otra persona | 🟡 En curso |
 
 ## Cómo se usa (v1.6 «Mi mes» estilo Clima)
 
@@ -22,6 +22,8 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 
 | Parte | Qué hace |
 |---|---|
+| **Por pagar** (aviso grande) | Hasta arriba de Mi mes, en rojo si algo **venció o vence hoy**, naranja si vence en 3 días o menos, amarillo para el resto de la semana: cada pago con su monto, cuándo vence y «Ya lo pagué» o «Pagar» (tarjetas). No se puede cerrar: se quita cuando pagas. En todas las pantallas, arriba, el globo «⚠ N por pagar». |
+| **Avisos en el calendario** | «Que mi teléfono me avise» (en el aviso o en Más): un archivo para el calendario con cada gasto fijo, deuda y tarjeta, con alarmas un día antes y el mismo día a las 9 am. |
 | **Te quedan** | Ingresos del mes − todos los gastos del mes (pagados y pendientes), en grande sobre un cielo que cambia de color según cómo vas (azul: bien · atardecer: justo · rojo: mes en rojo). Debajo: ↑ Entró / ↓ Gastos y cuánto falta por pagar. |
 | **Próximos 7 días** | Como el pronóstico del clima: qué vence cada día y cómo queda tu dinero. Abajo, una tarjeta con el consejo más útil (vencidos, errores, si no alcanza, el pago grande que viene). |
 | **Gastos** | Fijos (↻) y de una vez, ordenados por día y con su caja. Tocar ☐ = pagado (con «Deshacer»); tocar el renglón = editar. |
