@@ -203,13 +203,13 @@ const suma = (lista, f = (x) => x) => lista.reduce((a, x) => a + f(x), 0);
 
 /**
  * Todo lo de una tarjeta. `movimientos` = los movimientos de la tarjeta
- * con fecha posterior a su último corte (los demás no hacen falta: el
- * saldo total sale de los agregados).
+ * con fecha posterior a su penúltimo corte (`inicioMovimientos`; los demás
+ * no hacen falta: el saldo total sale de los agregados).
  * → { deudaRegular, aFavor, porCaja: [{ cajaId, deuda }], msi: [{ deuda, resumen, numero }],
  *     msiPendiente, deudaTotal, limite, disponible, configurada,
  *     corte, fechaLimite, proximoCorte, siguienteLimite, deudaAlCorte, pagosDespues, comprasDespues,
  *     pendienteCorte, paraElSiguiente, cuotas: [{ deuda, periodo, fecha, monto, vencida }], pendienteMsi,
- *     paraNoGenerarIntereses, todo, estado: 'sin-deuda'|'al-corriente'|'por-pagar'|'vencida', dias }
+ *     paraNoGenerarIntereses, todo, estado: 'sin-deuda'|'al-corriente'|'por-pagar'|'vencida', vencidaDesde, dias }
  */
 export function estadoTarjeta({ cuenta, agregados = {}, deudas = [], movimientos = [], hoy }) {
   const credito = cuenta.credito || {};
@@ -238,30 +238,50 @@ export function estadoTarjeta({ cuenta, agregados = {}, deudas = [], movimientos
   }
 
   const corte = corteAnterior(credito, hoy);
-  const fechaLimite = fechaLimiteDe(corte, credito);
   const proximoCorte = corteSiguiente(credito, hoy);
-  const despues = movimientos.filter((m) => m.estado !== "anulado" && m.fecha > corte);
-  const efectos = despues.map((m) => efectoEnCuenta(m, cuenta.id));
-  const deudaAlCorte = Math.max(0, -(saldo - suma(efectos)));
+  // El estado de cuenta anterior: si no se pagó a tiempo, la tarjeta está vencida aunque ya haya un corte nuevo.
+  const cortePrevio = corteAnterior(credito, sumarDias(corte, -1));
+  const limitePrevio = fechaLimiteDe(cortePrevio, credito);
+  const vivos = movimientos.filter((m) => m.estado !== "anulado");
+  const efectosDesde = (f) => vivos.filter((m) => m.fecha > f).map((m) => efectoEnCuenta(m, cuenta.id));
+  const deudaAl = (f) => Math.max(0, -(saldo - suma(efectosDesde(f))));
+  const pagosDesde = (f) => suma(efectosDesde(f), (e) => Math.max(0, e));
+  // Los pagos se aplican primero a lo más viejo (como hacen los bancos).
+  const restantePrevio = Math.max(0, deudaAl(cortePrevio) - pagosDesde(cortePrevio));
+  const previoVencido = restantePrevio > 0 && limitePrevio < hoy;
+  // Tarjetas cuya fecha límite cae el mismo día del corte siguiente (corte 3, paga el 3): ese día aún se paga el anterior.
+  const previoHoy = restantePrevio > 0 && limitePrevio >= hoy;
+  const ciclo = previoHoy ? cortePrevio : corte;
+  const fechaLimite = previoHoy ? limitePrevio : fechaLimiteDe(corte, credito);
+  const efectos = efectosDesde(ciclo);
+  const deudaAlCorte = deudaAl(ciclo);
   const pagosDespues = suma(efectos, (e) => Math.max(0, e));
   const comprasDespues = suma(efectos, (e) => Math.max(0, -e));
-  const pendienteCorte = Math.max(0, deudaAlCorte - pagosDespues);
+  const pendienteCorte = previoHoy ? restantePrevio : Math.max(0, deudaAlCorte - pagosDespues);
 
   // Mensualidades que vencen hasta el próximo corte (y las atrasadas de los dos cortes anteriores).
   const cuotas = eventos({ deudas: planes, agregados, hoy, hasta: proximoCorte, vencidasDesde: sumarDias(corte, -62) })
     .map((e) => ({ deuda: e.ref, periodo: e.periodo, fecha: e.fecha, monto: e.monto, vencida: e.fecha < hoy }));
   const pendienteMsi = suma(cuotas, (c) => c.monto);
   const paraNoGenerarIntereses = pendienteCorte + pendienteMsi;
-  const estado = paraNoGenerarIntereses === 0 ? (deudaRegular ? "al-corriente" : "sin-deuda")
-    : (hoy > fechaLimite || cuotas.some((c) => c.vencida)) ? "vencida" : "por-pagar";
+  // Desde cuándo está vencida: el estado de cuenta anterior sin pagar, este ya pasado, o una mensualidad atrasada.
+  const vencidaDesde = paraNoGenerarIntereses === 0 ? null
+    : [previoVencido ? limitePrevio : null, hoy > fechaLimite && pendienteCorte > 0 ? fechaLimite : null,
+      ...cuotas.filter((c) => c.vencida).map((c) => c.fecha)].filter(Boolean).sort()[0] || null;
+  const estado = paraNoGenerarIntereses === 0 ? (deudaRegular ? "al-corriente" : "sin-deuda") : vencidaDesde ? "vencida" : "por-pagar";
   return {
-    ...base, corte, fechaLimite, proximoCorte, siguienteLimite: fechaLimiteDe(proximoCorte, credito),
+    ...base, corte: ciclo, fechaLimite, proximoCorte, siguienteLimite: fechaLimiteDe(proximoCorte, credito),
     deudaAlCorte, pagosDespues, comprasDespues, pendienteCorte,
     // Lo que debes que no entra en este pago (compras después del corte que aún no pagas).
     paraElSiguiente: Math.max(0, deudaRegular - pendienteCorte),
-    cuotas, pendienteMsi, paraNoGenerarIntereses, todo: deudaRegular + pendienteMsi, estado,
-    dias: diasEntre(hoy, fechaLimite),
+    cuotas, pendienteMsi, paraNoGenerarIntereses, todo: deudaRegular + pendienteMsi, estado, vencidaDesde,
+    dias: diasEntre(hoy, vencidaDesde || fechaLimite),
   };
+}
+
+/** Desde qué fecha hacen falta los movimientos de la tarjeta (el corte anterior al último). */
+export function inicioMovimientos(credito, hoy) {
+  return corteAnterior(credito, sumarDias(corteAnterior(credito, hoy), -1));
 }
 
 // ---------- Pagar la tarjeta ----------

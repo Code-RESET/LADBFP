@@ -54,8 +54,9 @@ export function pronosticoDias({ hoy, obligaciones = [], deudas = [], recurrente
  * `tarjetas` = [{ nombre, estado, paraNoGenerarIntereses, fechaLimite, dias }] (domain/tarjetas.js).
  * { clave, titulo, texto, accion: { label, tipo: 'ver-gastos' | 'ver-tarjetas' | 'revisar-datos' | 'cerrar' } }
  */
-export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjetas = [] }) {
-  const vencidos = (balance?.fijos || []).filter((g) => g.estado === "Vencido");
+export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjetas = [], omitirPagos = false }) {
+  // Con `omitirPagos` (Mi mes ya muestra el aviso grande «Por pagar») solo quedan errores y «no alcanza».
+  const vencidos = omitirPagos ? [] : (balance?.fijos || []).filter((g) => g.estado === "Vencido");
   if (vencidos.length) {
     const nombres = vencidos.map((g) => g.nombre);
     return {
@@ -66,7 +67,7 @@ export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjeta
     };
   }
 
-  const tarjeta = tarjetas
+  const tarjeta = (omitirPagos ? [] : tarjetas)
     .filter((t) => t.paraNoGenerarIntereses > 0 && (t.estado === "vencida" || (t.estado === "por-pagar" && t.dias != null && t.dias <= 3)))
     .sort((a, b) => (a.estado === "vencida" ? 0 : 1) - (b.estado === "vencida" ? 0 : 1) || a.dias - b.dias)[0];
   if (tarjeta) {
@@ -76,7 +77,7 @@ export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjeta
       clave: `tarjeta:${tarjeta.nombre}:${tarjeta.fechaLimite}:${tarjeta.estado}`,
       titulo: tarjeta.estado === "vencida" ? `Tu tarjeta ${tarjeta.nombre} está vencida` : `Paga tu tarjeta ${tarjeta.nombre}`,
       texto: tarjeta.estado === "vencida"
-        ? `Venció el ${formatFecha(tarjeta.fechaLimite)}. Paga ${monto} cuanto antes para no pagar intereses.`
+        ? `Venció el ${formatFecha(tarjeta.vencidaDesde || tarjeta.fechaLimite)}. Paga ${monto} cuanto antes para no pagar intereses.`
         : `Vence ${cuando}: paga ${monto} para no generar intereses.`,
       accion: { label: "Pagar", tipo: "ver-tarjetas" },
     };
@@ -98,7 +99,7 @@ export function consejo({ balance, pronostico = [], hallazgos = [], hoy, tarjeta
     };
   }
 
-  const pagos = pronostico.flatMap((d) => d.eventos.filter((e) => e.clase !== "ingreso").map((e) => ({ ...e, fecha: d.fecha })));
+  const pagos = omitirPagos ? [] : pronostico.flatMap((d) => d.eventos.filter((e) => e.clase !== "ingreso").map((e) => ({ ...e, fecha: d.fecha })));
   const mayor = pagos.sort((a, b) => b.monto - a.monto)[0];
   if (mayor) {
     const cuando = mayor.fecha === hoy ? "hoy" : mayor.fecha === sumarDias(hoy, 1) ? "mañana" : `el ${nombreDia(mayor.fecha)}`;

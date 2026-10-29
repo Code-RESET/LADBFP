@@ -1,8 +1,8 @@
 // ============================================================
 // services/tarjetas.js
 // Estado de cada tarjeta de crédito (para Mi mes y Tarjetas).
-// Solo lee los movimientos de la tarjeta posteriores a su último
-// corte (pocos); lo demás sale de los agregados. El cálculo vive
+// Solo lee los movimientos de la tarjeta de sus dos últimos cortes
+// (pocos); lo demás sale de los agregados. El cálculo vive
 // en domain/tarjetas.js. El resultado se recuerda mientras no
 // cambie nada de las tarjetas (ni sus compras a meses).
 // Si la consulta falla, se calcula igual sin separar lo de antes
@@ -12,8 +12,9 @@
 
 import { getState } from "../core/state.js";
 import { hoy as hoyMexico } from "../core/dates.js";
-import { estadoTarjeta, corteAnterior, tarjetaConfigurada, esTarjeta } from "../domain/tarjetas.js";
+import { estadoTarjeta, inicioMovimientos, tarjetaConfigurada, esTarjeta } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
+import { diasEntre as diasHasta } from "../domain/periodos.js";
 
 let memo = { clave: null, promesa: null };
 
@@ -46,7 +47,7 @@ export function estadosTarjetas(s = getState(), hoy = hoyMexico()) {
     let aproximado = false;
     if (tarjetaConfigurada(cuenta)) {
       try {
-        movimientos = await movimientosRepo.deCuentaDespuesDe(uid, cuenta.id, corteAnterior(cuenta.credito, hoy));
+        movimientos = await movimientosRepo.deCuentaDespuesDe(uid, cuenta.id, inicioMovimientos(cuenta.credito, hoy));
       } catch {
         aproximado = true;
       }
@@ -58,6 +59,8 @@ export function estadosTarjetas(s = getState(), hoy = hoyMexico()) {
       estado.pendienteCorte = estado.deudaRegular;
       estado.paraNoGenerarIntereses = estado.deudaRegular + estado.pendienteMsi;
       estado.estado = estado.paraNoGenerarIntereses ? "por-pagar" : "sin-deuda";
+      estado.vencidaDesde = null;
+      estado.dias = estado.fechaLimite ? diasHasta(hoy, estado.fechaLimite) : null;
     }
     return { cuenta, estado, aproximado };
   }));

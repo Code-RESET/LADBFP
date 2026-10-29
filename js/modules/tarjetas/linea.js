@@ -21,8 +21,9 @@ export function lineaEstado(e, { corto: breve = false } = {}) {
     return { clase: "", texto: e.todo ? `Debes ${corto(e.todo)}. Agrega su día de corte y de pago para saber cuándo pagar.` : "Agrega su día de corte y de pago." };
   }
   if (e.estado === "vencida") {
-    return { clase: "texto-peligro", texto: breve ? `Venció el ${fecha(e.fechaLimite)} · paga ${corto(e.paraNoGenerarIntereses)}`
-      : `Venció el ${fecha(e.fechaLimite)}: paga ${corto(e.paraNoGenerarIntereses)} cuanto antes para no pagar intereses.` };
+    const vencio = e.vencidaDesde || e.fechaLimite;
+    return { clase: "texto-peligro", texto: breve ? `Venció el ${fecha(vencio)} · paga ${corto(e.paraNoGenerarIntereses)}`
+      : `Venció el ${fecha(vencio)}: paga ${corto(e.paraNoGenerarIntereses)} cuanto antes para no pagar más intereses y recargos.` };
   }
   if (e.estado === "por-pagar") {
     const cuando = e.dias === 0 ? "hoy" : e.dias === 1 ? "mañana" : `antes del ${fecha(e.fechaLimite)}`;

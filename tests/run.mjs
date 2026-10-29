@@ -19,6 +19,8 @@ import "./metas.test.js";
 import "./respaldo.test.js";
 import "./tarjetas.test.js";
 import "./cuadre.test.js";
+import "./calendario.test.js";
+import "./porPagar.test.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 
