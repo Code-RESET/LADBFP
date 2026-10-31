@@ -73,11 +73,18 @@ export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], de
   }
 
   // Cuentas sin caja predeterminada (informativo, decisión A3)
-  const sinCaja = cuentas.filter((c) => c.activa !== false && !c.cajaPredeterminadaId);
+  const sinCaja = cuentas.filter((c) => c.activa !== false && c.tipo !== "credito" && !c.cajaPredeterminadaId);
   if (sinCaja.length) {
     out.push({ nivel: "info", tipo: "cuenta-sin-caja", ruta: "cuentas",
       titulo: `${sinCaja.length === 1 ? "1 cuenta" : `${sinCaja.length} cuentas`} sin caja predeterminada`,
       texto: sinCaja.map((c) => c.nombre).join(", ") });
+  }
+  // Tarjetas sin la caja que las paga: sus compras se restarían de la caja que estés usando (v1.12).
+  const tarjetasSinCaja = cuentas.filter((c) => c.activa !== false && c.tipo === "credito" && !c.cajaPredeterminadaId);
+  if (tarjetasSinCaja.length) {
+    out.push({ nivel: "info", tipo: "tarjeta-sin-caja", ruta: "tarjetas",
+      titulo: `${tarjetasSinCaja.length === 1 ? "1 tarjeta" : `${tarjetasSinCaja.length} tarjetas`} sin la caja que la paga`,
+      texto: tarjetasSinCaja.map((c) => c.nombre).join(", ") });
   }
 
   return out.sort((a, b) => ORDEN[a.nivel] - ORDEN[b.nivel]);

@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v1.11.0";
+const CACHE_VERSION = "finanzas-reset-v1.12.0";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -101,6 +101,7 @@ const CORE_ASSETS = [
   "./js/modules/tarjetas/formulario.js",
   "./js/modules/tarjetas/linea.js",
   "./js/modules/tarjetas/pago.js",
+  "./js/modules/tarjetas/cajaQuePaga.js",
   "./js/modules/cuadrar/index.js",
   "./js/modules/cuentas/index.js",
   "./js/modules/dashboard/bienvenida.js",

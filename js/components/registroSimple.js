@@ -1,9 +1,12 @@
 // ============================================================
 // components/registroSimple.js
 // Registro rápido "nombre + monto" (lo único que hay que llenar):
-//   ¿Qué es?  ·  ¿Cuánto?  ·  caja (ya elegida, un toque cambia)
+//   ¿Qué es?  ·  ¿Cuánto?
 //   ¿Con qué pagaste?  Débito / efectivo | 💳 tarjeta (si tienes)
 //     ☐ A meses sin intereses  [3 | 6 | 9 | 12 | 18 | 24]
+//   caja (ya elegida, un toque cambia). Con tarjeta, la que la paga
+//     (se elige sola; si la tarjeta aún no tiene, la que elijas se
+//     recuerda): la compra no baja tu efectivo ni la caja que usabas.
 //   ☐ Se repite  [Cada mes | Cada semana]  el día __ / el lunes
 // La categoría se elige sola por el nombre (Gasolina → Combustible),
 // la cuenta es la de la caja (o la tarjeta) y la fecha es hoy.
@@ -22,8 +25,9 @@ import { validarObligacion, validarRecurrente } from "../domain/compromisos.js";
 import { categoriaSugerida, fechaParaMes } from "../domain/mes.js";
 import { DIAS_SEMANA } from "../domain/periodos.js";
 import { cuentaParaCaja } from "../domain/saldos.js";
-import { validarMsi, deudaDeMsi, MESES_MSI, esTarjeta } from "../domain/tarjetas.js";
+import { validarMsi, deudaDeMsi, MESES_MSI, esTarjeta, cajaDeTarjeta } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
+import { cuentasRepo } from "../data/catalogosRepo.js";
 import { obligacionesRepo, recurrentesRepo, deudasRepo } from "../data/planRepo.js";
 import { abrirCapa } from "./modal.js";
 import { confirmar } from "./confirmation.js";
@@ -114,15 +118,6 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
       </label>
       <span class="campo__error campo__error--centro" data-error="montoCentavos"></span>
 
-      <div class="campo">
-        <span class="campo__label"><span class="solo-gasto">Sale de</span><span class="solo-ingreso">Entra a</span></span>
-        <div class="chips" role="radiogroup">${listaCajas.map((c) => html`<label class="chip">
-          <input type="radio" name="cajaId" value="${c.id}" ${c.id === v.cajaId ? "checked" : ""} />
-          <span><i class="punto" style="background:${c.color || "var(--accent)"}"></i>${c.nombre}${cuentaPorId(cuentaDeCaja(c.id))
-            ? html`<small class="chip__banco"> · ${cuentaPorId(cuentaDeCaja(c.id)).nombre}</small>` : ""}</span></label>`)}</div>
-        <span class="campo__error" data-error="cajaId"></span>
-      </div>
-
       ${listaTarjetas.length ? html`<div class="campo pago-con">
         <span class="campo__label">¿Con qué pagaste?</span>
         <div class="chips" role="radiogroup">
@@ -130,6 +125,7 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
           ${listaTarjetas.map((t) => html`<label class="chip"><input type="radio" name="pagoCon" value="${t.id}" ${t.id === pagoCon ? "checked" : ""} />
             <span>💳 ${t.nombre}</span></label>`)}
         </div>
+        <p class="campo__ayuda solo-pago-tarjeta">No baja tu efectivo ni tu banco hoy: se suma a lo que debes en la tarjeta y se resta de la caja que la paga.</p>
         ${nuevo ? html`<div class="solo-tarjeta msi">
           <label class="repite__check"><input type="checkbox" name="msi" /> <span>A meses sin intereses</span></label>
           <div class="solo-msi">
@@ -139,6 +135,15 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
         </div>` : ""}
         <span class="campo__error" data-error="meses"></span>
       </div>` : ""}
+
+      <div class="campo">
+        <span class="campo__label"><span class="solo-gasto solo-pago-banco">Sale de</span><span class="solo-gasto solo-pago-tarjeta">¿Con qué caja vas a pagar la tarjeta?</span><span class="solo-ingreso">Entra a</span></span>
+        <div class="chips" role="radiogroup">${listaCajas.map((c) => html`<label class="chip">
+          <input type="radio" name="cajaId" value="${c.id}" ${c.id === v.cajaId ? "checked" : ""} />
+          <span><i class="punto" style="background:${c.color || "var(--accent)"}"></i>${c.nombre}${cuentaPorId(cuentaDeCaja(c.id))
+            ? html`<small class="chip__banco"> · ${cuentaPorId(cuentaDeCaja(c.id)).nombre}</small>` : ""}</span></label>`)}</div>
+        <span class="campo__error" data-error="cajaId"></span>
+      </div>
 
       ${movimiento ? "" : html`<div class="repite">
         ${fijo ? "" : html`<label class="repite__check"><input type="checkbox" name="repite" /> <span>Se repite</span></label>`}
@@ -166,8 +171,33 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
   const form = capa.cuerpo.querySelector("form");
   const tipoActual = () => (nuevo ? form.tipo.value : tipo);
 
+  // Con tarjeta, la caja es la que la paga (si ya la tiene; si no, que la elija). Con «Débito / efectivo»
+  // regresa la que estaba, salvo que la hayas cambiado a mano.
+  let cajaAntes = null;
+  const cajaElegida = () => form.querySelector('input[name="cajaId"]:checked')?.value || "";
+  const marcarCaja = (id) => form.querySelectorAll('input[name="cajaId"]').forEach((r) => { r.checked = r.value === id; });
+
   form.addEventListener("change", (e) => {
-    if (e.target.name === "tipo") form.dataset.tipo = form.tipo.value;
+    if (e.target.name === "tipo") {
+      form.dataset.tipo = form.tipo.value;
+      // Un ingreso no se paga con tarjeta: regresa a «Débito / efectivo» y a la caja de antes.
+      const debito = form.querySelector('input[name="pagoCon"][value=""]');
+      if (form.tipo.value === "ingreso" && debito && !debito.checked) {
+        debito.checked = true;
+        form.dataset.pago = "banco";
+        if (cajaAntes !== null) { marcarCaja(cajaAntes); cajaAntes = null; }
+      }
+    }
+    if (e.target.name === "cajaId") cajaAntes = null;
+    if (e.target.name === "pagoCon") {
+      if (e.target.value) {
+        if (cajaAntes === null) cajaAntes = cajaElegida();
+        marcarCaja(cajaDeTarjeta(cuentaPorId(e.target.value), cajasActivas()));
+      } else if (cajaAntes !== null) {
+        marcarCaja(cajaAntes);
+        cajaAntes = null;
+      }
+    }
     if (e.target.name === "cada") form.dataset.cada = form.cada.value;
     if (e.target.name === "repite") {
       form.dataset.repite = form.repite.checked ? "si" : "no";
@@ -206,12 +236,14 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
     const t = tipoActual();
     const nombre = form.nombre.value.trim();
     const montoCentavos = parseMonto(form.monto.value);
-    const caja = form.querySelector('input[name="cajaId"]:checked')?.value || "";
+    const caja = cajaElegida();
     const repite = fijo || form.repite?.checked;
+    // Si pagaste con tarjeta de crédito, la cuenta es la tarjeta (la caja baja igual; el banco no).
+    const tarjetaId = t === "gasto" ? form.querySelector('input[name="pagoCon"]:checked')?.value || "" : "";
     const errores = {};
     if (!nombre) errores.nombre = t === "ingreso" ? "Escribe de dónde viene (ej. Honorarios)." : "Escribe qué es (ej. Gasolina).";
     if (!(montoCentavos > 0)) errores.montoCentavos = "Escribe cuánto.";
-    if (!caja) errores.cajaId = "Elige una caja.";
+    if (!caja) errores.cajaId = tarjetaId ? "Elige con qué caja vas a pagar la tarjeta." : "Elige una caja.";
     const dia = Number(form.dia?.value);
     const cada = form.cada?.value || "mensual";
     const diaSemana = Number(form.diaSemana?.value);
@@ -220,8 +252,6 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
 
     // El banco es siempre el que se muestra junto a la caja (donde la caja tiene su dinero),
     // también al editar: así se corrigen gastos que se habían anotado en otro banco.
-    // Si pagaste con tarjeta de crédito, la cuenta es la tarjeta (la caja baja igual; el banco no).
-    const tarjetaId = t === "gasto" ? form.querySelector('input[name="pagoCon"]:checked')?.value || "" : "";
     const cuentaId = tarjetaId || cuentaDeCaja(caja);
     const aMeses = nuevo && tarjetaId && !repite && form.msi?.checked;
     const nombreCambio = nombre !== v.nombre;
@@ -249,7 +279,14 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
       enviando = false;
     }
     recordarNombre(nombre);
-    guardarLocal(CLAVE_CAJA(t), caja);
+    // Con tarjeta la caja es la que la paga: no cambia la caja de siempre.
+    if (!tarjetaId) guardarLocal(CLAVE_CAJA(t), caja);
+    // Tarjeta sin caja: se queda con la que elegiste en un gasto nuevo (la próxima vez se elige sola).
+    const tarjeta = cuentaPorId(tarjetaId);
+    if (nuevo && tarjeta && !cajaDeTarjeta(tarjeta, cajasActivas())) {
+      cuentasRepo.guardar(uid, { id: tarjeta.id, cajaPredeterminadaId: caja }, { onError });
+      toast(`💳 ${tarjeta.nombre} se paga con ${cajaPorId(caja)?.nombre}: la próxima vez se elige sola.`, { duracion: 5000 });
+    }
     capa.cerrar();
   });
 

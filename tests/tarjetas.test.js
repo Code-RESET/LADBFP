@@ -2,10 +2,12 @@ import { test, assert } from "./lib.js";
 import {
   corteAnterior, corteSiguiente, fechaLimiteDe, primeraMensualidad, planMsi, deudaDeMsi, numeroMensualidad, etiquetaMsi,
   efectoEnCuenta, estadoTarjeta, repartirPago, movimientosDePago, validarTarjeta, validarMsi, ajusteDeudaInicial, sumarMeses,
+  cajaDeTarjeta, enOtrasCajas, movimientosParaPasar,
 } from "../js/domain/tarjetas.js";
 import { construirMovimiento, deltasAgregados, validarMovimiento } from "../js/domain/movimientos.js";
 import { ocurrencias } from "../js/domain/periodos.js";
-import { saldosPor } from "../js/domain/saldos.js";
+import { saldosPor, desgloseCuenta } from "../js/domain/saldos.js";
+import { generarAlertas } from "../js/domain/alertas.js";
 
 function sumar(dest, delta) { for (const [k, v] of Object.entries(delta)) { if (typeof v === "number") dest[k] = (dest[k] || 0) + v; else sumar(dest[k] ??= {}, v); } }
 function agregadosDe(movs, ag = {}) {
@@ -146,9 +148,9 @@ test("tarjetas: sin día de corte se muestra lo que debes; deuda inicial con fec
 });
 
 test("tarjetas: validaciones de tarjeta y de compra a meses", () => {
-  assert.eq(validarTarjeta({ nombre: "Liverpool", diaCorte: 15, diaLimite: 5 }, []).ok, true);
+  assert.eq(validarTarjeta({ nombre: "Liverpool", diaCorte: 15, diaLimite: 5, cajaId: "casa" }, []).ok, true);
   assert.eq(Object.keys(validarTarjeta({ nombre: "BBVA", diaCorte: 0, diaLimite: 32, deudaCentavos: 1000 }, [{ id: "b", nombre: "bbva" }]).errores),
-    ["nombre", "diaCorte", "diaLimite", "cajaDeudaId"]);
+    ["nombre", "diaCorte", "diaLimite", "cajaId"]);
   const ok = { descripcion: "TV", montoCentavos: 1200000, meses: 12, pagadas: 0, fechaCompra: "2026-10-20", cajaId: "casa", tarjetaId: "liv" };
   assert.eq(validarMsi(ok).ok, true);
   assert.eq(Object.keys(validarMsi({ ...ok, meses: 1, descripcion: "" }).errores), ["descripcion", "meses"]);
@@ -172,4 +174,57 @@ test("tarjetas: fecha límite el mismo día del corte (Cimaco: corte 3, paga el 
   const pago = { tipo: "transferencia", fecha: "2026-11-05", montoCentavos: 289227, cajaId: "casa", cuentaId: "bbva", cajaDestinoId: "casa", cuentaDestinoId: "cim" };
   const el5 = estadoTarjeta({ cuenta: CIMACO, agregados: agregadosDe([pago], agregadosDe(movs)), movimientos: conId([...movs, pago]), hoy: "2026-11-05" });
   assert.eq([el5.estado, el5.vencidaDesde, el5.fechaLimite, el5.paraNoGenerarIntereses], ["por-pagar", null, "2026-12-03", 50000]);
+});
+
+test("tarjetas: la caja que la paga — lo que quedó en otras cajas (deuda, a favor, compras a meses y fijos) pasa sin cambiar lo que debes", () => {
+  const HOY = "2026-10-29";
+  const AZUL = { ...LIVERPOOL, id: "azul", nombre: "Azul", cajaPredeterminadaId: "negocio" };
+  const CAJAS = [{ id: "efectivo" }, { id: "negocio" }, { id: "vieja", activa: false }];
+  assert.eq([cajaDeTarjeta(AZUL, CAJAS), cajaDeTarjeta({ ...AZUL, cajaPredeterminadaId: "vieja" }, CAJAS), cajaDeTarjeta(LIVERPOOL, CAJAS)], ["negocio", "", ""]);
+
+  const compra = (caja, monto) => ({ tipo: "gasto", fecha: "2026-10-20", montoCentavos: monto, cajaId: caja, cuentaId: "azul", categoriaId: "ga-casa" });
+  const movs = [
+    { tipo: "apertura", fecha: "2026-10-01", montoCentavos: 300000, cajaId: "efectivo", cuentaId: "cash" },
+    { tipo: "apertura", fecha: "2026-10-01", montoCentavos: 1000000, cajaId: "negocio", cuentaId: "bbva" },
+    compra("efectivo", 59908), compra("efectivo", 11500), compra("efectivo", 74800), // anotadas en el efectivo
+    compra("negocio", 20000),
+    // «otra» pagó de más: tiene $50 a favor en la tarjeta.
+    { tipo: "transferencia", fecha: "2026-10-22", montoCentavos: 5000, cajaId: "otra", cuentaId: "bbva", cajaDestinoId: "otra", cuentaDestinoId: "azul" },
+    // La compra a meses «Cel» ya se liquidó.
+    { tipo: "gasto", fecha: "2026-10-05", montoCentavos: 30000, cajaId: "efectivo", cuentaId: "cash", categoriaId: "ga-casa", deudaId: "cel" },
+  ];
+  const ag = agregadosDe(movs);
+  const msi = (id, monto, meses, caja) => ({ id, ...deudaDeMsi({ descripcion: id, montoCentavos: monto, meses, fechaCompra: "2026-09-10", cajaId: caja }, AZUL,
+    { cuentaPagoId: "cash", categoriaId: "ga-casa" }) });
+  const deudas = [msi("tv", 1200000, 12, "efectivo"), msi("cel", 30000, 3, "efectivo"), msi("lap", 600000, 6, "negocio")];
+  const netflix = { id: "netflix", nombre: "Netflix", montoCentavos: 29900, regla: { frecuencia: "mensual", diaMes: 30, desde: "2026-01-01" },
+    cajaId: "efectivo", cuentaId: "azul", activa: true };
+  const obligaciones = [netflix, { ...netflix, id: "spotify", cajaId: "negocio" }, { ...netflix, id: "hbo", regla: { ...netflix.regla, hasta: "2026-06-30" } },
+    { ...netflix, id: "luz", cuentaId: "cash" }, { ...netflix, id: "apagada", activa: false }];
+
+  const r = enOtrasCajas({ tarjeta: AZUL, cajaId: "negocio", agregados: ag, deudas, obligaciones, hoy: HOY });
+  assert.eq([...r.saldos].sort((a, b) => a.cajaId.localeCompare(b.cajaId)), [{ cajaId: "efectivo", saldo: -146208 }, { cajaId: "otra", saldo: 5000 }]);
+  assert.eq([r.deuda, r.msi.map((d) => d.id), r.fijos.map((o) => o.id), r.vacio], [146208, ["tv"], ["netflix"], false]);
+
+  const pasar = movimientosParaPasar({ tarjeta: AZUL, cajaId: "negocio", saldos: r.saldos, fecha: HOY, nota: "Azul: ahora la paga Negocio" });
+  assert.ok(pasar.every((m) => validarMovimiento(m).ok), "transferencias válidas");
+  const ag2 = agregadosDe(pasar, structuredClone(ag));
+  const [c1, c2] = [saldosPor(ag, "porCaja"), saldosPor(ag2, "porCaja")];
+  // No cambia lo que debes ni el dinero de ningún banco; el efectivo recupera lo de la tarjeta.
+  assert.eq(saldosPor(ag2, "porCuenta"), saldosPor(ag, "porCuenta"));
+  assert.eq([c2.efectivo - c1.efectivo, c2.otra - c1.otra, c2.negocio - c1.negocio], [146208, -5000, -141208]);
+  assert.eq(desgloseCuenta(ag2, "azul"), [{ cajaId: "negocio", saldo: -161208 }]);
+  assert.eq(enOtrasCajas({ tarjeta: AZUL, cajaId: "negocio", agregados: ag2, hoy: HOY }).vacio, true);
+  // No cuenta como pago: el estado de la tarjeta queda igual.
+  const e1 = estadoTarjeta({ cuenta: AZUL, agregados: ag, movimientos: conId(movs), hoy: HOY });
+  const e2 = estadoTarjeta({ cuenta: AZUL, agregados: ag2, movimientos: conId([...movs, ...pasar]), hoy: HOY });
+  assert.eq([e2.deudaTotal, e2.pagosDespues, e2.paraNoGenerarIntereses], [e1.deudaTotal, e1.pagosDespues, e1.paraNoGenerarIntereses]);
+});
+
+test("alertas: tarjeta sin la caja que la paga (aparte de los bancos sin caja)", () => {
+  const cuentas = [{ id: "bbva", nombre: "BBVA", tipo: "debito" }, { id: "azul", nombre: "Azul", tipo: "credito" },
+    { id: "nu", nombre: "Nu", tipo: "debito", cajaPredeterminadaId: "casa" }, { id: "roja", nombre: "Roja", tipo: "credito", cajaPredeterminadaId: "casa" }];
+  const a = generarAlertas({ hoy: "2026-10-29", cajas: [], cuentas, agregados: {} });
+  assert.eq(a.filter((x) => x.tipo.endsWith("sin-caja")).map((x) => [x.tipo, x.ruta, x.texto]),
+    [["cuenta-sin-caja", "cuentas", "BBVA"], ["tarjeta-sin-caja", "tarjetas", "Azul"]]);
 });

@@ -13,7 +13,7 @@ import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy, formatFecha } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
 import { getState, cuentaPorId, bancosActivos } from "../../core/state.js";
-import { repartirPago, movimientosDePago, etiquetaMsi } from "../../domain/tarjetas.js";
+import { repartirPago, movimientosDePago, etiquetaMsi, cajaDeTarjeta } from "../../domain/tarjetas.js";
 import { resumenDeuda } from "../../domain/compromisos.js";
 import { validarMovimiento, construirMovimiento } from "../../domain/movimientos.js";
 import { saldosPor } from "../../domain/saldos.js";
@@ -22,15 +22,18 @@ import { abrirCapa } from "../../components/modal.js";
 import { toast, toastError } from "../../components/toast.js";
 import { mostrarErrores, leerLocal, guardarLocal } from "../../components/fields.js";
 import { olvidarEstados } from "../../services/tarjetas.js";
+import { cuentaDeCaja } from "../../components/registroSimple.js";
 
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo registrar el pago."));
 const uid = () => getState().user?.uid;
 const CLAVE_BANCO = (id) => `fr.tarjeta.banco.${id}`;
 const valorRadio = (form, nombre) => form.querySelector(`input[name="${nombre}"]:checked`)?.value || "";
 
-/** Banco sugerido: el último con que pagaste esta tarjeta; si no, el que tiene más dinero. */
-function bancoSugerido(tarjetaId) {
+/** Banco sugerido: el de la caja que paga; si no, el último con que pagaste esta tarjeta; si no, el que tiene más dinero. */
+function bancoSugerido(tarjetaId, cajaId = "") {
   const bancos = bancosActivos();
+  const deCaja = cajaId ? cuentaDeCaja(cajaId) : "";
+  if (bancos.some((b) => b.id === deCaja)) return deCaja;
   const ultimo = leerLocal(CLAVE_BANCO(tarjetaId), "");
   if (bancos.some((b) => b.id === ultimo)) return ultimo;
   const saldos = saldosPor(getState().agregados, "porCuenta");
@@ -78,7 +81,7 @@ export function abrirPagoTarjeta(tarjeta, e) {
         ${o.label} · ${formatMonto(o.monto)}</button>`)}</div>` : ""}
 
       <div class="campo"><span class="campo__label">¿Desde qué banco pagas?</span>
-        ${chipsBancos(bancoSugerido(tarjeta.id))}
+        ${chipsBancos(bancoSugerido(tarjeta.id, cajaDeTarjeta(tarjeta, getState().cajas)))}
         <span class="campo__error" data-error="bancoId"></span></div>
       <p class="campo__ayuda">No cuenta como gasto: tus compras ya se restaron de cada caja cuando las hiciste. Solo baja el dinero del banco y lo que debes${e.cuotas.length ? " (las mensualidades a meses sí cuentan como gasto de este mes)" : ""}.</p>
 
@@ -123,7 +126,7 @@ export function abrirLiquidarMsi(plan) {
     contenido: html`<form class="form registro" novalidate>
       <p class="pago-tarjeta__titulo">Falta: <strong>${formatMonto(r.saldoActual)}</strong> (${r.pagosRestantes} ${r.pagosRestantes === 1 ? "mensualidad" : "mensualidades"})</p>
       <div class="campo"><span class="campo__label">¿Desde qué banco pagas?</span>
-        ${chipsBancos(bancoSugerido(plan.tarjetaId))}
+        ${chipsBancos(bancoSugerido(plan.tarjetaId, plan.cajaId))}
         <span class="campo__error" data-error="bancoId"></span></div>
       <p class="campo__ayuda">Cuenta como gasto de hoy en la caja que la paga, y la compra queda liquidada.</p>
       <p class="campo__error" data-error="general"></p>

@@ -556,6 +556,9 @@ button.pag-num:hover { background: var(--surface-muted); }
 .registro { display: flex; flex-direction: column; gap: 12px; }
 .registro .solo-gasto, .registro .solo-ingreso { display: none; }
 .registro[data-tipo="gasto"] .solo-gasto, .registro[data-tipo="ingreso"] .solo-ingreso { display: inline; }
+/* Pagaste con tarjeta: la caja es la que la va a pagar (v1.12). */
+.registro:not([data-pago="tarjeta"]) .solo-pago-tarjeta { display: none; }
+.registro[data-pago="tarjeta"] .solo-pago-banco { display: none; }
 .registro[data-repite="no"] .solo-repite { display: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .chip { position: relative; }
@@ -732,7 +735,6 @@ button.pag-num:hover { background: var(--surface-muted); }
 .registro:not([data-tipo="gasto"]) .pago-con { display: none; }
 .registro:not([data-pago="tarjeta"]) .solo-tarjeta, .registro[data-repite="si"] .solo-tarjeta { display: none; }
 .registro:not([data-msi="si"]) .solo-msi { display: none; }
-.registro[data-deuda="no"] .solo-deuda { display: none; }
 .msi { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-muted); }
 .msi .campo__ayuda { margin: 0; }
 .msi__resumen { margin: 0; font-weight: 600; color: var(--text-primary); }
@@ -746,6 +748,11 @@ button.pag-num:hover { background: var(--surface-muted); }
 .tarjeta-credito__deuda { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
 .tarjeta-credito__deuda strong { color: var(--text-primary); font-size: 1.15rem; }
 .tarjeta-credito__estado { margin: 0; font-weight: 600; line-height: 1.4; }
+.tarjeta-credito__caja { margin: 4px 0 0; font-size: 0.88rem; color: var(--text-secondary); }
+.tarjeta-credito__caja:empty { display: none; }
+.tarjeta-credito__caja .btn-texto { padding-left: 0; padding-right: 0; }
+.tarjeta-credito__otras { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }
+.tarjeta-credito__otras p { margin: 0; }
 .tarjeta-credito__subtitulo { margin: 6px 0 0; }
 .tarjeta-credito__msi { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-sm); background: var(--surface-muted); }
 .tarjeta-credito__msi .fila { min-height: 52px; }
