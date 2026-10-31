@@ -2,7 +2,8 @@
 // modules/tarjetas/index.js
 // Tarjetas de crédito: una tarjeta (card) por cada una con lo que
 // debes, cuánto te queda disponible, cuánto pagar para no generar
-// intereses y antes de qué día, y sus compras a meses.
+// intereses y antes de qué día, con qué caja la pagas y sus compras
+// a meses.
 // Cálculos en domain/tarjetas.js (vía services/tarjetas.js);
 // hojas en ./formulario.js y ./pago.js.
 // ============================================================
@@ -11,13 +12,14 @@ import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { formatFecha } from "../../core/dates.js";
 import { getState, subscribe, catalogosListos, planListo, cuentaPorId } from "../../core/state.js";
-import { etiquetaMsi } from "../../domain/tarjetas.js";
+import { etiquetaMsi, cajaDeTarjeta } from "../../domain/tarjetas.js";
 import { skeletonLista } from "../../components/states.js";
 import { icon } from "../../components/icons.js";
 import { estadosTarjetas, tarjetasDe } from "../../services/tarjetas.js";
 import { abrirTarjeta, abrirCompraMsi, nombreCaja } from "./formulario.js";
 import { abrirPagoTarjeta } from "./pago.js";
 import { lineaEstado } from "./linea.js";
+import { otrasCajasDe, textoOtrasCajas, pasarACajaQuePaga } from "./cajaQuePaga.js";
 
 const corto = (c) => formatMonto(c).replace(/\.00$/, "");
 
@@ -25,6 +27,9 @@ function tarjeta(cuenta, info) {
   const e = info?.estado;
   const linea = lineaEstado(e);
   const inactiva = cuenta.activa === false;
+  const s = getState();
+  const cajaPaga = cajaDeTarjeta(cuenta, s.cajas);
+  const otras = otrasCajasDe(cuenta, s, cajaPaga);
   const usado = e?.limite ? Math.min(100, Math.max(0, Math.round((e.deudaTotal / e.limite) * 100))) : null;
   return html`<li class="card tarjeta-credito ${inactiva ? "atenuada" : ""}" data-tarjeta="${cuenta.id}">
     <div class="tarjeta-credito__cabecera">
@@ -36,6 +41,12 @@ function tarjeta(cuenta, info) {
         aria-label="Crédito usado de ${cuenta.nombre}"><span style="width:${usado}%"></span></div>
       <p class="campo__ayuda">Disponible ${corto(e.disponible)} de ${corto(e.limite)}</p>` : ""}
     <p class="tarjeta-credito__estado ${linea.clase}">${linea.texto}</p>
+    <p class="tarjeta-credito__caja">${cajaPaga ? html`La pagas con <strong>${nombreCaja(cajaPaga)}</strong>`
+      : inactiva ? "" : html`<button type="button" class="btn-texto" data-editar="${cuenta.id}">Elige con qué caja la pagas</button>`}</p>
+    ${otras ? html`<div class="aviso tarjeta-credito__otras">
+      <p>Parte de esta tarjeta está en otra caja: ${textoOtrasCajas(otras)}.</p>
+      <button type="button" class="btn btn--pastilla" data-pasar="${cuenta.id}">Pasar todo a ${nombreCaja(cajaPaga)}</button>
+    </div>` : ""}
     ${e?.configurada && (e.pendienteCorte || e.cuotas.length || e.paraElSiguiente) ? html`<ul class="sublista">
       ${e.pendienteCorte ? html`<li><span>Debías al corte del ${formatFecha(e.corte)}</span><span>${formatMonto(e.pendienteCorte)}</span></li>` : ""}
       ${e.cuotas.length ? html`<li><span>Mensualidades a meses</span><span>${formatMonto(e.pendienteMsi)}</span></li>` : ""}
@@ -90,7 +101,7 @@ export function render(container) {
     const total = estados ? [...estados.values()].reduce((a, x) => a + x.estado.deudaTotal, 0) : null;
     renderHtml(container, html`
       <p class="texto-sec intro">Lo que debes en cada tarjeta, cuánto pagar para no generar intereses y tus compras a meses.
-        Comprar con tarjeta resta de la caja en ese momento; pagar la tarjeta solo baja el dinero del banco.</p>
+        Lo que compras con tarjeta se resta en ese momento de la caja que la paga; pagar la tarjeta solo baja el dinero del banco.</p>
       <div class="barra-acciones">
         ${total ? html`<span class="tarjetas__total">Debes en total <strong>${formatMonto(total)}</strong></span>` : ""}
         <button type="button" class="btn btn--primario" data-accion="nueva-tarjeta">+ Nueva tarjeta</button>
@@ -104,8 +115,13 @@ export function render(container) {
   }
 
   const plan = (id) => getState().deudas.find((d) => d.id === id);
-  const quitar = on(container, "click", "[data-accion='nueva-tarjeta'], [data-pagar], [data-nueva-msi], [data-editar], [data-msi]", (e, el) => {
+  const quitar = on(container, "click", "[data-accion='nueva-tarjeta'], [data-pagar], [data-nueva-msi], [data-editar], [data-msi], [data-pasar]", (e, el) => {
     if (el.dataset.accion === "nueva-tarjeta") return abrirTarjeta();
+    if (el.dataset.pasar) {
+      const t = cuentaPorId(el.dataset.pasar);
+      const caja = cajaDeTarjeta(t, getState().cajas);
+      return pasarACajaQuePaga(t, caja, otrasCajasDe(t, getState(), caja));
+    }
     if (el.dataset.editar) return abrirTarjeta(cuentaPorId(el.dataset.editar));
     if (el.dataset.nuevaMsi) return abrirCompraMsi({ tarjetaId: el.dataset.nuevaMsi });
     if (el.dataset.msi) return abrirCompraMsi(plan(el.dataset.msi));

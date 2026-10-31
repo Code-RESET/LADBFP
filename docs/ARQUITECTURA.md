@@ -14,6 +14,15 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## La caja que paga la tarjeta (v1.12.0)
+
+Angel: «cuando compro algo con la tarjeta de crédito también se suma a efectivo». La compra con tarjeta se anotaba en la caja elegida en «Sale de» (la de siempre, p. ej. EFECTIVO), así que esa caja bajaba aunque el dinero de la cartera no se moviera, y al pagar la tarjeta desde el banco esa caja quedaba con saldo negativo en ese banco.
+- **Cada tarjeta tiene su caja** (`cajaPredeterminadaId` de la cuenta, campo que las reglas ya permitían: sin cambios en reglas). Se pide al crear o editar la tarjeta («¿Con qué caja la pagas?»; la deuda inicial va ahí). `domain/tarjetas.js → cajaDeTarjeta`.
+- **Registro rápido**: «¿Con qué pagaste?» va antes de la caja. Con 💳 la etiqueta cambia a «¿Con qué caja vas a pagar la tarjeta?», la caja se elige sola (y regresa la anterior con «Débito / efectivo», salvo que la hayas cambiado a mano). Si la tarjeta aún no tiene caja, no se elige ninguna: la que elijas se guarda en la tarjeta. Las compras con tarjeta ya no cambian la caja que se recuerda para el siguiente gasto.
+- **Pasar todo** (`modules/tarjetas/cajaQuePaga.js`): `enOtrasCajas` junta lo de la tarjeta que quedó en otras cajas (saldo por caja en la tarjeta, compras a meses con saldo, gastos fijos cargados a la tarjeta) y `movimientosParaPasar` crea una **transferencia dentro de la misma tarjeta** por caja (de la que paga a la que debía; si tenía a favor, al revés). No mueve dinero de ningún banco, no cambia lo que debes y no cuenta como pago (`efectoEnCuenta` = 0). Las compras a meses y los gastos fijos cambian de caja (las mensualidades salen del banco de la nueva caja). Un batch + Deshacer. Se ofrece en Tarjetas (aviso con botón) y al cambiar la caja de una tarjeta (se pregunta encima de la hoja: abrir otra justo al cerrar una descuadra el historial de «atrás»).
+- **Mis cajas**: cada caja muestra en otro renglón «💳 debes $X» (lo que debe de tarjetas), para que se entienda por qué tiene menos que su banco.
+- **Pagar la tarjeta** sugiere el banco de la caja que la paga; liquidar una compra a meses, el de su caja. Alerta nueva «tarjeta sin la caja que la paga» (Tarjetas), separada de «cuenta sin caja» (Bancos).
+
 ## Aviso grande «Por pagar» y avisos en el calendario (v1.11.0)
 
 Angel: «se me pasó pagar Cimaco y tuve que pagar recargos». Antes los pagos vencidos solo salían como consejo (que se podía cerrar) y las tarjetas no avisaban:

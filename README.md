@@ -37,6 +37,7 @@ Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
 | **Respaldo** | Más → Respaldo de mis datos: descargar todo en un archivo o restaurarlo (solo agrega lo que falta). |
 | **Cuadrar con mis bancos** | Más → Cuadrar: escribes lo que dice cada banco hoy (con apartados y cajitas) y el saldo de cada tarjeta; la app muestra la diferencia, a qué caja va, y la corrige con un toque (ajustes que no cuentan como ingreso ni gasto, con «Deshacer»). Arriba: lo que tienes, lo que debes y lo que te queda. |
 | **Tarjetas de crédito** | Más → Tarjetas: lo que debes, disponible, **pago para no generar intereses** y fecha límite, compras a meses. Al registrar un gasto: «¿Con qué pagaste?» y «A meses sin intereses». |
+| **La caja que paga la tarjeta** | Cada tarjeta dice con qué caja la pagas. Al elegir 💳 en un gasto, la caja cambia sola a esa (la compra no baja tu efectivo ni la caja que estabas usando). Si compras de antes quedaron en otra caja, Tarjetas lo avisa y «Pasar todo» las mueve de un toque (con «Deshacer»). En Mis cajas, cada caja dice cuánto debe de tarjetas. |
 | **Excel** | Botón al final de Mi mes: balance del mes + dinero real (al empezar + entró − salió = al cerrar), gastos, ingresos, cajas, movimientos y 12 meses. |
 | **Nueva caja** | Nombre + en qué banco está (o «＋ Otro» para crearlo) + cuánto tiene hoy. |
 

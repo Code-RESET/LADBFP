@@ -36,6 +36,7 @@ import { toast } from "../../components/toast.js";
 import { activarTooltips } from "../../components/charts.js";
 import { estadosTarjetas } from "../../services/tarjetas.js";
 import { lineaEstado } from "../tarjetas/linea.js";
+import { esTarjeta } from "../../domain/tarjetas.js";
 import { icon } from "../../components/icons.js";
 import { abrirRegistro } from "../../components/registroSimple.js";
 import { marcarPagado, desmarcarPagado } from "../../components/marcarPagado.js";
@@ -192,10 +193,15 @@ export function render(container, ctx) {
       ahorro: renglones(aportacionesDelMes({ mes, metas: s.metas, agregados: s.agregados, hoy: hoy() }), [], "Aportado"),
     };
     const porCaja = saldosPor(s.agregados, "porCaja");
-    // En qué banco(s) está el dinero de cada caja; si no tiene, su banco predeterminado.
+    // En qué banco(s) está el dinero de cada caja (si no tiene, su banco predeterminado) y lo que debe de tarjetas.
     const bancosDe = (c) => {
-      const con = desgloseCaja(s.agregados, c.id).filter((d) => d.saldo !== 0).map((d) => cuentaPorId(d.cuentaId)?.nombre).filter(Boolean);
-      return (con.length ? con : [cuentaPorId(c.cuentaPredeterminadaId)?.nombre].filter(Boolean)).join(", ");
+      const partes = desgloseCaja(s.agregados, c.id);
+      const deTarjeta = (d) => esTarjeta(cuentaPorId(d.cuentaId));
+      const con = partes.filter((d) => !deTarjeta(d)).map((d) => cuentaPorId(d.cuentaId)?.nombre).filter(Boolean);
+      return {
+        bancos: (con.length ? con : [cuentaPorId(c.cuentaPredeterminadaId)?.nombre].filter(Boolean)).join(", "),
+        debe: -partes.filter(deTarjeta).reduce((a, d) => a + d.saldo, 0),
+      };
     };
     const cajas = s.cajas.filter((c) => c.activa !== false || porCaja[c.id]);
     const soloMes = nombreMes(mes).split(" ")[0];
@@ -261,9 +267,10 @@ export function render(container, ctx) {
           <h2 class="seccion__titulo">Mis cajas · <span class="total-cajas">${formatMonto(patrimonio(s.agregados))}</span></h2>
           <button type="button" class="btn-texto" data-accion="nuevo-movimiento" data-tipo="transferencia">Mover dinero</button>
         </div>
-        <ul class="lista card card--lista">${cajas.map((c) => html`<li><a class="fila" href="#/movimientos?caja=${c.id}">
+        <ul class="lista card card--lista">${cajas.map((c) => ({ c, ...bancosDe(c) })).map(({ c, bancos, debe }) => html`<li><a class="fila" href="#/movimientos?caja=${c.id}">
           <span class="punto" style="background:${c.color || "var(--accent)"}"></span>
-          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${bancosDe(c) ? html`<span class="fila__sub">${bancosDe(c)}</span>` : ""}</span>
+          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${bancos ? html`<span class="fila__sub">${bancos}</span>` : ""}${debe > 0
+            ? html`<span class="fila__sub">💳 debes ${formatMonto(debe)}</span>` : ""}</span>
           <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
           ${icon("chevron", { size: 16, clase: "fila__chevron" })}
         </a></li>`)}</ul>

@@ -2,8 +2,8 @@
 // modules/tarjetas/formulario.js
 // Hojas de Tarjetas de crédito:
 //   abrirTarjeta    crear / editar (nombre, día de corte, día
-//                   límite de pago, límite de crédito y, al crearla,
-//                   cuánto debes hoy y qué caja lo paga)
+//                   límite de pago, límite de crédito, la caja que
+//                   la paga y, al crearla, cuánto debes hoy)
 //   abrirCompraMsi  compra a meses sin intereses (nueva o una que
 //                   ya tenías): se guarda como deuda de la tarjeta
 // ============================================================
@@ -14,7 +14,7 @@ import { hoy, formatFecha, nombreMes } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
 import { getState, cajaPorId, cuentaPorId, cajasActivas, tarjetasActivas, categoriasActivas } from "../../core/state.js";
 import {
-  validarTarjeta, validarMsi, deudaDeMsi, planMsi, ajusteDeudaInicial, etiquetaMsi, fechaConDia, sumarMeses, MESES_MSI,
+  validarTarjeta, validarMsi, deudaDeMsi, planMsi, ajusteDeudaInicial, etiquetaMsi, fechaConDia, sumarMeses, MESES_MSI, cajaDeTarjeta,
 } from "../../domain/tarjetas.js";
 import { pagadoDeuda, resumenDeuda } from "../../domain/compromisos.js";
 import { categoriaSugerida } from "../../domain/mes.js";
@@ -27,6 +27,7 @@ import { confirmar } from "../../components/confirmation.js";
 import { toast, toastError } from "../../components/toast.js";
 import { segmentado, mostrarErrores } from "../../components/fields.js";
 import { cuentaDeCaja } from "../../components/registroSimple.js";
+import { ofrecerPasar } from "./cajaQuePaga.js";
 
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
 const uid = () => getState().user?.uid;
@@ -47,7 +48,7 @@ export function abrirTarjeta(tarjeta = {}) {
   const c = tarjeta.credito || {};
   const capa = abrirCapa({
     titulo: editando ? tarjeta.nombre : "Nueva tarjeta de crédito",
-    contenido: html`<form class="form registro" data-deuda="no" novalidate>
+    contenido: html`<form class="form registro" novalidate>
       <label class="campo"><span class="campo__label">Nombre de la tarjeta</span>
         <input name="nombre" maxlength="40" value="${tarjeta.nombre || ""}" placeholder="Ej. Liverpool, Nu, BBVA Azul" autocomplete="off" />
         <span class="campo__error" data-error="nombre"></span></label>
@@ -66,13 +67,15 @@ export function abrirTarjeta(tarjeta = {}) {
         <input name="limite" inputmode="decimal" autocomplete="off" value="${montoTxt(c.limiteCentavos)}" placeholder="$0.00" />
         <span class="campo__error" data-error="limiteCentavos"></span></label>
 
+      <div class="campo"><span class="campo__label">¿Con qué caja la pagas?</span>
+        ${chipsCajas("cajaId", cajaDeTarjeta(tarjeta, cajasActivas()))}
+        <span class="campo__ayuda">La caja cuyo dinero usas para pagarla. Lo que compres con la tarjeta se resta de esa caja, no de la que estés usando (por ejemplo tu efectivo).</span>
+        <span class="campo__error" data-error="cajaId"></span></div>
+
       ${editando ? "" : html`<label class="campo"><span class="campo__label">¿Cuánto debes hoy? (opcional)</span>
           <input name="deuda" inputmode="decimal" autocomplete="off" placeholder="$0.00" />
           <span class="campo__ayuda">Sin contar tus compras a meses: esas se agregan después, una por una.</span>
-          <span class="campo__error" data-error="deudaCentavos"></span></label>
-        <div class="campo solo-deuda"><span class="campo__label">¿Qué caja va a pagar esa deuda?</span>
-          ${chipsCajas("cajaDeudaId", cajaInicial())}
-          <span class="campo__error" data-error="cajaDeudaId"></span></div>`}
+          <span class="campo__error" data-error="deudaCentavos"></span></label>`}
 
       <p class="campo__error" data-error="general"></p>
       <button type="submit" class="btn btn--primario btn--bloque">${editando ? "Guardar cambios" : "Agregar tarjeta"}</button>
@@ -87,7 +90,6 @@ export function abrirTarjeta(tarjeta = {}) {
   for (const n of ["limite", "deuda"]) {
     form[n]?.addEventListener("blur", () => { const v = parseMonto(form[n].value); if (v != null) form[n].value = centavosATexto(v); });
   }
-  form.deuda?.addEventListener("input", () => { form.dataset.deuda = montoDe(form.deuda) > 0 ? "si" : "no"; });
 
   form.addEventListener("click", async (e) => {
     const accion = e.target.closest("[data-accion]")?.dataset.accion;
@@ -112,7 +114,7 @@ export function abrirTarjeta(tarjeta = {}) {
     }
   });
 
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const s = getState();
     const limiteCentavos = montoDe(form.limite);
@@ -123,21 +125,25 @@ export function abrirTarjeta(tarjeta = {}) {
       diaCorte: Number(form.diaCorte.value),
       diaLimite: Number(form.diaLimite.value),
       deudaCentavos: form.deuda?.value.trim() ? montoDe(form.deuda) ?? -1 : 0,
-      cajaDeudaId: form.cajaDeudaId ? valorRadio(form, "cajaDeudaId") : "",
+      cajaId: valorRadio(form, "cajaId"),
     };
     const { ok, errores } = validarTarjeta(datos, s.cuentas);
     if (!ok) { mostrarErrores(form, errores); return; }
     const credito = { limiteCentavos: datos.limiteCentavos, diaCorte: datos.diaCorte, diaLimite: datos.diaLimite };
     const id = cuentasRepo.guardar(uid(), {
       id: tarjeta.id, nombre: datos.nombre, institucion: tarjeta.institucion || datos.nombre, tipo: "credito", credito,
+      cajaPredeterminadaId: datos.cajaId,
       ...(editando ? {} : { activa: true, orden: s.cuentas.length }),
     }, { onError });
     if (datos.deudaCentavos > 0) {
-      movimientosRepo.crear(uid(), ajusteDeudaInicial({ tarjeta: { id, nombre: datos.nombre, credito }, cajaId: datos.cajaDeudaId,
+      movimientosRepo.crear(uid(), ajusteDeudaInicial({ tarjeta: { id, nombre: datos.nombre, credito }, cajaId: datos.cajaId,
         montoCentavos: datos.deudaCentavos, hoy: hoy() }), { onError, origen: "inicial" });
     }
+    // Si parte de la tarjeta quedó en otras cajas (compras de antes), ofrece pasarla a la que la paga.
+    // Se pregunta encima de esta hoja (abrir otra justo al cerrar esta descuadra el botón «atrás»).
+    const pasada = editando && await ofrecerPasar({ ...tarjeta, nombre: datos.nombre, cajaPredeterminadaId: datos.cajaId }, datos.cajaId);
     capa.cerrar();
-    toast(editando ? "✓ Tarjeta actualizada" : `✓ Tarjeta ${datos.nombre} agregada${datos.deudaCentavos ? ` · debes ${formatMonto(datos.deudaCentavos)}` : ""}`);
+    if (!pasada) toast(editando ? "✓ Tarjeta actualizada" : `✓ Tarjeta ${datos.nombre} agregada${datos.deudaCentavos ? ` · debes ${formatMonto(datos.deudaCentavos)}` : ""}`);
   });
   if (!editando) form.nombre.focus();
   return capa;
@@ -193,7 +199,7 @@ export function abrirCompraMsi(plan = {}) {
             <span class="campo__error" data-error="tarjetaId"></span></div>` : ""}`}
 
       <div class="campo"><span class="campo__label">¿De qué caja sale cada mes?</span>
-        ${chipsCajas("cajaId", plan.cajaId || cajaInicial())}
+        ${chipsCajas("cajaId", plan.cajaId || cajaDeTarjeta(cuentaPorId(tarjetaId), cajasActivas()) || cajaInicial())}
         <span class="campo__error" data-error="cajaId"></span></div>
 
       ${fijo ? "" : html`<details class="mas-detalles" ${editando ? "open" : ""}>
@@ -235,7 +241,12 @@ export function abrirCompraMsi(plan = {}) {
     slot.textContent = resumenPlan({ ...x, credito: cuentaPorId(x.tarjetaId)?.credito });
   };
   form.addEventListener("input", pintarResumen);
-  form.addEventListener("change", pintarResumen);
+  form.addEventListener("change", (e) => {
+    // Otra tarjeta: la caja que la paga (si ya la tiene).
+    const caja = e.target.name === "tarjetaId" ? cajaDeTarjeta(cuentaPorId(e.target.value), cajasActivas()) : "";
+    if (caja) form.querySelectorAll('input[name="cajaId"]').forEach((r) => { r.checked = r.value === caja; });
+    pintarResumen();
+  });
   form.monto?.addEventListener("blur", () => { const v = parseMonto(form.monto.value); if (v != null) form.monto.value = centavosATexto(v); });
   pintarResumen();
 

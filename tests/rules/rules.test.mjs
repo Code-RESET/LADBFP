@@ -241,6 +241,14 @@ await prueba("pago de la tarjeta en un solo batch (mensualidad + transferencias 
   b.set(doc(f, ruta(ANGEL, "agregados/2026-12")), { mes: "2026-12", porDeuda: { tv: increment(100000) }, porVinculo: { "d:tv__2026-12-05": increment(100000) } }, { merge: true });
   await assertSucceeds(b.commit());
 });
+await prueba("v1.12: tarjeta con la caja que la paga y pasar su deuda a otra caja (transferencia dentro de la tarjeta) permitidos", async () => {
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "cuentas/azul")), { ...tarjeta, nombre: "Azul", cajaPredeterminadaId: "hd-credit" }));
+  await assertSucceeds(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/pc1")), { ...transferencia, cuentaId: "azul", cuentaDestinoId: "azul",
+    cajaIds: ["hd-credit", "sueldo-personal"], cuentaIds: ["azul"], nota: "Azul: ahora la paga HD Crédit" }));
+  // La misma caja y la misma tarjeta en los dos lados sigue sin permitirse.
+  await assertFails(setDoc(doc(db(ANGEL), ruta(ANGEL, "movimientos/pc2")), { ...transferencia, cuentaId: "azul", cuentaDestinoId: "azul",
+    cajaDestinoId: "hd-credit", cajaIds: ["hd-credit"], cuentaIds: ["azul"] }));
+});
 await prueba("otro usuario NO puede leer ni escribir tarjetas ni compras a meses", async () => {
   await assertFails(getDoc(doc(db(INTRUSO), ruta(ANGEL, "cuentas/liv"))));
   await assertFails(setDoc(doc(db(INTRUSO), ruta(ANGEL, "cuentas/liv")), tarjeta));

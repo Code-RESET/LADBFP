@@ -69,8 +69,8 @@ async function nuevoGasto({ nombre, monto, caja, tarjeta = null, meses = null })
   await hojaLista();
   await page.fill('.capa input[name="nombre"]', nombre);
   await page.fill('.capa input[name="monto"]', monto);
-  await page.click(`.capa .chip:has(input[name="cajaId"]):has-text("${caja}")`);
   if (tarjeta) await page.click(`.capa .chip:has(input[name="pagoCon"]):has-text("${tarjeta}")`);
+  await page.click(`.capa .chip:has(input[name="cajaId"]):has-text("${caja}")`);
   if (meses) {
     await page.check('.capa input[name="msi"]');
     await page.click(`.capa .segmentado__opcion:has(input[name="meses"][value="${meses}"])`);
@@ -104,16 +104,17 @@ await paso("Tarjetas: vacío → alta de Liverpool (corte, límite de pago, lím
   await page.fill('.capa input[name="diaCorte"]', String(CREDITO.diaCorte));
   await page.fill('.capa input[name="diaLimite"]', String(CREDITO.diaLimite));
   await page.fill('.capa input[name="limite"]', "30000");
-  esperar(!(await page.locator('.capa .solo-deuda').isVisible()), "la caja de la deuda solo se pide si debes algo");
   await page.fill('.capa input[name="deuda"]', "4000");
-  esperar(await page.locator('.capa .solo-deuda').isVisible(), "debería preguntar qué caja paga la deuda");
-  await page.click('.capa .chip:has(input[name="cajaDeudaId"]):has-text("Sueldo personal")');
+  await page.click('.capa button[type="submit"]');
+  await esperarTexto('.capa [data-error="cajaId"]', "Elige con qué caja la pagas");
+  await page.click('.capa .chip:has(input[name="cajaId"]):has-text("Sueldo personal")');
   await page.screenshot({ path: `${SHOTS}/tc-nueva.png` });
   await page.click('.capa button[type="submit"]');
   await sinHojas();
   await esperarTexto('.tarjeta-credito', "Paga $4,000");
   const t = await tarjetaTexto();
   esperar(t.includes("Debes $4,000") && t.includes("Disponible $26,000 de $30,000") && t.includes(formatFecha(LIMITE_PAGO)), t);
+  esperar(t.includes("La pagas con Sueldo personal"), t);
   const s = await saldos();
   esperar(s["Sueldo personal"] === 600000 && s["banco:Nu"] === 1000000 && s["banco:Liverpool"] === -400000, JSON.stringify(s));
 });

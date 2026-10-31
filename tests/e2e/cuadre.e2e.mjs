@@ -75,7 +75,7 @@ await paso("preparación: HD Crédit $50,000 en BBVA, Sueldo personal $10,000 en
   await page.fill('.capa input[name="diaCorte"]', "15");
   await page.fill('.capa input[name="diaLimite"]', "5");
   await page.fill('.capa input[name="deuda"]', "4000");
-  await page.click('.capa .chip:has(input[name="cajaDeudaId"]):has-text("Sueldo personal")');
+  await page.click('.capa .chip:has(input[name="cajaId"]):has-text("Sueldo personal")');
   await page.click('.capa button[type="submit"]');
   await sinHojas();
   await page.waitForSelector(".tarjeta-credito");

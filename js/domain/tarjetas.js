@@ -6,6 +6,8 @@
 //  - Comprar con la tarjeta = gasto con la cuenta de la tarjeta:
 //    la caja baja en ese momento (ese dinero ya se gastó) y la
 //    tarjeta queda en negativo (lo que debes). El banco no se mueve.
+//    La caja es la que paga la tarjeta (v1.12: cajaPredeterminadaId
+//    de la tarjeta), no la que estabas usando (p. ej. tu efectivo).
 //  - Pagar la tarjeta = transferencia (caja, banco) → (caja, tarjeta)
 //    por cada caja que debe. NO es gasto: ya se contó al comprar.
 //  - Compra a meses sin intereses (MSI) = una deuda con tarjetaId y
@@ -94,7 +96,7 @@ export function primeraMensualidad(credito, fechaCompra) {
 
 /**
  * Tarjeta nueva o editada: { nombre, limiteCentavos?, diaCorte, diaLimite,
- * deudaCentavos?, cajaDeudaId? } (la deuda inicial solo al crearla).
+ * cajaId (la caja que la paga), deudaCentavos? } (la deuda inicial solo al crearla).
  */
 export function validarTarjeta(t, cuentas = []) {
   const deuda = t.deudaCentavos || 0;
@@ -105,7 +107,7 @@ export function validarTarjeta(t, cuentas = []) {
     diaCorte: diaValido(t.diaCorte) ? null : "Día del 1 al 31.",
     diaLimite: diaValido(t.diaLimite) ? null : "Día del 1 al 31.",
     deudaCentavos: deuda === 0 || esMontoValido(deuda) ? null : "Escribe cuánto debes o déjalo vacío.",
-    cajaDeudaId: deuda > 0 && !t.cajaDeudaId ? "Elige qué caja va a pagar esa deuda." : null,
+    cajaId: t.cajaId ? null : "Elige con qué caja la pagas.",
   });
 }
 
@@ -345,4 +347,47 @@ export function ajusteDeudaInicial({ tarjeta, cajaId, montoCentavos, hoy }) {
     fecha: tarjetaConfigurada(tarjeta) ? corteAnterior(tarjeta.credito, hoy) : hoy,
     nota: `Deuda que ya tenía la tarjeta ${tarjeta.nombre}`,
   };
+}
+
+// ---------- La caja que paga la tarjeta (v1.12.0) ----------
+// Cada tarjeta guarda en cajaPredeterminadaId la caja con la que se paga:
+// lo que compras con ella se resta de esa caja y de ahí sale el pago.
+
+/** La caja que paga la tarjeta, si la tiene y sigue activa; si no, ''. */
+export function cajaDeTarjeta(tarjeta, cajas = []) {
+  const id = tarjeta?.cajaPredeterminadaId;
+  return id && cajas.some((c) => c.id === id && c.activa !== false) ? id : "";
+}
+
+/**
+ * Lo de la tarjeta que quedó en otras cajas (no en `cajaId`, la que la paga):
+ * compras anotadas en otra caja, la deuda inicial, compras a meses con saldo
+ * y gastos fijos que se cargan a la tarjeta.
+ * → { saldos: [{ cajaId, saldo }] (negativo = lo que debe esa caja; positivo = a favor),
+ *     msi, fijos, deuda, vacio }
+ */
+export function enOtrasCajas({ tarjeta, cajaId, agregados = {}, deudas = [], obligaciones = [], hoy }) {
+  const saldos = desgloseCuenta(agregados, tarjeta.id).filter((d) => d.cajaId !== cajaId);
+  const msi = deudas.filter((d) => d.tarjetaId === tarjeta.id && d.activa !== false && d.cajaId !== cajaId
+    && resumenDeuda(d, agregados, hoy).saldoActual > 0);
+  const fijos = obligaciones.filter((o) => o.cuentaId === tarjeta.id && o.activa !== false && o.cajaId !== cajaId
+    && !(o.regla?.hasta && o.regla.hasta < hoy));
+  return { saldos, msi, fijos, deuda: suma(saldos, (d) => Math.max(0, -d.saldo)), vacio: !saldos.length && !msi.length && !fijos.length };
+}
+
+/**
+ * Pasa a la caja que paga la tarjeta lo que está en otras cajas: una transferencia
+ * dentro de la misma tarjeta por caja (de la que paga a la que debía; si tenía a
+ * favor, al revés). No mueve dinero de ningún banco, no cambia lo que debes y no
+ * cuenta como pago: solo de qué caja sale.
+ */
+export function movimientosParaPasar({ tarjeta, cajaId, saldos = [], fecha, nota }) {
+  return saldos.map((d) => {
+    const debe = d.saldo < 0;
+    return {
+      tipo: "transferencia", fecha, montoCentavos: Math.abs(d.saldo),
+      cajaId: debe ? cajaId : d.cajaId, cuentaId: tarjeta.id,
+      cajaDestinoId: debe ? d.cajaId : cajaId, cuentaDestinoId: tarjeta.id, nota,
+    };
+  });
 }
