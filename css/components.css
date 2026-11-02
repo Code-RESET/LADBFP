@@ -753,6 +753,12 @@ button.pag-num:hover { background: var(--surface-muted); }
 .tarjeta-credito__caja .btn-texto { padding-left: 0; padding-right: 0; }
 .tarjeta-credito__otras { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }
 .tarjeta-credito__otras p { margin: 0; }
+/* Juntar con otra caja (v1.13) */
+.juntar__aviso { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.juntar__aviso p { margin: 0; }
+.juntar__resultado { display: flex; flex-direction: column; gap: 6px; }
+.juntar__resultado .campo__label, .juntar__resultado p { margin: 0; }
+.juntar__total { display: flex; justify-content: space-between; font-weight: 600; }
 .tarjeta-credito__subtitulo { margin: 6px 0 0; }
 .tarjeta-credito__msi { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-sm); background: var(--surface-muted); }
 .tarjeta-credito__msi .fila { min-height: 52px; }

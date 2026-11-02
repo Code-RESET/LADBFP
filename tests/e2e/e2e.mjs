@@ -37,7 +37,7 @@ await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:si
   body: JSON.stringify({ email: EMAIL, password: PASS, returnSecureToken: true }),
 }).catch(() => {});
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium" });
 
 async function nuevoContexto(viewport) {
   const ctx = await browser.newContext({ viewport, locale: "es-MX", timezoneId: "America/Mexico_City" });
