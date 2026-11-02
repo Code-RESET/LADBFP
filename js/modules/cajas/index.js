@@ -4,7 +4,8 @@
 // Crear una caja = nombre + en qué banco está (+ cuánto tiene
 // hoy). Si el banco no existe se crea ahí mismo; el color se
 // elige solo. Saldo calculado desde movimientos. Una caja con
-// movimientos no se borra: se desactiva.
+// movimientos no se borra: se desactiva. Si hay dos cajas para lo
+// mismo, «Juntar con otra caja» pasa todo a la otra (./juntar.js).
 // ============================================================
 
 import { html, render as renderHtml, on } from "../../core/dom.js";
@@ -24,6 +25,7 @@ import { confirmar } from "../../components/confirmation.js";
 import { toast, toastError } from "../../components/toast.js";
 import { campo, mostrarErrores } from "../../components/fields.js";
 import { icon } from "../../components/icons.js";
+import { abrirJuntar } from "./juntar.js";
 
 function tarjeta(c, saldo, agregados) {
   const desglose = desgloseCaja(agregados, c.id);
@@ -90,6 +92,7 @@ function formulario(c) {
 
     <button type="submit" class="btn btn--primario btn--bloque">${nueva ? "Crear caja" : "Guardar cambios"}</button>
     ${nueva ? "" : html`<button type="button" class="btn btn--secundario btn--bloque" data-accion="agregar-dinero">＋ Agregar dinero que ya tenía</button>
+    <button type="button" class="btn btn--secundario btn--bloque" data-accion="juntar">Juntar con otra caja</button>
     <div class="acciones acciones--secundarias">
       <a class="btn btn--secundario" href="#/movimientos?caja=${c.id}">Ver movimientos</a>
       <button type="button" class="btn btn--secundario" data-accion="activar">${c.activa === false ? "Activar" : "Desactivar"}</button>
@@ -164,12 +167,19 @@ function abrirEditor(uid, caja = {}) {
     if (accion === "agregar-dinero") {
       capa.cerrar();
       abrirFormularioMovimiento({ tipo: "apertura", cajaId: caja.id, cuentaId: caja.cuentaPredeterminadaId, titulo: `Dinero que ya tenía · ${caja.nombre}` });
+    } else if (accion === "juntar") {
+      // Se abre encima de esta hoja y la cierra al juntar (abrir otra justo al cerrar esta descuadra «atrás»).
+      abrirJuntar(caja, { alTerminar: () => capa.cerrar() });
     } else if (accion === "activar") {
       const activar = caja.activa === false;
       if (!activar) {
+        const saldo = saldosPor(getState().agregados, "porCaja")[caja.id] || 0;
+        const conDinero = desgloseCaja(getState().agregados, caja.id).length > 0;
         const ok = await confirmar({
           titulo: "Desactivar caja",
-          mensaje: "Ya no aparecerá al registrar movimientos. Su saldo y su historial se conservan.",
+          mensaje: conDinero
+            ? `Tiene ${formatMonto(saldo)}: si solo la desactivas, eso se queda en ella y tus cajas no van a cuadrar con tus bancos. Si es la misma que otra caja, usa «Juntar con otra caja».`
+            : "Ya no aparecerá al registrar movimientos. Su historial se conserva.",
           botonConfirmar: "Desactivar",
         });
         if (!ok) return;
@@ -204,15 +214,21 @@ export function render(container, ctx) {
     const saldos = saldosPor(s.agregados, "porCaja");
     const activas = s.cajas.filter((c) => c.activa !== false);
     const inactivas = s.cajas.filter((c) => c.activa === false);
+    // Desactivadas que no quedaron en $0 en algún banco o tarjeta: sus cajas no cuadran con los bancos.
+    const sinCuadrar = inactivas.filter((c) => desgloseCaja(s.agregados, c.id).length);
     renderHtml(container, html`
       <div class="barra-acciones"><button type="button" class="btn btn--primario" data-accion="nueva">+ Nueva caja</button></div>
       ${activas.length === 0 ? estadoVacio({ icono: "cajas", titulo: "Todavía no tienes cajas.", texto: "Una caja agrupa el dinero según su propósito." })
         : html`<ul class="lista card card--lista">${activas.map((c) => tarjeta(c, saldos[c.id] || 0, s.agregados))}</ul>`}
+      ${sinCuadrar.map((c) => html`<div class="aviso aviso--error juntar__aviso">
+        <p>«${c.nombre}» está desactivada pero no quedó en $0: tiene ${formatMonto(saldos[c.id] || 0)}. Si es la misma que otra caja, júntalas para que tus cajas cuadren con tus bancos.</p>
+        <button type="button" class="btn btn--pastilla" data-juntar="${c.id}">Juntar con otra caja</button></div>`)}
       ${inactivas.length ? html`<h2 class="seccion__titulo">Desactivadas</h2>
         <ul class="lista card card--lista atenuada">${inactivas.map((c) => tarjeta(c, saldos[c.id] || 0, s.agregados))}</ul>` : ""}`);
   }
 
-  const quitar = on(container, "click", "[data-caja], [data-accion='nueva']", (e, el) => {
+  const quitar = on(container, "click", "[data-caja], [data-accion='nueva'], [data-juntar]", (e, el) => {
+    if (el.dataset.juntar) return abrirJuntar(cajaPorId(el.dataset.juntar));
     if (el.dataset.accion === "nueva") abrirEditor(uid);
     else abrirEditor(uid, cajaPorId(el.dataset.caja));
   });

@@ -9,6 +9,7 @@
 
 import { saldosPor, desgloseCaja } from "./saldos.js";
 import { gastosFijosDelMes } from "./mes.js";
+import { formatMonto } from "../core/money.js";
 
 const activo = (lista, id) => lista.some((x) => x.id === id && x.activa !== false);
 
@@ -28,8 +29,18 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   if (!cajasActivas.length) out.push({ nivel: "error", titulo: "No tienes cajas activas", detalle: "Crea al menos una caja para registrar dinero.", ruta: "cajas" });
   if (!cuentasActivas.length) out.push({ nivel: "error", titulo: "No tienes bancos/cuentas activos", detalle: "Crea al menos una (por ejemplo «Efectivo»).", ruta: "cuentas" });
 
+  // Cajas desactivadas que no quedaron en $0: su dinero (o deuda) sigue contando y las cajas no cuadran con los bancos.
+  // Casi siempre es una caja repetida (p. ej. una vieja y otra nueva para lo mismo).
+  for (const c of cajas.filter((x) => x.activa === false)) {
+    const partes = desgloseCaja(agregados, c.id);
+    if (!partes.length) continue;
+    const nombre = (id) => cuentas.find((x) => x.id === id)?.nombre || "un banco borrado";
+    out.push({ nivel: "error", titulo: `«${c.nombre}» está desactivada pero tiene ${formatMonto(saldoCaja[c.id] || 0)}`, ruta: "cajas",
+      detalle: `${[...partes].sort((x, y) => Math.abs(y.saldo) - Math.abs(x.saldo)).map((d) => `${nombre(d.cuentaId)} ${formatMonto(d.saldo)}`).join(", ")}. Si es la misma que otra caja, en Más → Cajas toca «Juntar con otra caja»: todo pasa a la otra y esta queda en $0. Si no, vuelve a activarla.` });
+  }
+
   // Saldos negativos: casi siempre falta el saldo inicial o hay un gasto de más (o se gastó con tarjeta más de lo que hay).
-  for (const c of cajas) {
+  for (const c of cajas.filter((x) => x.activa !== false)) {
     if ((saldoCaja[c.id] || 0) < 0) {
       const enTarjetas = desgloseCaja(agregados, c.id).filter((d) => tarjetas.has(d.cuentaId) && d.saldo < 0).reduce((a, d) => a - d.saldo, 0);
       out.push({ nivel: "error", titulo: `${c.nombre} tiene saldo negativo`, ruta: "cajas",

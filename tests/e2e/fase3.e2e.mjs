@@ -33,7 +33,7 @@ async function crearUsuario(email) {
 await crearUsuario("metas@code-reset.mx");
 await crearUsuario("vacia@code-reset.mx");
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium" });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "America/Mexico_City", acceptDownloads: true });
 if (SDK_DIR) await ctx.route(/www\.gstatic\.com\/firebasejs\/[\d.]+\/(.+\.js)$/, (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(join(SDK_DIR, r.request().url().split("/").pop())) }));
 await ctx.route(/fonts\./, (r) => r.fulfill({ contentType: "text/css", body: "" }));

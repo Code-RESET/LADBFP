@@ -14,6 +14,14 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Juntar con otra caja (v1.13.0)
+
+Angel: «la caja de Alarmas REST no debe tener ese dinero». Tenía dos cajas para lo mismo: «Alarmas RST» (la suya, ya desactivada) y «Alarmas REST» (la de la siembra). La deuda de la tarjeta estaba en la vieja, así que al pagar la tarjeta desde Mercado Pago el pago salió de la vieja (−$8,190.62 en Mercado Pago) y «Alarmas REST» se quedó con sus $9,779.46: el banco sumaba bien ($1,588.84) pero cada caja no. Lo mismo, más chico, con «Inversión HD credit» / «HD Crédit» en Bancoppel. Una caja desactivada que no quedó en $0 desaparece de las listas pero sigue contando.
+- **`domain/juntar.js`**: `movimientosParaJuntar` crea una transferencia dentro de cada banco o tarjeta donde la caja vieja no está en $0 (de la vieja a la otra si tiene dinero; al revés si está en negativo o debe): la vieja queda en $0 y ningún banco ni tarjeta cambia (`efectoEnCuenta` = 0, no es pago). `cambiosParaJuntar` pasa a la otra caja lo que usa la vieja: gastos fijos, deudas y compras a meses, ingresos y transferencias programadas (su caja y, si pagaban desde un banco, el banco de la otra caja; con tarjeta se queda la tarjeta), metas, presupuestos (y sus coberturas) y la caja sugerida de bancos y tarjetas. Lo que quedaría de una caja a la misma no se cambia y se avisa. `cajaParecida` sugiere la caja de nombre parecido.
+- **`modules/cajas/juntar.js`**: la hoja muestra lo que tiene la caja, lo que la usa y cómo quedará la otra (por banco y tarjeta, y el total) antes de juntar. Movimientos en un batch, cambios de plan, desactivar la vieja y Deshacer. Se abre desde el aviso rojo en Cajas o desde la hoja de la caja (encima de ella, que se cierra al juntar).
+- **Avisos**: Cajas (aviso con botón por cada desactivada que no quedó en $0), Mis cajas («· desactivada»), Revisar mis datos (error con lo que tiene en cada banco) y el diálogo de Desactivar (advierte si tiene dinero y sugiere juntarla).
+- Sin cambios en reglas (transferencias dentro de la misma cuenta ya se permitían).
+
 ## La caja que paga la tarjeta (v1.12.0)
 
 Angel: «cuando compro algo con la tarjeta de crédito también se suma a efectivo». La compra con tarjeta se anotaba en la caja elegida en «Sale de» (la de siempre, p. ej. EFECTIVO), así que esa caja bajaba aunque el dinero de la cartera no se moviera, y al pagar la tarjeta desde el banco esa caja quedaba con saldo negativo en ese banco.

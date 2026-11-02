@@ -269,7 +269,8 @@ export function render(container, ctx) {
         </div>
         <ul class="lista card card--lista">${cajas.map((c) => ({ c, ...bancosDe(c) })).map(({ c, bancos, debe }) => html`<li><a class="fila" href="#/movimientos?caja=${c.id}">
           <span class="punto" style="background:${c.color || "var(--accent)"}"></span>
-          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${bancos ? html`<span class="fila__sub">${bancos}</span>` : ""}${debe > 0
+          <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${bancos || c.activa === false
+            ? html`<span class="fila__sub">${[bancos, c.activa === false ? "desactivada" : ""].filter(Boolean).join(" · ")}</span>` : ""}${debe > 0
             ? html`<span class="fila__sub">💳 debes ${formatMonto(debe)}</span>` : ""}</span>
           <span class="fila__monto ${porCaja[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(porCaja[c.id] || 0)}</span>
           ${icon("chevron", { size: 16, clase: "fila__chevron" })}

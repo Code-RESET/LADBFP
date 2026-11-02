@@ -32,7 +32,7 @@ await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:si
   body: JSON.stringify({ email: "fase2@code-reset.mx", password: "secreto123", returnSecureToken: true }),
 }).catch(() => {});
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium" });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "America/Mexico_City" });
 if (SDK_DIR) await ctx.route(/www\.gstatic\.com\/firebasejs\/[\d.]+\/(.+\.js)$/, (r) => r.fulfill({ contentType: "text/javascript", body: readFileSync(join(SDK_DIR, r.request().url().split("/").pop())) }));
 await ctx.route(/fonts\./, (r) => r.fulfill({ contentType: "text/css", body: "" }));
