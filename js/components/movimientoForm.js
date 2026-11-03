@@ -3,14 +3,15 @@
 // Hoja de "Nuevo movimiento". Flujo común en 3 acciones:
 //   1) tocar ＋   2) escribir el monto   3) Guardar
 // Caja, cuenta y categoría se prellenan con las últimas usadas
-// para cada tipo. También sirve para editar.
+// para cada tipo. También sirve para editar. En modo cuentas (v2.0)
+// no hay caja: «Cuenta» / «De la cuenta» y «A la cuenta».
 // ============================================================
 
 import { html, render } from "../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../core/money.js";
 import { hoy } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
-import { getState, cajaPorId, cajasActivas, cuentasActivas, categoriasActivas } from "../core/state.js";
+import { getState, cajaPorId, cajasActivas, cuentasActivas, categoriasActivas, modoCuentas } from "../core/state.js";
 import { validarMovimiento, buscarDuplicado, ETIQUETA_TIPO } from "../domain/movimientos.js";
 import { FORMAS_PAGO } from "../domain/mes.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
@@ -62,6 +63,7 @@ const CAMPOS_VINCULO = ["obligacionId", "obligacionPeriodo", "deudaId", "deudaPe
 const vinculoDe = (obj) => Object.fromEntries(CAMPOS_VINCULO.filter((k) => obj?.[k]).map((k) => [k, obj[k]]));
 
 function plantilla(v, cat, editando) {
+  const soloCuentas = modoCuentas();
   const tipoGrupo = ["apertura", "ajuste"].includes(v.tipo) ? "otro" : v.tipo;
   const detallesAbiertos = editando || tipoGrupo === "otro";
   return html`<form class="form-mov" data-tipo="${v.tipo}" novalidate>
@@ -94,11 +96,18 @@ function plantilla(v, cat, editando) {
     <span class="campo__error campo__error--centro" data-error="montoCentavos"></span>
 
     <div class="grupo">
+      ${soloCuentas ? html`<div class="fila-2">
+        ${campo({ label: html`<span class="solo-no-transfer">Cuenta</span><span class="solo-transfer">De la cuenta</span>`, nombre: "cuentaId",
+          control: html`<select name="cuentaId">${opciones(cat.cuentas, v.cuentaId, { vacio: "Elige…" })}</select>` })}
+        <div class="solo-transfer">${campo({ label: "A la cuenta", nombre: "cuentaDestinoId",
+          control: html`<select name="cuentaDestinoId">${opciones(cat.cuentas, v.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}</div>
+      </div>` : html`
       ${campo({ label: html`<span class="solo-no-transfer">¿De qué caja?</span><span class="solo-transfer">De la caja</span>`, nombre: "cajaId",
         control: html`<select name="cajaId">${opciones(cat.cajas, v.cajaId, { vacio: "Elige…" })}</select>` })}
       <div class="solo-transfer">
         ${campo({ label: "A la caja", nombre: "cajaDestinoId", control: html`<select name="cajaDestinoId">${opciones(cat.cajas, v.cajaDestinoId, { vacio: "Elige…" })}</select>` })}
       </div>
+      `}
       <div class="solo-categoria fila-2">
         ${campo({ label: html`<span class="solo-gasto">¿En qué?</span><span class="solo-ingreso">¿De qué?</span>`, nombre: "categoriaId", control: html`<select name="categoriaId"></select>` })}
         ${campo({ label: html`<span class="solo-gasto">Forma de pago</span><span class="solo-ingreso">Forma de recepción</span>`, nombre: "formaPago",
@@ -107,12 +116,13 @@ function plantilla(v, cat, editando) {
     </div>
 
     <details class="mas-detalles" ${detallesAbiertos ? "open" : ""}>
-      <summary>Más detalles <span class="texto-sec">(fecha, nota, cuenta)</span></summary>
+      <summary>Más detalles <span class="texto-sec">(fecha, nota${soloCuentas ? "" : ", cuenta"})</span></summary>
       <div class="grupo">
         <div class="fila-2">
           ${campo({ label: "Fecha", nombre: "fecha", control: html`<input type="date" name="fecha" value="${v.fecha}" required />` })}
           ${campo({ label: "Nota", nombre: "nota", control: html`<input name="nota" maxlength="500" value="${v.nota || ""}" placeholder="Opcional" />` })}
         </div>
+        ${soloCuentas ? "" : html`
         <div class="fila-2">
           ${campo({ label: html`<span class="solo-no-transfer">Cuenta</span><span class="solo-transfer">Cuenta de origen</span>`, nombre: "cuentaId",
             control: html`<select name="cuentaId">${opciones(cat.cuentas, v.cuentaId, { vacio: "Elige…" })}</select>` })}
@@ -120,6 +130,7 @@ function plantilla(v, cat, editando) {
             control: html`<select name="cuentaDestinoId">${opciones(cat.cuentas, v.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}</div>
         </div>
         <p class="campo__ayuda">La cuenta se elige sola según la caja; cámbiala solo si el dinero está en otra.</p>
+        `}
         ${editando && tipoGrupo !== "otro" ? "" : html`<label class="otro-tipo"><input type="radio" name="tipoGrupo" value="otro" ${tipoGrupo === "otro" ? "checked" : ""} />
           <span>Registrar un <strong>saldo inicial</strong> o un <strong>ajuste</strong> de saldo</span></label>`}
       </div>
@@ -155,9 +166,10 @@ function leerEntrada(form) {
     tipo,
     montoCentavos: parseMonto(form.monto.value),
     fecha: form.fecha.value,
-    cajaId: form.cajaId.value,
+    // Modo cuentas: no hay caja; la caja es la cuenta.
+    cajaId: form.cajaId ? form.cajaId.value : form.cuentaId.value,
     cuentaId: form.cuentaId.value,
-    cajaDestinoId: tipo === "transferencia" ? form.cajaDestinoId.value : null,
+    cajaDestinoId: tipo === "transferencia" ? (form.cajaDestinoId ? form.cajaDestinoId.value : form.cuentaDestinoId.value) : null,
     cuentaDestinoId: tipo === "transferencia" ? form.cuentaDestinoId.value : null,
     categoriaId: tipo === "gasto" || tipo === "ingreso" ? form.categoriaId.value : null,
     direccion: tipo === "ajuste" ? form.direccion.value : null,
@@ -225,7 +237,14 @@ export function abrirFormularioMovimiento({ movimiento = null, ...preset } = {})
     const entrada = { ...leerEntrada(form), ...vinculo };
     const { ok, errores } = validarMovimiento(entrada, cat);
     if (!ok) {
-      if (["cuentaId", "cuentaDestinoId", "fecha", "nota"].some((k) => errores[k])) form.querySelector(".mas-detalles").open = true;
+      if (modoCuentas()) {
+        // Modo cuentas: la caja es la misma cuenta, así que sus errores se muestran en la cuenta.
+        if (errores.cajaDestinoId && !errores.cuentaDestinoId) {
+          errores.cuentaDestinoId = entrada.cuentaId === entrada.cuentaDestinoId ? "Elige otra cuenta: es la misma de donde sale." : errores.cajaDestinoId;
+        }
+        if (errores.cajaId && !errores.cuentaId) errores.cuentaId = errores.cajaId;
+      }
+      if (["fecha", "nota", ...(modoCuentas() ? [] : ["cuentaId", "cuentaDestinoId"])].some((k) => errores[k])) form.querySelector(".mas-detalles").open = true;
       mostrarErrores(form, errores);
       return;
     }

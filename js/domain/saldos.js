@@ -43,6 +43,26 @@ export function saldosPor(agregados, dimension = "porCaja", opciones) {
   return Object.fromEntries(Object.entries(totales).map(([id, t]) => [id, saldoDeTotales(t)]));
 }
 
+/**
+ * Modo cuentas (v2.0.0): los agregados vistos como si cada movimiento estuviera en la caja
+ * de su cuenta (cada cuenta es su propia caja): porCaja = porCuenta. Así, lo que llegue a
+ * quedar en una caja vieja (p. ej. al editar o anular un movimiento de antes de simplificar)
+ * no descuadra nada: cuenta en su cuenta, igual que en el banco.
+ */
+export function agregadosEnCuentas(agregados = {}) {
+  const out = {};
+  for (const [mes, doc] of Object.entries(agregados || {})) {
+    const porCuenta = doc?.porCuenta || {};
+    const porCajaCuenta = {};
+    for (const [id, nodo] of Object.entries(porCuenta)) {
+      const t = sumarNodo({}, nodo);
+      if (Object.keys(t).length) porCajaCuenta[clavePar(id, id)] = t;
+    }
+    out[mes] = { ...doc, porCaja: porCuenta, porCajaCuenta };
+  }
+  return out;
+}
+
 /** Patrimonio total: suma de todas las cajas. Las transferencias se anulan entre sí. */
 export function patrimonio(agregados) {
   return Object.values(saldosPor(agregados, "porCaja")).reduce((a, b) => a + b, 0);

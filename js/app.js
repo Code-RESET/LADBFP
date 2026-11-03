@@ -128,6 +128,9 @@ document.addEventListener("click", async (e) => {
     } finally {
       el.disabled = false;
     }
+  } else if (accion === "simplificar") {
+    const { abrirSimplificar } = await import("./modules/configuracion/simplificar.js");
+    abrirSimplificar();
   } else if (accion === "respaldo") {
     const { abrirRespaldo } = await import("./modules/configuracion/respaldo.js");
     abrirRespaldo(getState().user.uid);

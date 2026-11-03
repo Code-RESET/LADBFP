@@ -65,7 +65,7 @@ export async function verificarSaldos(uid, slot, capa) {
       render(slot, html`<p class="texto-sec">Leyendo movimientos… ${movs.length}</p>`);
     });
     const calculados = agregadosDesdeMovimientos(movs);
-    const guardados = getState().agregados;
+    const guardados = getState().agregadosCrudos || getState().agregados; // tal como están guardados (no la vista por cuenta)
     const difs = diferenciasAgregados(guardados, calculados);
     const activos = movs.filter((m) => m.estado !== "anulado").length;
 

@@ -250,7 +250,10 @@ await paso("Mis cajas: el efectivo (Sueldo personal) completo; HD Crédit dice l
   const hd = await filaCaja("HD Crédit").innerText();
   esperar(!sueldo.includes("💳") && sueldo.includes("$10,000.00"), sueldo);
   esperar(hd.includes("BBVA HD\n💳 debes $2,112.08") && hd.includes("$47,887.92"), hd);
-  await filaCaja("HD Crédit").scrollIntoViewIfNeeded();
+  // Mi mes se repinta cuando terminan de cargar los datos del mes (puede ser justo ahora): desplazar con una
+  // búsqueda nueva dentro de la página, no con un elemento que ya pudo cambiar.
+  await page.evaluate(() => [...document.querySelectorAll(".seccion:has(.total-cajas) .fila")]
+    .find((f) => f.querySelector(".fila__titulo")?.textContent === "HD Crédit")?.scrollIntoView({ block: "center" }));
   await page.screenshot({ path: `${SHOTS}/ct-mis-cajas.png` });
 });
 

@@ -24,7 +24,8 @@ let cache = { clave: null, valor: null };
 export function calcularPlan(s) {
   const hoy = hoyMx();
   const horizonte = Number(s.perfil?.config?.horizonteComprometidoDias) || HORIZONTE_DIAS;
-  const clave = [s.agregados, s.cajas, s.cuentas, s.obligaciones, s.deudas, s.recurrentes, s.presupuestos, s.metas, hoy, horizonte];
+  const soloCuentas = s.perfil?.config?.modo === "cuentas";
+  const clave = [s.agregados, s.cajas, s.cuentas, s.obligaciones, s.deudas, s.recurrentes, s.presupuestos, s.metas, hoy, horizonte, soloCuentas];
   if (cache.clave && cache.clave.every((v, i) => v === clave[i])) return cache.valor;
 
   const saldos = saldosPor(s.agregados, "porCaja");
@@ -39,11 +40,16 @@ export function calcularPlan(s) {
   const comprometido = comprometidoPorCaja({ eventos: conMetas, presupuestos: s.presupuestos, hoy, horizonteDias: horizonte });
   const disponible = disponibleReal({ cajas: s.cajas, saldos, comprometido, cuentaParaGasto });
   const proyeccion = proyectar({ saldos, eventos: conMetas, presupuestos: s.presupuestos, hoy, dias: DIAS_PROYECCION_MAX });
+  if (soloCuentas) {
+    // Modo cuentas: una tarjeta en negativo es lo que debes en ella, no una caja que se quede sin dinero.
+    const tarjetas = new Set(s.cuentas.filter((c) => c.tipo === "credito").map((c) => c.id));
+    proyeccion.primerNegativo = Object.fromEntries(Object.entries(proyeccion.primerNegativo).filter(([id]) => !tarjetas.has(id)));
+  }
   const proyeccion90 = { ...proyeccion, primerNegativo: Object.fromEntries(
     Object.entries(proyeccion.primerNegativo).filter(([, f]) => f <= sumarDias(hoy, 90))) };
   const alertas = generarAlertas({
     hoy, cajas: s.cajas, cuentas: s.cuentas, presupuestos: s.presupuestos, deudas: s.deudas,
-    eventos: ev.filter((e) => e.fecha <= sumarDias(hoy, horizonte)), disponible, proyeccion: proyeccion90, agregados: s.agregados,
+    eventos: ev.filter((e) => e.fecha <= sumarDias(hoy, horizonte)), disponible, proyeccion: proyeccion90, agregados: s.agregados, soloCuentas,
   });
 
   const valor = { hoy, horizonte, saldos, eventos: ev, comprometido, disponible, proyeccion, alertas };

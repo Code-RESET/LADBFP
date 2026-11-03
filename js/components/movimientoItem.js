@@ -7,7 +7,7 @@
 import { html } from "../core/dom.js";
 import { formatMonto } from "../core/money.js";
 import { formatFecha, etiquetaDia } from "../core/dates.js";
-import { cajaPorId, cuentaPorId, categoriaPorId } from "../core/state.js";
+import { cajaPorId, cuentaPorId, categoriaPorId, modoCuentas } from "../core/state.js";
 import { ETIQUETA_TIPO } from "../domain/movimientos.js";
 import { icon } from "./icons.js";
 
@@ -27,8 +27,10 @@ export function conceptoMovimiento(m) {
 }
 
 export function ubicacionMovimiento(m) {
-  const caja = nombre(cajaPorId(m.cajaId));
   const cuenta = nombre(cuentaPorId(m.cuentaId));
+  // Modo cuentas (v2.0): solo la cuenta («Mercado Pago», «Bancoppel → Efectivo»).
+  if (modoCuentas()) return m.tipo === "transferencia" ? `${cuenta} → ${nombre(cuentaPorId(m.cuentaDestinoId))}` : cuenta;
+  const caja = nombre(cajaPorId(m.cajaId));
   if (m.tipo !== "transferencia") return `${caja} · ${cuenta}`;
   const cajaD = nombre(cajaPorId(m.cajaDestinoId));
   const cuentaD = nombre(cuentaPorId(m.cuentaDestinoId));

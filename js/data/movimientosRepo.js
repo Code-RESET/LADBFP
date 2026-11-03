@@ -13,10 +13,11 @@ import {
   getCountFromServer, confirmarSinEsperar, conTimeout, Paginador,
 } from "./firestore.js";
 import {
-  construirMovimiento, deltasAgregados, cambiosRelevantes,
+  construirMovimiento, deltasAgregados, cambiosRelevantes, enCuentas,
 } from "../domain/movimientos.js";
 import { contarDesdeAgregados } from "../domain/saldos.js";
 import { mesSiguiente } from "../core/dates.js";
+import { modoCuentas } from "../core/state.js";
 
 const MOV = "movimientos";
 const AGG = "agregados";
@@ -48,6 +49,46 @@ function sumarDeltas(destino, origen) {
   return destino;
 }
 
+/** Modo cuentas (v2.0): la caja de todo lo que se guarda es su cuenta (domain/movimientos.js → enCuentas). */
+const preparar = (entrada) => (modoCuentas() ? enCuentas(entrada) : entrada);
+
+/**
+ * Agrega varios movimientos nuevos a un batch (con su historial y los deltas del agregado). Devuelve sus ids.
+ * `tal = true` los guarda tal cual (la conversión a cuentas mueve dinero entre cajas de la misma cuenta).
+ */
+export function escribirMovimientos(batch, uid, entradas, { origen = "manual", tal = false } = {}) {
+  const ts = Date.now();
+  const deltas = {};
+  const ids = entradas.map((entrada) => {
+    const id = nuevoId(uid, MOV);
+    const datos = construirMovimiento(tal ? entrada : preparar(entrada));
+    batch.set(docRef(uid, MOV, id), conMarcas({ ...datos, ts, origen }, { nuevo: true }));
+    batch.set(historialRef(uid, id), { accion: "crear", cambios: cambiosRelevantes(null, datos), ts, en: serverTimestamp() });
+    sumarDeltas(deltas, deltasAgregados(null, datos));
+    return id;
+  });
+  aplicarDeltas(batch, uid, deltas);
+  return ids;
+}
+
+/** Agrega a un batch la anulación de varios movimientos (con su historial y los deltas del agregado). */
+export function anularEnBatch(batch, uid, movimientos, motivo) {
+  const vivos = movimientos.filter((m) => m.estado !== "anulado");
+  const deltas = {};
+  const ts = Date.now();
+  for (const anterior of vivos) {
+    const previo = datosDe(anterior);
+    batch.update(docRef(uid, MOV, anterior.id), { estado: "anulado", anulacion: { motivo: motivo.trim(), ts }, updatedAt: serverTimestamp() });
+    batch.set(historialRef(uid, anterior.id), {
+      accion: "anular", cambios: { estado: { antes: "activo", despues: "anulado" } },
+      motivo: motivo.trim(), ts, en: serverTimestamp(),
+    });
+    sumarDeltas(deltas, deltasAgregados(previo, { ...previo, estado: "anulado" }));
+  }
+  aplicarDeltas(batch, uid, deltas);
+  return vivos.length;
+}
+
 /** Quita campos de UI (_pendiente, id) antes de comparar o recalcular. */
 function datosDe(mov) {
   const { id, _pendiente, ...resto } = mov;
@@ -58,7 +99,7 @@ export const movimientosRepo = {
   /** Crea un movimiento. Devuelve su id de inmediato (no espera al servidor). */
   crear(uid, entrada, { onError, origen = "manual" } = {}) {
     const id = nuevoId(uid, MOV);
-    const datos = construirMovimiento(entrada);
+    const datos = construirMovimiento(preparar(entrada));
     const ts = Date.now();
     const batch = writeBatch(db);
     batch.set(docRef(uid, MOV, id), conMarcas({ ...datos, ts, origen }, { nuevo: true }));
@@ -74,17 +115,7 @@ export const movimientosRepo = {
    */
   crearVarios(uid, entradas, { onError, origen = "manual" } = {}) {
     const batch = writeBatch(db);
-    const ts = Date.now();
-    const deltas = {};
-    const ids = entradas.map((entrada) => {
-      const id = nuevoId(uid, MOV);
-      const datos = construirMovimiento(entrada);
-      batch.set(docRef(uid, MOV, id), conMarcas({ ...datos, ts, origen }, { nuevo: true }));
-      batch.set(historialRef(uid, id), { accion: "crear", cambios: cambiosRelevantes(null, datos), ts, en: serverTimestamp() });
-      sumarDeltas(deltas, deltasAgregados(null, datos));
-      return id;
-    });
-    aplicarDeltas(batch, uid, deltas);
+    const ids = escribirMovimientos(batch, uid, entradas, { origen });
     confirmarSinEsperar(batch, onError);
     return ids;
   },
@@ -92,7 +123,7 @@ export const movimientosRepo = {
   editar(uid, anterior, entrada, { onError } = {}) {
     if (anterior.estado === "anulado") throw new Error("No se puede editar un movimiento anulado.");
     const previo = datosDe(anterior);
-    const datos = construirMovimiento({ ...entrada, estado: "activo" });
+    const datos = construirMovimiento(preparar({ ...entrada, estado: "activo" }));
     const cambios = cambiosRelevantes(previo, datos);
     if (Object.keys(cambios).length === 0) return false;
     const batch = writeBatch(db);
@@ -127,22 +158,8 @@ export const movimientosRepo = {
 
   /** Anula varios en UN solo batch ("Deshacer" de un pago de tarjeta). */
   anularVarios(uid, movimientos, motivo, { onError } = {}) {
-    const vivos = movimientos.filter((m) => m.estado !== "anulado");
-    if (!vivos.length) return;
     const batch = writeBatch(db);
-    const deltas = {};
-    const ts = Date.now();
-    for (const anterior of vivos) {
-      const previo = datosDe(anterior);
-      batch.update(docRef(uid, MOV, anterior.id), { estado: "anulado", anulacion: { motivo: motivo.trim(), ts }, updatedAt: serverTimestamp() });
-      batch.set(historialRef(uid, anterior.id), {
-        accion: "anular", cambios: { estado: { antes: "activo", despues: "anulado" } },
-        motivo: motivo.trim(), ts, en: serverTimestamp(),
-      });
-      sumarDeltas(deltas, deltasAgregados(previo, { ...previo, estado: "anulado" }));
-    }
-    aplicarDeltas(batch, uid, deltas);
-    confirmarSinEsperar(batch, onError);
+    if (anularEnBatch(batch, uid, movimientos, motivo)) confirmarSinEsperar(batch, onError);
   },
 
   /** Restricciones de consulta para un filtro. Una sola dimensión array-contains a la vez. */

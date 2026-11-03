@@ -7,7 +7,7 @@
 import { html } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { formatFecha, mesCorto, nombreMes, sumarDias } from "../../core/dates.js";
-import { cajaPorId, categoriaPorId } from "../../core/state.js";
+import { cajaPorId, categoriaPorId, modoCuentas } from "../../core/state.js";
 import { cuentaParaGasto } from "../../domain/catalogos.js";
 import { describirRegla } from "../../domain/periodos.js";
 import { resumenDeuda } from "../../domain/compromisos.js";
@@ -60,10 +60,10 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
 
     <section class="seccion">
       <h2 class="seccion__titulo">Lo que puedes gastar · próximos ${plan.horizonte} días</h2>
-      <p class="texto-sec intro">Lo que hay en cada caja menos lo apartado para pagos de los próximos ${plan.horizonte} días.</p>
+      <p class="texto-sec intro">Lo que hay en cada ${modoCuentas() ? "cuenta" : "caja"} menos lo apartado para pagos de los próximos ${plan.horizonte} días.</p>
       <div class="card card--lista">
         <table class="tabla-plan">
-          <thead><tr><th>Caja</th><th>Tiene</th><th>Apartado</th><th>Puedes gastar</th></tr></thead>
+          <thead><tr><th>${modoCuentas() ? "Cuenta" : "Caja"}</th><th>Tiene</th><th>Apartado</th><th>Puedes gastar</th></tr></thead>
           <tbody>${cajas.map((c) => {
             const d = plan.disponible.porCaja[c.id] || 0;
             return html`<tr class="${cuentaParaGasto(c) ? "" : "atenuada"}">
@@ -77,7 +77,8 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
             <td class="${plan.disponible.total < 0 ? "monto--negativo" : ""}"><strong>${formatMonto(plan.disponible.total)}</strong></td></tr></tfoot>
         </table>
       </div>
-      <p class="campo__ayuda">Las cajas atenuadas (capital de crecimiento, ahorro) no cuentan como dinero para gastar.</p>
+      <p class="campo__ayuda">${modoCuentas() ? "Las cuentas atenuadas (ahorro, inversión o negocio) no cuentan como dinero para gastar. Lo que debes en tus tarjetas se resta de lo que puedes gastar."
+        : "Las cajas atenuadas (capital de crecimiento, ahorro) no cuentan como dinero para gastar."}</p>
     </section>
 
     <section class="seccion">
@@ -96,13 +97,13 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
         </div>
         ${negativos.length ? html`<ul class="lista-alertas">${negativos.map(([cajaId, f]) => tarjetaAlerta({
           nivel: "naranja", ruta: "plan?tab=resumen", titulo: `${nombreCaja(cajaId)} quedaría en negativo el ${formatFecha(f)}`,
-          texto: "Ajusta ingresos, pagos o transfiere a tiempo." }))}</ul>` : html`<p class="aviso aviso--ok">✓ Ninguna caja queda en negativo en este periodo.</p>`}
-        <p class="campo__ayuda">Incluye ingresos fijos, pases fijos entre cajas, gastos fijos, cuotas de deudas y presupuestos sostenibles.</p>
+          texto: "Ajusta ingresos, pagos o transfiere a tiempo." }))}</ul>` : html`<p class="aviso aviso--ok">✓ Ninguna ${modoCuentas() ? "cuenta" : "caja"} queda en negativo en este periodo.</p>`}
+        <p class="campo__ayuda">Incluye ingresos fijos, pases fijos entre ${modoCuentas() ? "cuentas" : "cajas"}, gastos fijos, cuotas de deudas y presupuestos sostenibles.</p>
       </div>
     </section>
 
     <section class="seccion">
-      <div class="seccion__cabecera"><h2 class="seccion__titulo">Pases fijos entre cajas</h2>
+      <div class="seccion__cabecera"><h2 class="seccion__titulo">Pases fijos entre ${modoCuentas() ? "cuentas" : "cajas"}</h2>
         <button type="button" class="btn-texto" data-nuevo-pase>+ Agregar</button></div>
       ${s.recurrentes.some((r) => r.tipo === "transferencia")
         ? html`<ul class="lista card card--lista">${s.recurrentes.filter((r) => r.tipo === "transferencia").map((r) => html`<li>
@@ -112,7 +113,8 @@ export function pestanaResumen(s, plan, { horizonte, ancho }) {
               <span class="fila__sub">${describirRegla(r.regla)} · ${nombreCaja(r.cajaId)} → ${nombreCaja(r.cajaDestinoId)}</span></span>
             <span class="fila__monto">${formatMonto(r.montoCentavos)}</span>
           </button></li>`)}</ul>`
-        : html`<p class="texto-sec intro">Dinero que mueves cada cierto tiempo de una caja a otra (p. ej. tu sueldo de HD Crédit a Nu).</p>`}
+        : html`<p class="texto-sec intro">${modoCuentas() ? "Dinero que mueves cada cierto tiempo de una cuenta a otra (p. ej. tu sueldo de HD Crédit a tu cuenta personal)."
+          : "Dinero que mueves cada cierto tiempo de una caja a otra (p. ej. tu sueldo de HD Crédit a Nu)."}</p>`}
     </section>`;
 }
 

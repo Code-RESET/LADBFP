@@ -21,6 +21,19 @@ import { toast, toastError } from "../../components/toast.js";
 
 const sinConexion = () => !navigator.onLine;
 
+/**
+ * Lee todo, arma el respaldo y lo entrega (descarga o «Compartir»). Lo usa también «Simplificar mi app».
+ * → { r: 'descargado' | 'compartido' | 'cancelado', respaldo }
+ */
+export async function descargarRespaldo(uid, onProgreso) {
+  const datos = await respaldoRepo.leerTodo(uid, onProgreso);
+  const respaldo = construirRespaldo({ uid, version: await versionInstalada(), exportadoEn: new Date().toISOString(), ...datos });
+  const archivo = new File([JSON.stringify(respaldo)], nombreArchivo(hoy()), { type: "application/json" });
+  const r = await entregarArchivo(archivo);
+  if (r !== "cancelado") perfilRepo.guardarConfig(uid, { ultimoRespaldo: hoy() });
+  return { r, respaldo };
+}
+
 export function abrirRespaldo(uid) {
   const ultimo = getState().perfil?.config?.ultimoRespaldo;
   const capa = abrirCapa({
@@ -49,12 +62,8 @@ export function abrirRespaldo(uid) {
     boton.disabled = true;
     try {
       pintarEstado(html`<p class="texto-sec">Leyendo tus datos…</p>`);
-      const datos = await respaldoRepo.leerTodo(uid, ({ fase, n, total }) => pintarEstado(html`<p class="texto-sec">
+      const { r, respaldo } = await descargarRespaldo(uid, ({ fase, n, total }) => pintarEstado(html`<p class="texto-sec">
         ${fase === "historial" ? `Leyendo el historial… ${n} de ${total}` : `Leyendo movimientos… ${n}`}</p>`));
-      const respaldo = construirRespaldo({ uid, version: await versionInstalada(), exportadoEn: new Date().toISOString(), ...datos });
-      const archivo = new File([JSON.stringify(respaldo)], nombreArchivo(hoy()), { type: "application/json" });
-      const r = await entregarArchivo(archivo);
-      if (r !== "cancelado") perfilRepo.guardarConfig(uid, { ultimoRespaldo: hoy() });
       pintarEstado(html`<p class="aviso aviso--ok">✓ Respaldo listo: ${etiqueta("movimientos", respaldo.conteos.movimientos)},
         ${etiqueta("cajas", respaldo.conteos.cajas)}, ${etiqueta("metas", respaldo.conteos.metas)}.</p>`);
       if (r === "descargado") toast("✓ Respaldo descargado");

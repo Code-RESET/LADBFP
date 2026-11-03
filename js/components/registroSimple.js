@@ -13,18 +13,22 @@
 // Una compra a meses no es un gasto de hoy: se guarda como deuda de
 // la tarjeta y cada mensualidad aparece en Mi mes.
 // Sirve también para editar un gasto/ingreso fijo o uno de una vez.
+// En modo cuentas (v2.0) no hay caja: una sola pregunta, «¿Con qué
+// pagaste?» (tus cuentas y tus tarjetas) o «¿A qué cuenta entró?».
 // ============================================================
 
 import { html } from "../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../core/money.js";
 import { hoy, mesDe, sumarDias, mesSiguiente, nombreMes } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, cajasActivas, cuentasActivas, bancosActivos, tarjetasActivas, categoriasActivas } from "../core/state.js";
+import {
+  getState, cajaPorId, cuentaPorId, cajasActivas, cuentasActivas, bancosActivos, tarjetasActivas, categoriasActivas, modoCuentas,
+} from "../core/state.js";
 import { validarMovimiento, buscarDuplicado } from "../domain/movimientos.js";
 import { validarObligacion, validarRecurrente } from "../domain/compromisos.js";
 import { categoriaSugerida, fechaParaMes } from "../domain/mes.js";
 import { DIAS_SEMANA } from "../domain/periodos.js";
-import { cuentaParaCaja } from "../domain/saldos.js";
+import { cuentaParaCaja, saldosPor } from "../domain/saldos.js";
 import { validarMsi, deudaDeMsi, MESES_MSI, esTarjeta, cajaDeTarjeta } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
 import { cuentasRepo } from "../data/catalogosRepo.js";
@@ -36,6 +40,7 @@ import { segmentado, mostrarErrores, leerLocal, guardarLocal } from "./fields.js
 
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
 const CLAVE_CAJA = (tipo) => `fr.simple.caja.${tipo}`;
+const CLAVE_CUENTA = (tipo) => `fr.simple.cuenta.${tipo}`;
 const CLAVE_NOMBRES = "fr.simple.nombres";
 
 /** Banco con que se mueve el dinero de una caja: donde la caja tiene más dinero (domain/saldos.js). Nunca una tarjeta de crédito. */
@@ -51,6 +56,28 @@ function cajaInicial(tipo, preferida) {
   const ultima = leerLocal(CLAVE_CAJA(tipo), "");
   if (ids.includes(ultima)) return ultima;
   return (activas.find((c) => c.tipo === "operativa") || activas[0])?.id || "";
+}
+
+/** Modo cuentas: la cuenta para gastar con más dinero (si no hay, cualquiera). */
+export function cuentaPrincipal() {
+  const s = getState();
+  const saldos = saldosPor(s.agregados, "porCuenta");
+  const bancos = bancosActivos();
+  const paraGastar = bancos.filter((b) => (s.cajas.find((c) => c.id === b.id)?.tipo || "operativa") === "operativa");
+  return [...(paraGastar.length ? paraGastar : bancos)].sort((a, b) => (saldos[b.id] || 0) - (saldos[a.id] || 0))[0]?.id || "";
+}
+
+/** Modo cuentas: la última cuenta (o tarjeta, en gastos) con que anotaste; si no, la principal. */
+function cuentaInicial(tipo) {
+  const ultima = leerLocal(CLAVE_CUENTA(tipo), "");
+  const validas = [...bancosActivos(), ...(tipo === "gasto" ? tarjetasActivas() : [])];
+  return validas.some((c) => c.id === ultima) ? ultima : cuentaPrincipal();
+}
+
+/** Modo cuentas: el banco con que pagas una tarjeta (el último que usaste para pagarla; si no, la cuenta principal). */
+function bancoDeTarjeta(tarjetaId) {
+  const ultimo = leerLocal(`fr.tarjeta.banco.${tarjetaId}`, "");
+  return bancosActivos().some((b) => b.id === ultimo) ? ultimo : cuentaPrincipal();
 }
 
 function nombresConocidos() {
@@ -74,7 +101,9 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
   const uid = getState().user?.uid;
   if (!uid) return;
   const cajas = cajasActivas();
-  if (!cajas.length) { toastError("Primero crea al menos una caja (Más → Cajas)."); return; }
+  const soloCuentas = modoCuentas();
+  if (soloCuentas && !bancosActivos().length) { toastError("Primero agrega una cuenta (Más → Mis cuentas)."); return; }
+  if (!soloCuentas && !cajas.length) { toastError("Primero crea al menos una caja (Más → Cajas)."); return; }
 
   const ref = fijo?.ref || null;
   if (fijo) tipo = fijo.clase === "ingreso" ? "ingreso" : "gasto";
@@ -85,6 +114,7 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
     nombre: ref?.nombre || movimiento?.nota || "",
     monto: ref ? centavosATexto(ref.montoCentavos) : movimiento ? centavosATexto(movimiento.montoCentavos) : "",
     cajaId: ref?.cajaId || movimiento?.cajaId || cajaInicial(tipo, cajaId),
+    cuentaId: ref?.cuentaId || movimiento?.cuentaId || (soloCuentas ? cuentaInicial(tipo) : ""),
     dia: ref?.regla?.diaMes || (mes === mesDe(hoy()) ? Number(hoy().slice(8)) : 1),
     frecuencia: ref?.regla?.frecuencia === "semanal" ? "semanal" : "mensual",
     diaSemana: ref?.regla?.diaSemana ?? new Date(`${hoy()}T12:00:00Z`).getUTCDay(),
@@ -96,12 +126,22 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
   const tarjetas = tarjetasActivas();
   const listaTarjetas = esTarjeta(cuentaPrevia) && !tarjetas.some((t) => t.id === cuentaPrevia.id) ? [...tarjetas, cuentaPrevia] : tarjetas;
   const pagoCon = esTarjeta(cuentaPrevia) ? cuentaPrevia.id : "";
+  // Modo cuentas: tus cuentas y tus tarjetas en una sola lista (al editar, también la que ya tenía aunque esté desactivada).
+  const listaCuentas = [...bancosActivos(), ...tarjetas];
+  if (cuentaPrevia && !listaCuentas.some((c) => c.id === cuentaPrevia.id)) listaCuentas.push(cuentaPrevia);
+  const bloqueMsi = nuevo ? html`<div class="solo-tarjeta msi">
+          <label class="repite__check"><input type="checkbox" name="msi" /> <span>A meses sin intereses</span></label>
+          <div class="solo-msi">
+            ${segmentado("meses", MESES_MSI.map((m) => ({ valor: String(m), label: String(m) })), "12")}
+            <p class="campo__ayuda">No cuenta todo hoy: cada mensualidad aparece en tus gastos del mes en que se paga.</p>
+          </div>
+        </div>` : "";
 
   const titulo = nuevo ? "Nuevo" : fijo ? (tipo === "ingreso" ? "Ingreso fijo" : "Gasto fijo") : (tipo === "ingreso" ? "Ingreso" : "Gasto");
   const capa = abrirCapa({
     titulo,
     contenido: html`<form class="form registro" data-tipo="${tipo}" data-repite="${fijo ? "si" : "no"}" data-cada="${v.frecuencia}"
-      data-pago="${pagoCon ? "tarjeta" : "banco"}" data-msi="no" novalidate>
+      data-pago="${(soloCuentas ? esTarjeta(cuentaPorId(v.cuentaId)) : pagoCon) ? "tarjeta" : "banco"}" data-msi="no" data-modo="${soloCuentas ? "cuentas" : "cajas"}" novalidate>
       ${nuevo ? segmentado("tipo", [{ valor: "gasto", label: "Gasto" }, { valor: "ingreso", label: "Ingreso" }], tipo) : ""}
 
       <label class="campo">
@@ -118,6 +158,16 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
       </label>
       <span class="campo__error campo__error--centro" data-error="montoCentavos"></span>
 
+      ${soloCuentas ? html`<div class="campo cuentas-con">
+        <span class="campo__label"><span class="solo-gasto">¿Con qué pagaste?</span><span class="solo-ingreso">¿A qué cuenta entró?</span></span>
+        <div class="chips" role="radiogroup">${listaCuentas.map((c) => html`<label class="chip ${esTarjeta(c) ? "chip--tarjeta" : ""}">
+          <input type="radio" name="cuentaId" value="${c.id}" ${c.id === v.cuentaId ? "checked" : ""} />
+          <span>${esTarjeta(c) ? "💳 " : ""}${c.nombre}</span></label>`)}</div>
+        <p class="campo__ayuda solo-pago-tarjeta">No baja ninguna de tus cuentas: se suma a lo que debes en la tarjeta.</p>
+        ${bloqueMsi}
+        <span class="campo__error" data-error="cuentaId"></span>
+        <span class="campo__error" data-error="meses"></span>
+      </div>` : html`
       ${listaTarjetas.length ? html`<div class="campo pago-con">
         <span class="campo__label">¿Con qué pagaste?</span>
         <div class="chips" role="radiogroup">
@@ -126,13 +176,7 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
             <span>💳 ${t.nombre}</span></label>`)}
         </div>
         <p class="campo__ayuda solo-pago-tarjeta">No baja tu efectivo ni tu banco hoy: se suma a lo que debes en la tarjeta y se resta de la caja que la paga.</p>
-        ${nuevo ? html`<div class="solo-tarjeta msi">
-          <label class="repite__check"><input type="checkbox" name="msi" /> <span>A meses sin intereses</span></label>
-          <div class="solo-msi">
-            ${segmentado("meses", MESES_MSI.map((m) => ({ valor: String(m), label: String(m) })), "12")}
-            <p class="campo__ayuda">No cuenta todo hoy: cada mensualidad aparece en tus gastos del mes en que se paga.</p>
-          </div>
-        </div>` : ""}
+        ${bloqueMsi}
         <span class="campo__error" data-error="meses"></span>
       </div>` : ""}
 
@@ -144,6 +188,7 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
             ? html`<small class="chip__banco"> · ${cuentaPorId(cuentaDeCaja(c.id)).nombre}</small>` : ""}</span></label>`)}</div>
         <span class="campo__error" data-error="cajaId"></span>
       </div>
+      `}
 
       ${movimiento ? "" : html`<div class="repite">
         ${fijo ? "" : html`<label class="repite__check"><input type="checkbox" name="repite" /> <span>Se repite</span></label>`}
@@ -189,6 +234,13 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
       }
     }
     if (e.target.name === "cajaId") cajaAntes = null;
+    // Modo cuentas: con tarjeta salen los meses sin intereses; un ingreso no entra a una tarjeta.
+    if (e.target.name === "cuentaId") form.dataset.pago = esTarjeta(cuentaPorId(e.target.value)) ? "tarjeta" : "banco";
+    if (soloCuentas && e.target.name === "tipo" && form.tipo.value === "ingreso" && form.dataset.pago === "tarjeta") {
+      const sugerida = cuentaInicial("ingreso");
+      form.querySelectorAll('input[name="cuentaId"]').forEach((r) => { r.checked = r.value === sugerida; });
+      form.dataset.pago = "banco";
+    }
     if (e.target.name === "pagoCon") {
       if (e.target.value) {
         if (cajaAntes === null) cajaAntes = cajaElegida();
@@ -236,14 +288,18 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
     const t = tipoActual();
     const nombre = form.nombre.value.trim();
     const montoCentavos = parseMonto(form.monto.value);
-    const caja = cajaElegida();
+    // Modo cuentas: la caja es la cuenta elegida (data/movimientosRepo.js y planRepo.js también lo aseguran).
+    const cuentaElegida = soloCuentas ? form.querySelector('input[name="cuentaId"]:checked')?.value || "" : "";
+    const caja = soloCuentas ? cuentaElegida : cajaElegida();
     const repite = fijo || form.repite?.checked;
-    // Si pagaste con tarjeta de crédito, la cuenta es la tarjeta (la caja baja igual; el banco no).
-    const tarjetaId = t === "gasto" ? form.querySelector('input[name="pagoCon"]:checked')?.value || "" : "";
+    // Si pagaste con tarjeta de crédito, la cuenta es la tarjeta (en modo cajas la caja baja igual; el banco no).
+    const tarjetaId = t !== "gasto" ? "" : soloCuentas ? (esTarjeta(cuentaPorId(cuentaElegida)) ? cuentaElegida : "")
+      : form.querySelector('input[name="pagoCon"]:checked')?.value || "";
     const errores = {};
     if (!nombre) errores.nombre = t === "ingreso" ? "Escribe de dónde viene (ej. Honorarios)." : "Escribe qué es (ej. Gasolina).";
     if (!(montoCentavos > 0)) errores.montoCentavos = "Escribe cuánto.";
-    if (!caja) errores.cajaId = tarjetaId ? "Elige con qué caja vas a pagar la tarjeta." : "Elige una caja.";
+    if (soloCuentas && !cuentaElegida) errores.cuentaId = t === "ingreso" ? "Elige a qué cuenta entró." : "Elige con qué pagaste.";
+    else if (!caja) errores.cajaId = tarjetaId ? "Elige con qué caja vas a pagar la tarjeta." : "Elige una caja.";
     const dia = Number(form.dia?.value);
     const cada = form.cada?.value || "mensual";
     const diaSemana = Number(form.diaSemana?.value);
@@ -252,7 +308,7 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
 
     // El banco es siempre el que se muestra junto a la caja (donde la caja tiene su dinero),
     // también al editar: así se corrigen gastos que se habían anotado en otro banco.
-    const cuentaId = tarjetaId || cuentaDeCaja(caja);
+    const cuentaId = soloCuentas ? cuentaElegida : tarjetaId || cuentaDeCaja(caja);
     const aMeses = nuevo && tarjetaId && !repite && form.msi?.checked;
     const nombreCambio = nombre !== v.nombre;
     const categoriaId = !nombreCambio && (ref?.categoriaId || movimiento?.categoriaId)
@@ -262,11 +318,13 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
     enviando = true;
     try {
       if (aMeses) {
+        // Las mensualidades se pagan desde un banco: en modo cuentas, el que usas para pagar esa tarjeta.
+        const bancoMsi = soloCuentas ? bancoDeTarjeta(tarjetaId) : cuentaDeCaja(caja);
         const x = { descripcion: nombre, montoCentavos, meses: Number(form.querySelector('input[name="meses"]:checked')?.value), pagadas: 0,
-          fechaCompra: fechaParaMes(mes, hoy()), cajaId: caja, tarjetaId };
+          fechaCompra: fechaParaMes(mes, hoy()), cajaId: soloCuentas ? bancoMsi : caja, tarjetaId };
         const r = validarMsi(x);
         if (!r.ok) { mostrarErrores(form, r.errores.descripcion ? { nombre: r.errores.descripcion } : r.errores); return; }
-        const datos = deudaDeMsi(x, cuentaPorId(tarjetaId), { cuentaPagoId: cuentaDeCaja(caja), categoriaId });
+        const datos = deudaDeMsi(x, cuentaPorId(tarjetaId), { cuentaPagoId: bancoMsi, categoriaId });
         deudasRepo.guardar(uid, datos, { onError });
         toast(`✓ ${nombre} a ${x.meses} meses: ${formatMonto(datos.pagoCentavos)} al mes, la primera el ${Number(datos.regla.desde.slice(8))} de ${nombreMes(datos.regla.desde.slice(0, 7))}`, { duracion: 6000 });
       } else if (repite) guardarFijo({ uid, t, ref, nombre, montoCentavos, cajaId: caja, cuentaId, categoriaId, dia, cada, diaSemana, mes });
@@ -279,6 +337,11 @@ export function abrirRegistro({ tipo = "gasto", mes = mesDe(hoy()), movimiento =
       enviando = false;
     }
     recordarNombre(nombre);
+    if (soloCuentas) {
+      guardarLocal(CLAVE_CUENTA(t), cuentaId);
+      capa.cerrar();
+      return;
+    }
     // Con tarjeta la caja es la que la paga: no cambia la caja de siempre.
     if (!tarjetaId) guardarLocal(CLAVE_CAJA(t), caja);
     // Tarjeta sin caja: se queda con la que elegiste en un gasto nuevo (la próxima vez se elige sola).

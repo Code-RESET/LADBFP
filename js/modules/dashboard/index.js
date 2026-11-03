@@ -18,7 +18,7 @@
 import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { mesDe, hoy, nombreMes } from "../../core/dates.js";
-import { subscribe, getState, catalogosListos, planListo, cajaPorId, cuentaPorId, categoriaPorId } from "../../core/state.js";
+import { subscribe, getState, catalogosListos, planListo, cajaPorId, cuentaPorId, categoriaPorId, modoCuentas, cuentaParaGastar } from "../../core/state.js";
 import { sincronizarBarraEstado } from "../../core/theme.js";
 import { mensajeDeError } from "../../core/errors.js";
 import { saldosPor, patrimonio, desgloseCaja } from "../../domain/saldos.js";
@@ -74,13 +74,67 @@ function conTarjeta(r) {
   return cuenta?.tipo === "credito" ? `💳 ${cuenta.nombre}` : "";
 }
 
+/** Modo cuentas: la cuenta del renglón («Mercado Pago» o «💳 BBVA Azul»). */
+function cuentaDe(r) {
+  const c = cuentaPorId(r.fijo?.msi ? r.fijo.ref.tarjetaId : r.mov?.cuentaId || r.fijo?.ref?.cuentaId);
+  return c ? `${esTarjeta(c) ? "💳 " : ""}${c.nombre}` : "";
+}
+
+/** Modo cuentas (v2.0): tus cuentas como en tu banco (para gastar / ahorro e inversión) y lo que debes en tarjetas. */
+function misCuentas(s, tarjetas) {
+  const saldos = saldosPor(s.agregados, "porCuenta");
+  const bancos = s.cuentas.filter((c) => c.tipo !== "credito" && (c.activa !== false || saldos[c.id]));
+  const lasTarjetas = s.cuentas.filter((c) => c.tipo === "credito" && (c.activa !== false || saldos[c.id]));
+  const estado = (id) => tarjetas?.find((x) => x.cuenta.id === id)?.estado;
+  const debeDe = (c) => estado(c.id)?.deudaTotal ?? Math.max(0, -(saldos[c.id] || 0));
+  const tienes = bancos.reduce((a, c) => a + (saldos[c.id] || 0), 0);
+  const debes = lasTarjetas.reduce((a, c) => a + debeDe(c), 0);
+  const fila = (c) => {
+    const sub = [cajaPorId(c.id)?.descripcion || "", c.activa === false ? "desactivada" : ""].filter(Boolean).join(" · ");
+    return html`<li><a class="fila" href="#/movimientos?cuenta=${c.id}">
+      <span class="fila__icono">${icon("cuentas", { size: 18 })}</span>
+      <span class="fila__texto"><span class="fila__titulo">${c.nombre}</span>${sub ? html`<span class="fila__sub">${sub}</span>` : ""}</span>
+      <span class="fila__monto ${saldos[c.id] < 0 ? "monto--negativo" : ""}">${formatMonto(saldos[c.id] || 0)}</span>
+      ${icon("chevron", { size: 16, clase: "fila__chevron" })}
+    </a></li>`;
+  };
+  const grupo = (titulo, lista) => (lista.length ? html`<p class="cuentas__grupo">${titulo}</p><ul class="lista card card--lista">${lista.map(fila)}</ul>` : "");
+  return html`<section class="seccion" id="seccion-cuentas">
+    <div class="seccion__cabecera">
+      <h2 class="seccion__titulo">Mis cuentas</h2>
+      <button type="button" class="btn-texto" data-accion="nuevo-movimiento" data-tipo="transferencia">Mover dinero</button>
+    </div>
+    <div class="card cuentas__resumen">
+      <div><small>Tienes</small><strong>${formatMonto(tienes)}</strong></div>
+      <div><small>Debes</small><strong>${formatMonto(debes)}</strong></div>
+      <div><small>Te queda</small><strong class="total-cuentas">${formatMonto(tienes - debes)}</strong></div>
+    </div>
+    ${grupo("Para gastar", bancos.filter((c) => cuentaParaGastar(c.id)))}
+    ${grupo("Ahorro, inversión y negocio", bancos.filter((c) => !cuentaParaGastar(c.id)))}
+    ${lasTarjetas.length ? html`<p class="cuentas__grupo">Tarjetas</p><ul class="lista card card--lista">${lasTarjetas.map((c) => {
+      const e = estado(c.id);
+      const linea = e ? lineaEstado(e, { corto: true }) : { texto: "", clase: "" };
+      return html`<li><div class="fila">
+        <span class="fila__icono">${icon("tarjeta", { size: 18 })}</span>
+        <a class="fila__texto fila__texto--boton" href="#/tarjetas"><span class="fila__titulo">${c.nombre}</span>
+          <span class="fila__sub ${linea.clase}">${debeDe(c) ? `Debes ${formatMonto(debeDe(c))}` : "Sin deuda"}${linea.texto ? ` · ${linea.texto}` : ""}</span></a>
+        ${e?.paraNoGenerarIntereses > 0 && c.activa !== false
+          ? html`<button type="button" class="btn btn--pastilla" data-pagar-tarjeta="${c.id}">Pagar</button>`
+          : html`<span class="fila__monto">${formatMonto(debeDe(c))}</span>`}
+      </div></li>`;
+    })}</ul>` : ""}
+    <p class="campo__ayuda">Cada cuenta dice lo mismo que tu banco; lo que compras con tarjeta se queda en la tarjeta hasta que la pagas. Toca una para ver sus movimientos · <a href="#/cuentas">Agregar o editar cuentas</a></p>
+  </section>`;
+}
+
 function filaHoja(r, i, lista, ingreso) {
   const ahorro = lista === "ahorro";
+  const soloCuentas = modoCuentas();
   const etiqueta = ahorro ? (r.hecho ? "Aportado" : "Marcar como aportado")
     : ingreso ? (r.hecho ? "Recibido" : "Marcar como recibido") : (r.hecho ? "Pagado" : "Marcar como pagado");
   const sub = [
-    ahorro ? `${cajaPorId(r.cajaId)?.nombre || "—"} → ${cajaPorId(r.cajaDestinoId)?.nombre || "—"}` : cajaPorId(r.cajaId)?.nombre,
-    ingreso || ahorro ? "" : conTarjeta(r),
+    ahorro ? `${cajaPorId(r.cajaId)?.nombre || "—"} → ${cajaPorId(r.cajaDestinoId)?.nombre || "—"}` : soloCuentas ? cuentaDe(r) : cajaPorId(r.cajaId)?.nombre,
+    ingreso || ahorro || soloCuentas ? "" : conTarjeta(r),
     r.vencido ? "Vencido" : "",
     r.falta ? `faltan ${formatMonto(r.falta)}` : "",
     r.prestamo ? "préstamo, no cuenta" : "",
@@ -221,12 +275,19 @@ export function render(container, ctx) {
     pagos = porPagar({ obligaciones: s.obligaciones, deudas: s.deudas, agregados: s.agregados, cuentas: s.cuentas, tarjetas: visibles, hoy: hoyF });
     const aviso = esActual ? consejo({ balance: b, pronostico: dias, hallazgos: diagnosticar({ ...s, hoy: hoyF }), hoy: hoyF, omitirPagos: true }) : null;
     const avisoVisible = aviso && leerLocal(CLAVE_CONSEJOS, {})[aviso.clave] !== hoyF ? aviso : null;
+    // Modo cuentas (v2.0): Mi mes con 4 cosas; el pronóstico, el consejo, la gráfica y el Excel van al final, plegados.
+    const soloCuentas = modoCuentas();
+    const pronostico = dias ? tarjetaPronostico({ dias, hoy: hoyF }) : "";
+    const tarjetaAviso = avisoVisible ? tarjetaConsejo(avisoVisible) : "";
+    const extras = html`${graficaMeses(serie, anchoCard, { abierta: graficaAbierta })}
+      <button type="button" class="btn btn--secundario btn--bloque" data-accion="descargar-excel" data-mes="${mes}">⬇ Descargar Excel de ${soloMes}</button>`;
 
     return html`
       ${avisoPorPagar(pagos)}
+      ${soloCuentas ? "" : html`<button type="button" class="card simplificar-aviso" data-accion="simplificar">
+        <strong>Tu app puede ser más simple</strong><span>Solo cuentas, sin cajas: cada una dice lo mismo que tu banco. Toca para ver cómo queda.</span></button>`}
       ${heroCielo({ b, mes, clima })}
-      ${dias ? tarjetaPronostico({ dias, hoy: hoyF }) : ""}
-      ${avisoVisible ? tarjetaConsejo(avisoVisible) : ""}
+      ${soloCuentas ? "" : html`${pronostico}${tarjetaAviso}`}
 
       ${seccion({ titulo: "Gastos", total: b.totalGastos, lista: "gastos", tipo: "gasto", filasLista: filas.gastos,
         vacio: html`<strong>+ Agrega tu primer gasto</strong><span>Los fijos (hipoteca, internet) y los del día (gasolina, comida).</span>` })}
@@ -240,10 +301,16 @@ export function render(container, ctx) {
           <a class="btn-texto" href="#/metas">Mis metas</a>
         </div>
         <ul class="lista card card--lista hoja">${filas.ahorro.map((r, i) => filaHoja(r, i, "ahorro", false))}</ul>
-        <p class="campo__ayuda">Toca ☐ cuando apartes el dinero: pasa de una caja a la otra (no cuenta como gasto).</p>
+        <p class="campo__ayuda">Toca ☐ cuando apartes el dinero: pasa de una ${soloCuentas ? "cuenta" : "caja"} a la otra (no cuenta como gasto).</p>
       </section>` : ""}
 
-      ${visibles.length ? html`<section class="seccion" id="seccion-tarjetas">
+      ${soloCuentas ? html`${misCuentas(s, tarjetas && visibles)}
+      <details class="mas-del-mes">
+        <summary>Más de este mes <span class="texto-sec">(pronóstico, consejos, gráfica y Excel)</span></summary>
+        <div class="mas-del-mes__contenido">${pronostico}${tarjetaAviso}${extras}</div>
+      </details>` : ""}
+
+      ${!soloCuentas && visibles.length ? html`<section class="seccion" id="seccion-tarjetas">
         <div class="seccion__cabecera">
           <h2 class="seccion__titulo">Tarjetas · Debes ${formatMonto(visibles.reduce((a, x) => a + x.estado.deudaTotal, 0))}</h2>
           <a class="btn-texto" href="#/tarjetas">Ver tarjetas</a>
@@ -262,7 +329,7 @@ export function render(container, ctx) {
         <p class="campo__ayuda">Lo que compras con tarjeta ya está en tus gastos: pagarla no es otro gasto, solo baja el dinero del banco.</p>
       </section>` : ""}
 
-      <section class="seccion">
+      ${soloCuentas ? "" : html`<section class="seccion">
         <div class="seccion__cabecera">
           <h2 class="seccion__titulo">Mis cajas · <span class="total-cajas">${formatMonto(patrimonio(s.agregados))}</span></h2>
           <button type="button" class="btn-texto" data-accion="nuevo-movimiento" data-tipo="transferencia">Mover dinero</button>
@@ -278,9 +345,7 @@ export function render(container, ctx) {
         <p class="campo__ayuda">Lo que tiene cada caja hoy. Toca una para ver sus movimientos · <a href="#/cajas">Agregar o editar cajas</a></p>
       </section>
 
-      ${graficaMeses(serie, anchoCard, { abierta: graficaAbierta })}
-
-      <button type="button" class="btn btn--secundario btn--bloque" data-accion="descargar-excel" data-mes="${mes}">⬇ Descargar Excel de ${soloMes}</button>`;
+      ${extras}`}`;
   }
 
   function cambiarMes(nuevo) {

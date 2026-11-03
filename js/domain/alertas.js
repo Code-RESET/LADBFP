@@ -15,9 +15,11 @@ import { equivalenteMensual } from "./periodos.js";
 const ORDEN = { rojo: 0, naranja: 1, info: 2 };
 
 export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], deudas = [], eventos = [],
-  disponible, proyeccion, agregados }) {
+  disponible, proyeccion, agregados, soloCuentas = false }) {
   const out = [];
-  const nombreCaja = (id) => cajas.find((c) => c.id === id)?.nombre || "una caja";
+  const nombreCaja = (id) => cajas.find((c) => c.id === id)?.nombre || (soloCuentas ? "una cuenta" : "una caja");
+  // Modo cuentas: una tarjeta es su propia caja y su saldo negativo es lo que debes (no un déficit).
+  const tarjetas = new Set(soloCuentas ? cuentas.filter((c) => c.tipo === "credito").map((c) => c.id) : []);
 
   // Presupuestos deficitarios
   for (const p of presupuestos.filter((x) => x.activa !== false)) {
@@ -37,7 +39,7 @@ export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], de
   }
 
   // Cajas con disponible negativo
-  for (const c of cajas.filter((x) => x.activa !== false)) {
+  for (const c of cajas.filter((x) => x.activa !== false && !tarjetas.has(x.id))) {
     const d = disponible?.porCaja?.[c.id];
     if (d < 0) {
       out.push({ nivel: "rojo", tipo: "caja-deficit", ruta: "plan",
@@ -47,7 +49,7 @@ export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], de
 
   // Cajas que quedarán en negativo según la proyección
   for (const [cajaId, fecha] of Object.entries(proyeccion?.primerNegativo || {})) {
-    if (disponible?.porCaja?.[cajaId] < 0) continue; // ya avisado arriba
+    if (disponible?.porCaja?.[cajaId] < 0 || tarjetas.has(cajaId)) continue; // ya avisado arriba (o es lo que debes en una tarjeta)
     out.push({ nivel: "naranja", tipo: "flujo-negativo", ruta: "plan",
       titulo: `${nombreCaja(cajaId)} quedará en negativo el ${formatFecha(fecha)}`, texto: "Según los ingresos y pagos programados." });
   }
@@ -58,7 +60,7 @@ export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], de
   if (proximos.length) {
     const total = proximos.reduce((a, e) => a + e.monto, 0);
     out.push({ nivel: "info", tipo: "proximos", ruta: "plan?tab=pagos",
-      titulo: `${proximos.length} ${proximos.length === 1 ? "pago" : "pagos"} esta semana: ${formatMonto(total)}`, texto: "Revisa que cada caja tenga el dinero." });
+      titulo: `${proximos.length} ${proximos.length === 1 ? "pago" : "pagos"} esta semana: ${formatMonto(total)}`, texto: soloCuentas ? "Revisa que cada cuenta tenga el dinero." : "Revisa que cada caja tenga el dinero." });
   }
 
   // Deudas por terminar → dinero que se libera
@@ -72,15 +74,15 @@ export function generarAlertas({ hoy, cajas, cuentas = [], presupuestos = [], de
     }
   }
 
-  // Cuentas sin caja predeterminada (informativo, decisión A3)
-  const sinCaja = cuentas.filter((c) => c.activa !== false && c.tipo !== "credito" && !c.cajaPredeterminadaId);
+  // Cuentas sin caja predeterminada (informativo, decisión A3). En modo cuentas no aplica: cada cuenta es su propia caja.
+  const sinCaja = soloCuentas ? [] : cuentas.filter((c) => c.activa !== false && c.tipo !== "credito" && !c.cajaPredeterminadaId);
   if (sinCaja.length) {
     out.push({ nivel: "info", tipo: "cuenta-sin-caja", ruta: "cuentas",
       titulo: `${sinCaja.length === 1 ? "1 cuenta" : `${sinCaja.length} cuentas`} sin caja predeterminada`,
       texto: sinCaja.map((c) => c.nombre).join(", ") });
   }
   // Tarjetas sin la caja que las paga: sus compras se restarían de la caja que estés usando (v1.12).
-  const tarjetasSinCaja = cuentas.filter((c) => c.activa !== false && c.tipo === "credito" && !c.cajaPredeterminadaId);
+  const tarjetasSinCaja = soloCuentas ? [] : cuentas.filter((c) => c.activa !== false && c.tipo === "credito" && !c.cajaPredeterminadaId);
   if (tarjetasSinCaja.length) {
     out.push({ nivel: "info", tipo: "tarjeta-sin-caja", ruta: "tarjetas",
       titulo: `${tarjetasSinCaja.length === 1 ? "1 tarjeta" : `${tarjetasSinCaja.length} tarjetas`} sin la caja que la paga`,
