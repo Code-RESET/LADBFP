@@ -12,7 +12,7 @@ import { html } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy, formatFecha, nombreMes } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, cajasActivas, tarjetasActivas, categoriasActivas } from "../../core/state.js";
+import { getState, cajaPorId, cuentaPorId, cajasActivas, tarjetasActivas, categoriasActivas, bancosActivos, modoCuentas } from "../../core/state.js";
 import {
   validarTarjeta, validarMsi, deudaDeMsi, planMsi, ajusteDeudaInicial, etiquetaMsi, fechaConDia, sumarMeses, MESES_MSI, cajaDeTarjeta,
 } from "../../domain/tarjetas.js";
@@ -26,7 +26,8 @@ import { abrirCapa } from "../../components/modal.js";
 import { confirmar } from "../../components/confirmation.js";
 import { toast, toastError } from "../../components/toast.js";
 import { segmentado, mostrarErrores } from "../../components/fields.js";
-import { cuentaDeCaja } from "../../components/registroSimple.js";
+import { cuentaDeCaja, cuentaPrincipal } from "../../components/registroSimple.js";
+import { cajasRepo } from "../../data/catalogosRepo.js";
 import { ofrecerPasar } from "./cajaQuePaga.js";
 
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
@@ -34,6 +35,10 @@ const uid = () => getState().user?.uid;
 const valorRadio = (form, nombre) => form.querySelector(`input[name="${nombre}"]:checked`)?.value || "";
 const montoTxt = (c) => (c ? centavosATexto(c) : "");
 const cajaInicial = () => (cajasActivas().find((c) => c.tipo === "operativa") || cajasActivas()[0])?.id || "";
+
+/** Modo cuentas: chips de tus cuentas (sin tarjetas), para elegir de dónde se paga. */
+const chipsBancos = (nombre, seleccion) => html`<div class="chips" role="radiogroup">${bancosActivos().map((b) => html`<label class="chip">
+  <input type="radio" name="${nombre}" value="${b.id}" ${b.id === seleccion ? "checked" : ""} /><span>${b.nombre}</span></label>`)}</div>`;
 
 /** Chips de caja (con el banco donde tiene su dinero), como en el registro rápido. */
 export const chipsCajas = (nombre, seleccion) => html`<div class="chips" role="radiogroup">${cajasActivas().map((c) => html`<label class="chip">
@@ -45,6 +50,7 @@ export const chipsCajas = (nombre, seleccion) => html`<div class="chips" role="r
 
 export function abrirTarjeta(tarjeta = {}) {
   const editando = !!tarjeta.id;
+  const soloCuentas = modoCuentas();
   const c = tarjeta.credito || {};
   const capa = abrirCapa({
     titulo: editando ? tarjeta.nombre : "Nueva tarjeta de crédito",
@@ -67,10 +73,10 @@ export function abrirTarjeta(tarjeta = {}) {
         <input name="limite" inputmode="decimal" autocomplete="off" value="${montoTxt(c.limiteCentavos)}" placeholder="$0.00" />
         <span class="campo__error" data-error="limiteCentavos"></span></label>
 
-      <div class="campo"><span class="campo__label">¿Con qué caja la pagas?</span>
+      ${soloCuentas ? "" : html`<div class="campo"><span class="campo__label">¿Con qué caja la pagas?</span>
         ${chipsCajas("cajaId", cajaDeTarjeta(tarjeta, cajasActivas()))}
         <span class="campo__ayuda">La caja cuyo dinero usas para pagarla. Lo que compres con la tarjeta se resta de esa caja, no de la que estés usando (por ejemplo tu efectivo).</span>
-        <span class="campo__error" data-error="cajaId"></span></div>
+        <span class="campo__error" data-error="cajaId"></span></div>`}
 
       ${editando ? "" : html`<label class="campo"><span class="campo__label">¿Cuánto debes hoy? (opcional)</span>
           <input name="deuda" inputmode="decimal" autocomplete="off" placeholder="$0.00" />
@@ -125,23 +131,30 @@ export function abrirTarjeta(tarjeta = {}) {
       diaCorte: Number(form.diaCorte.value),
       diaLimite: Number(form.diaLimite.value),
       deudaCentavos: form.deuda?.value.trim() ? montoDe(form.deuda) ?? -1 : 0,
-      cajaId: valorRadio(form, "cajaId"),
+      // Modo cuentas: la tarjeta es su propia caja (no se elige).
+      cajaId: soloCuentas ? tarjeta.id || "nueva" : valorRadio(form, "cajaId"),
     };
     const { ok, errores } = validarTarjeta(datos, s.cuentas);
     if (!ok) { mostrarErrores(form, errores); return; }
     const credito = { limiteCentavos: datos.limiteCentavos, diaCorte: datos.diaCorte, diaLimite: datos.diaLimite };
     const id = cuentasRepo.guardar(uid(), {
       id: tarjeta.id, nombre: datos.nombre, institucion: tarjeta.institucion || datos.nombre, tipo: "credito", credito,
-      cajaPredeterminadaId: datos.cajaId,
+      cajaPredeterminadaId: soloCuentas ? tarjeta.id || null : datos.cajaId,
       ...(editando ? {} : { activa: true, orden: s.cuentas.length }),
     }, { onError });
+    if (soloCuentas) {
+      // La tarjeta es su propia caja (mismo id): ahí queda lo que debes.
+      if (!editando) cuentasRepo.guardar(uid(), { id, cajaPredeterminadaId: id }, { onError });
+      cajasRepo.guardar(uid(), { id, nombre: datos.nombre, tipo: "operativa", disponibleParaGasto: true, cuentaPredeterminadaId: id, color: "#B42318",
+        ...(cajaPorId(id) ? {} : { activa: true, orden: s.cajas.length }) }, { onError });
+    }
     if (datos.deudaCentavos > 0) {
-      movimientosRepo.crear(uid(), ajusteDeudaInicial({ tarjeta: { id, nombre: datos.nombre, credito }, cajaId: datos.cajaId,
+      movimientosRepo.crear(uid(), ajusteDeudaInicial({ tarjeta: { id, nombre: datos.nombre, credito }, cajaId: soloCuentas ? id : datos.cajaId,
         montoCentavos: datos.deudaCentavos, hoy: hoy() }), { onError, origen: "inicial" });
     }
     // Si parte de la tarjeta quedó en otras cajas (compras de antes), ofrece pasarla a la que la paga.
     // Se pregunta encima de esta hoja (abrir otra justo al cerrar esta descuadra el botón «atrás»).
-    const pasada = editando && await ofrecerPasar({ ...tarjeta, nombre: datos.nombre, cajaPredeterminadaId: datos.cajaId }, datos.cajaId);
+    const pasada = editando && !soloCuentas && await ofrecerPasar({ ...tarjeta, nombre: datos.nombre, cajaPredeterminadaId: datos.cajaId }, datos.cajaId);
     capa.cerrar();
     if (!pasada) toast(editando ? "✓ Tarjeta actualizada" : `✓ Tarjeta ${datos.nombre} agregada${datos.deudaCentavos ? ` · debes ${formatMonto(datos.deudaCentavos)}` : ""}`);
   });
@@ -198,8 +211,9 @@ export function abrirCompraMsi(plan = {}) {
             <div class="chips" role="radiogroup">${tarjetas.map((t) => html`<label class="chip"><input type="radio" name="tarjetaId" value="${t.id}" ${t.id === tarjetaId ? "checked" : ""} /><span>${t.nombre}</span></label>`)}</div>
             <span class="campo__error" data-error="tarjetaId"></span></div>` : ""}`}
 
-      <div class="campo"><span class="campo__label">¿De qué caja sale cada mes?</span>
-        ${chipsCajas("cajaId", plan.cajaId || cajaDeTarjeta(cuentaPorId(tarjetaId), cajasActivas()) || cajaInicial())}
+      ${modoCuentas() ? html`<div class="campo"><span class="campo__label">¿De qué cuenta sale cada mes?</span>
+        ${chipsBancos("cajaId", plan.cuentaId || plan.cajaId || cuentaPrincipal())}` : html`<div class="campo"><span class="campo__label">¿De qué caja sale cada mes?</span>
+        ${chipsCajas("cajaId", plan.cajaId || cajaDeTarjeta(cuentaPorId(tarjetaId), cajasActivas()) || cajaInicial())}`}
         <span class="campo__error" data-error="cajaId"></span></div>
 
       ${fijo ? "" : html`<details class="mas-detalles" ${editando ? "open" : ""}>
@@ -242,8 +256,8 @@ export function abrirCompraMsi(plan = {}) {
   };
   form.addEventListener("input", pintarResumen);
   form.addEventListener("change", (e) => {
-    // Otra tarjeta: la caja que la paga (si ya la tiene).
-    const caja = e.target.name === "tarjetaId" ? cajaDeTarjeta(cuentaPorId(e.target.value), cajasActivas()) : "";
+    // Otra tarjeta: la caja que la paga (si ya la tiene; en modo cuentas no se cambia).
+    const caja = e.target.name === "tarjetaId" && !modoCuentas() ? cajaDeTarjeta(cuentaPorId(e.target.value), cajasActivas()) : "";
     if (caja) form.querySelectorAll('input[name="cajaId"]').forEach((r) => { r.checked = r.value === caja; });
     pintarResumen();
   });
@@ -273,7 +287,8 @@ export function abrirCompraMsi(plan = {}) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const x = leer();
-    const cuentaPagoId = cuentaDeCaja(x.cajaId);
+    // Modo cuentas: se elige la cuenta directamente (es su propia caja).
+    const cuentaPagoId = modoCuentas() ? x.cajaId : cuentaDeCaja(x.cajaId);
     if (fijo) {
       // Con pagos: solo se cambia el nombre y la caja que la paga.
       if (!x.descripcion) { mostrarErrores(form, { descripcion: "Escribe qué compraste." }); return; }

@@ -13,7 +13,7 @@
 
 import { hoy, mesDe } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
-import { getState } from "../core/state.js";
+import { getState, modoCuentas } from "../core/state.js";
 import { validarMovimiento, construirMovimiento } from "../domain/movimientos.js";
 import { etiquetaMsi } from "../domain/tarjetas.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
@@ -33,6 +33,8 @@ const VINCULO = {
 /** Movimiento que marca `item` (fila de gasto/ingreso fijo o aportación a meta) como pagado/recibido/aportado en `mes`. */
 export function entradaDePago(item, mes, hoyF = hoy()) {
   const [campoId, campoPeriodo] = VINCULO[item.clase];
+  // Modo cuentas: cada cuenta es su propia caja, así que la cuenta es la misma caja.
+  const cuentaDe = (cajaId) => (modoCuentas() ? cajaId : cuentaDeCaja(cajaId));
   // Aportación a una meta: transferencia de la caja de origen a la caja de ahorro.
   if (item.clase === "meta") {
     return {
@@ -40,9 +42,9 @@ export function entradaDePago(item, mes, hoyF = hoy()) {
       montoCentavos: item.pendiente,
       fecha: mes === mesDe(hoyF) ? hoyF : item.periodo,
       cajaId: item.ref.cajaOrigenId,
-      cuentaId: cuentaDeCaja(item.ref.cajaOrigenId),
+      cuentaId: cuentaDe(item.ref.cajaOrigenId),
       cajaDestinoId: item.ref.cajaAhorroId,
-      cuentaDestinoId: cuentaDeCaja(item.ref.cajaAhorroId),
+      cuentaDestinoId: cuentaDe(item.ref.cajaAhorroId),
       nota: `Ahorro: ${item.nombre}`,
       [campoId]: item.ref.id,
       [campoPeriodo]: item.periodo,
@@ -57,7 +59,7 @@ export function entradaDePago(item, mes, hoyF = hoy()) {
     // En el mes actual el pago es de hoy; en otro mes, del día en que tocaba.
     fecha: mes === mesDe(hoyF) ? hoyF : item.periodo,
     cajaId: item.ref.cajaId,
-    cuentaId: msi ? cuentaDeCaja(item.ref.cajaId) : item.ref.cuentaId,
+    cuentaId: msi && !modoCuentas() ? cuentaDeCaja(item.ref.cajaId) : item.ref.cuentaId,
     categoriaId: item.categoriaId || (item.clase === "deuda" ? "ga-deudas" : ""),
     nota: msi ? `${item.nombre} (${etiquetaMsi(item.ref, item.periodo)})` : item.nombre,
     formaPago: item.ref.formaPago || "",

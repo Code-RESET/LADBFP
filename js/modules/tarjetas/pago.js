@@ -12,7 +12,7 @@ import { html } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy, formatFecha } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cuentaPorId, bancosActivos } from "../../core/state.js";
+import { getState, cuentaPorId, bancosActivos, modoCuentas } from "../../core/state.js";
 import { repartirPago, movimientosDePago, etiquetaMsi, cajaDeTarjeta } from "../../domain/tarjetas.js";
 import { resumenDeuda } from "../../domain/compromisos.js";
 import { validarMovimiento, construirMovimiento } from "../../domain/movimientos.js";
@@ -29,10 +29,13 @@ const uid = () => getState().user?.uid;
 const CLAVE_BANCO = (id) => `fr.tarjeta.banco.${id}`;
 const valorRadio = (form, nombre) => form.querySelector(`input[name="${nombre}"]:checked`)?.value || "";
 
-/** Banco sugerido: el de la caja que paga; si no, el último con que pagaste esta tarjeta; si no, el que tiene más dinero. */
+/**
+ * Banco sugerido: el de la caja que paga; si no, el último con que pagaste esta tarjeta; si no, el que tiene más dinero.
+ * Modo cuentas: no hay caja que paga (la tarjeta es su propia cuenta), así que empieza por el último.
+ */
 function bancoSugerido(tarjetaId, cajaId = "") {
   const bancos = bancosActivos();
-  const deCaja = cajaId ? cuentaDeCaja(cajaId) : "";
+  const deCaja = cajaId && !modoCuentas() ? cuentaDeCaja(cajaId) : "";
   if (bancos.some((b) => b.id === deCaja)) return deCaja;
   const ultimo = leerLocal(CLAVE_BANCO(tarjetaId), "");
   if (bancos.some((b) => b.id === ultimo)) return ultimo;
@@ -80,10 +83,11 @@ export function abrirPagoTarjeta(tarjeta, e) {
       ${opciones.length > 1 ? html`<div class="chips chips--centro">${opciones.map((o) => html`<button type="button" class="chip-boton" data-monto="${o.monto}">
         ${o.label} · ${formatMonto(o.monto)}</button>`)}</div>` : ""}
 
-      <div class="campo"><span class="campo__label">¿Desde qué banco pagas?</span>
+      <div class="campo"><span class="campo__label">${modoCuentas() ? "¿Desde qué cuenta pagas?" : "¿Desde qué banco pagas?"}</span>
         ${chipsBancos(bancoSugerido(tarjeta.id, cajaDeTarjeta(tarjeta, getState().cajas)))}
         <span class="campo__error" data-error="bancoId"></span></div>
-      <p class="campo__ayuda">No cuenta como gasto: tus compras ya se restaron de cada caja cuando las hiciste. Solo baja el dinero del banco y lo que debes${e.cuotas.length ? " (las mensualidades a meses sí cuentan como gasto de este mes)" : ""}.</p>
+      <p class="campo__ayuda">${modoCuentas() ? "No cuenta como gasto: tus compras ya se anotaron cuando las hiciste. Solo baja el dinero de tu cuenta y lo que debes"
+        : "No cuenta como gasto: tus compras ya se restaron de cada caja cuando las hiciste. Solo baja el dinero del banco y lo que debes"}${e.cuotas.length ? " (las mensualidades a meses sí cuentan como gasto de este mes)" : ""}.</p>
 
       <p class="campo__error" data-error="general"></p>
       <button type="submit" class="btn btn--primario btn--bloque">Registrar pago</button>
@@ -125,10 +129,10 @@ export function abrirLiquidarMsi(plan) {
     titulo: `Terminar de pagar «${plan.descripcion}»`,
     contenido: html`<form class="form registro" novalidate>
       <p class="pago-tarjeta__titulo">Falta: <strong>${formatMonto(r.saldoActual)}</strong> (${r.pagosRestantes} ${r.pagosRestantes === 1 ? "mensualidad" : "mensualidades"})</p>
-      <div class="campo"><span class="campo__label">¿Desde qué banco pagas?</span>
-        ${chipsBancos(bancoSugerido(plan.tarjetaId, plan.cajaId))}
+      <div class="campo"><span class="campo__label">${modoCuentas() ? "¿Desde qué cuenta pagas?" : "¿Desde qué banco pagas?"}</span>
+        ${chipsBancos(modoCuentas() && bancosActivos().some((b) => b.id === plan.cuentaId) ? plan.cuentaId : bancoSugerido(plan.tarjetaId, plan.cajaId))}
         <span class="campo__error" data-error="bancoId"></span></div>
-      <p class="campo__ayuda">Cuenta como gasto de hoy en la caja que la paga, y la compra queda liquidada.</p>
+      <p class="campo__ayuda">${modoCuentas() ? "Cuenta como gasto de hoy en esa cuenta, y la compra queda liquidada." : "Cuenta como gasto de hoy en la caja que la paga, y la compra queda liquidada."}</p>
       <p class="campo__error" data-error="general"></p>
       <button type="submit" class="btn btn--primario btn--bloque">Pagar ${formatMonto(r.saldoActual)}</button>
     </form>`,

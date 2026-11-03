@@ -11,7 +11,8 @@ const estadoInicial = () => ({
   cajasDesdeCache: true,  // true mientras el listado de cajas venga solo de la caché local
   cuentas: [],
   categorias: [],
-  agregados: {},        // { 'YYYY-MM': doc }
+  agregados: {},        // { 'YYYY-MM': doc } (en modo cuentas: vistos por cuenta, ver domain/saldos.js)
+  agregadosCrudos: {},  // tal como están en Firestore (verificación y «Simplificar mi app»)
   obligaciones: [],
   deudas: [],
   recurrentes: [],
@@ -70,5 +71,13 @@ export const cuentasActivas = () => estado.cuentas.filter((c) => c.activa !== fa
 /** Dónde hay dinero (débito, monedero, efectivo): sin las tarjetas de crédito. */
 export const bancosActivos = () => cuentasActivas().filter((c) => c.tipo !== "credito");
 export const tarjetasActivas = () => cuentasActivas().filter((c) => c.tipo === "credito");
+/** v2.0: la app usa solo cuentas (cada cuenta es su propia caja; ver domain/convertir.js). */
+export const modoCuentas = () => estado.perfil?.config?.modo === "cuentas";
+/** En modo cuentas: ¿la cuenta es para gastar? (su caja no está marcada «No es para gastar»). */
+export const cuentaParaGastar = (cuentaId) => (estado.cajas.find((c) => c.id === cuentaId)?.tipo || "operativa") === "operativa";
+/** En modo cuentas, las cajas que se eligen en metas y presupuestos: las de los bancos (no las de las tarjetas). */
+export const cajasElegibles = () => (modoCuentas()
+  ? cajasActivas().filter((c) => !estado.cuentas.some((k) => k.id === c.id && k.tipo === "credito"))
+  : cajasActivas());
 export const categoriasActivas = (tipo) =>
   estado.categorias.filter((c) => c.activa !== false && (!tipo || c.tipo === tipo));

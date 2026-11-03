@@ -7,10 +7,14 @@
 import { setState, marcarListo, resetState, getState } from "../core/state.js";
 import { cajasRepo, cuentasRepo, categoriasRepo } from "./catalogosRepo.js";
 import { perfilRepo, agregadosRepo } from "./perfilRepo.js";
+import { agregadosEnCuentas } from "../domain/saldos.js";
 import { asegurarCategorias } from "./seed.js";
 import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo, metasRepo } from "./planRepo.js";
 import { sincronizarDesdeNube } from "../core/theme.js";
 import { mensajeDeError } from "../core/errors.js";
+
+// Modo cuentas (v2.0.0): cada cuenta es su propia caja, así que los saldos por caja son los de cada cuenta.
+const vistaAgregados = (crudos, perfil) => (perfil?.config?.modo === "cuentas" ? agregadosEnCuentas(crudos) : crudos);
 
 let cancelaciones = [];
 let asegurado = false;
@@ -37,7 +41,10 @@ export function iniciarSync(user, { onError } = {}) {
       // Usuarios existentes: agregar categorías nuevas (solo si ya sembró y con datos del servidor).
       if (!meta.fromCache && categorias.length && !asegurado) { asegurado = true; asegurarCategorias(uid, categorias)?.catch(() => {}); }
     }, error),
-    agregadosRepo.escuchar(uid, (agregados, meta) => { setState({ agregados }); marcarListo("agregados"); marcarPendiente("agregados", meta); }, error),
+    agregadosRepo.escuchar(uid, (agregados, meta) => {
+      setState({ agregadosCrudos: agregados, agregados: vistaAgregados(agregados, getState().perfil) });
+      marcarListo("agregados"); marcarPendiente("agregados", meta);
+    }, error),
     obligacionesRepo.escuchar(uid, (obligaciones) => { setState({ obligaciones }); marcarListo("obligaciones"); }, error),
     deudasRepo.escuchar(uid, (deudas) => { setState({ deudas }); marcarListo("deudas"); }, error),
     recurrentesRepo.escuchar(uid, (recurrentes) => { setState({ recurrentes }); marcarListo("recurrentes"); }, error),
@@ -46,7 +53,9 @@ export function iniciarSync(user, { onError } = {}) {
     metasRepo.escuchar(uid, (metas) => { setState({ metas, metasError: null }); marcarListo("metas"); },
       (err) => { setState({ metas: [], metasError: mensajeDeError(err) }); marcarListo("metas"); }),
     perfilRepo.escuchar(uid, (perfil) => {
-      setState({ perfil });
+      // Si cambió el modo (simplificar o deshacer), los saldos por caja se ven de otra forma.
+      const cambioModo = (getState().perfil?.config?.modo || "") !== (perfil?.config?.modo || "");
+      setState({ perfil, ...(cambioModo ? { agregados: vistaAgregados(getState().agregadosCrudos, perfil) } : {}) });
       marcarListo("perfil");
       sincronizarDesdeNube(perfil?.config?.tema);
     }, error),

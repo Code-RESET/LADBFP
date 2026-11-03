@@ -9,7 +9,7 @@
 import { html, render as renderHtml } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cajaPorId, cajasActivas, cuentasActivas, categoriasActivas } from "../../core/state.js";
+import { getState, cajaPorId, cajasActivas, cuentasActivas, categoriasActivas, modoCuentas, cajasElegibles } from "../../core/state.js";
 import { validarObligacion, validarDeuda, validarRecurrente, pagadoDeuda } from "../../domain/compromisos.js";
 import { validarPresupuesto, evaluarPresupuesto, PERIODOS_PRESUPUESTO } from "../../domain/presupuesto.js";
 import { obligacionesRepo, deudasRepo, recurrentesRepo, presupuestosRepo } from "../../data/planRepo.js";
@@ -19,6 +19,7 @@ import { toast, toastError } from "../../components/toast.js";
 import { campo, opciones, mostrarErrores, segmentado } from "../../components/fields.js";
 import { camposRegla, leerRegla, activarRegla } from "../../components/reglaFields.js";
 import { FORMAS_PAGO } from "../../domain/mes.js";
+import { cuentaPrincipal } from "../../components/registroSimple.js";
 
 const uid = () => getState().user.uid;
 const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar."));
@@ -26,8 +27,15 @@ const montoTxt = (c) => (c ? centavosATexto(c) : "");
 const inputMonto = (nombre, valor, placeholder = "0.00") =>
   html`<input name="${nombre}" inputmode="decimal" autocomplete="off" value="${montoTxt(valor)}" placeholder="${placeholder}" />`;
 
-/** Caja + cuenta (la cuenta se sugiere al elegir caja). */
+/**
+ * Caja + cuenta (la cuenta se sugiere al elegir caja).
+ * Modo cuentas: solo la cuenta; la caja es la misma cuenta (campo oculto que la sigue).
+ */
 function camposCajaCuenta(item) {
+  if (modoCuentas()) {
+    return html`<input type="hidden" name="cajaId" value="${item.cuentaId || ""}" />
+      ${campo({ label: "Cuenta", nombre: "cuentaId", control: html`<select name="cuentaId">${opciones(cuentasActivas(), item.cuentaId, { vacio: "Elige…" })}</select>` })}`;
+  }
   return html`<div class="fila-2">
     ${campo({ label: "Caja", nombre: "cajaId", control: html`<select name="cajaId">${opciones(cajasActivas(), item.cajaId, { vacio: "Elige…" })}</select>` })}
     ${campo({ label: "Cuenta", nombre: "cuentaId", control: html`<select name="cuentaId">${opciones(cuentasActivas(), item.cuentaId, { vacio: "Elige…" })}</select>` })}
@@ -36,6 +44,12 @@ function camposCajaCuenta(item) {
 
 function sugerirCuenta(form) {
   form.addEventListener("change", (e) => {
+    // Modo cuentas: la caja (oculta) es siempre la cuenta elegida.
+    const espejo = { cuentaId: "cajaId", cuentaDestinoId: "cajaDestinoId" };
+    if (espejo[e.target.name] && form.elements[espejo[e.target.name]]?.type === "hidden") {
+      form.elements[espejo[e.target.name]].value = e.target.value;
+      return;
+    }
     const pares = { cajaId: "cuentaId", cajaDestinoId: "cuentaDestinoId" };
     if (!pares[e.target.name]) return;
     const caja = cajaPorId(e.target.value);
@@ -81,6 +95,10 @@ function accionesSecundarias(form, capa, item, repo, { nombre, puedeEliminar = (
 
 function cajaPorDefecto() {
   const ultimo = (() => { try { return JSON.parse(localStorage.getItem("fr.ultimo.gasto")) || {}; } catch { return {}; } })();
+  if (modoCuentas()) {
+    const id = cuentasActivas().some((c) => c.id === ultimo.cuentaId) ? ultimo.cuentaId : cuentaPrincipal();
+    return { cajaId: id, cuentaId: id };
+  }
   const caja = cajasActivas().find((c) => c.id === ultimo.cajaId) || cajasActivas().find((c) => c.tipo === "operativa") || cajasActivas()[0];
   return { cajaId: caja?.id || "", cuentaId: caja?.cuentaPredeterminadaId || ultimo.cuentaId || "" };
 }
@@ -104,7 +122,7 @@ export function abrirObligacion(item = {}) {
       </div>
       ${campo({ label: "Notas", nombre: "nota", control: html`<input name="nota" maxlength="200" value="${o.nota || ""}" placeholder="Opcional" />` })}
       <details class="mas-detalles" ${editando && (o.variable || regla.frecuencia !== "mensual") ? "open" : ""}>
-        <summary>Más opciones <span class="texto-sec">(monto variable, otra frecuencia, caja)</span></summary>
+        <summary>Más opciones <span class="texto-sec">(monto variable, otra frecuencia, ${modoCuentas() ? "cuenta" : "caja"})</span></summary>
         <div class="form">
           <label class="interruptor"><input type="checkbox" name="variable" ${o.variable ? "checked" : ""} /> <span>El monto varía (mínimo / máximo)</span></label>
           <div class="fila-2 solo-variable">
@@ -213,7 +231,8 @@ export function abrirRecurrente(item = {}) {
     titulo: editando ? r.nombre : "Nuevo ingreso o transferencia",
     contenido: html`<form class="form" novalidate data-tipo="${r.tipo}">
       ${segmentado("tipo", [{ valor: "ingreso", label: "Ingreso esperado" }, { valor: "transferencia", label: "Transferencia programada" }], r.tipo)}
-      <p class="campo__ayuda solo-transfer">Mover dinero entre cajas en fechas fijas (p. ej. el sueldo de HD Crédit a Nu). No es ingreso nuevo.</p>
+      <p class="campo__ayuda solo-transfer">${modoCuentas() ? "Mover dinero entre tus cuentas en fechas fijas (p. ej. tu sueldo de HD Crédit a tu cuenta personal). No es ingreso nuevo."
+        : "Mover dinero entre cajas en fechas fijas (p. ej. el sueldo de HD Crédit a Nu). No es ingreso nuevo."}</p>
       ${campo({ label: "Nombre", nombre: "nombre", control: html`<input name="nombre" maxlength="60" value="${r.nombre || ""}" />` })}
       ${campo({ label: "Monto", nombre: "montoCentavos", control: inputMonto("monto", r.montoCentavos) })}
       ${camposRegla(r.regla)}
@@ -253,6 +272,10 @@ export function abrirRecurrente(item = {}) {
 }
 
 function camposDestino(r) {
+  if (modoCuentas()) {
+    return html`<input type="hidden" name="cajaDestinoId" value="${r.cuentaDestinoId || ""}" />
+      ${campo({ label: "Cuenta", nombre: "cuentaDestinoId", control: html`<select name="cuentaDestinoId">${opciones(cuentasActivas(), r.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}`;
+  }
   return html`<div class="fila-2">
     ${campo({ label: "Caja destino", nombre: "cajaDestinoId", control: html`<select name="cajaDestinoId">${opciones(cajasActivas(), r.cajaDestinoId, { vacio: "Elige…" })}</select>` })}
     ${campo({ label: "Cuenta destino", nombre: "cuentaDestinoId", control: html`<select name="cuentaDestinoId">${opciones(cuentasActivas(), r.cuentaDestinoId, { vacio: "Elige…" })}</select>` })}
@@ -271,7 +294,8 @@ function filaLinea(l = {}) {
 
 function filaCobertura(c = {}) {
   return html`<div class="fila-linea" data-cobertura>
-    <select name="coberturaCaja" aria-label="Desde la caja">${opciones(cajasActivas(), c.desdeCajaId, { vacio: "Desde caja…" })}</select>
+    ${modoCuentas() ? html`<select name="coberturaCaja" aria-label="Desde la cuenta">${opciones(cajasElegibles(), c.desdeCajaId, { vacio: "Desde cuenta…" })}</select>`
+      : html`<select name="coberturaCaja" aria-label="Desde la caja">${opciones(cajasActivas(), c.desdeCajaId, { vacio: "Desde caja…" })}</select>`}
     <input name="coberturaMonto" inputmode="decimal" placeholder="0.00" aria-label="Monto" value="${montoTxt(c.montoCentavos)}" />
     <button type="button" class="btn-icono" data-quitar aria-label="Quitar">−</button>
   </div>`;
@@ -286,9 +310,9 @@ export function abrirPresupuesto(item = {}) {
       ${campo({ label: "Nombre", nombre: "nombre", control: html`<input name="nombre" maxlength="60" value="${p.nombre || ""}" />` })}
       <div class="fila-2">
         ${campo({ label: "Periodo", nombre: "periodo", control: html`<select name="periodo">${Object.entries(PERIODOS_PRESUPUESTO).map(([k, v]) => html`<option value="${k}" ${k === p.periodo ? "selected" : ""}>${v}</option>`)}</select>` })}
-        ${campo({ label: "Caja", nombre: "cajaId", control: html`<select name="cajaId">${opciones(cajasActivas(), p.cajaId, { vacio: "Elige…" })}</select>` })}
+        ${campo({ label: modoCuentas() ? "Cuenta" : "Caja", nombre: "cajaId", control: html`<select name="cajaId">${opciones(modoCuentas() ? cajasElegibles() : cajasActivas(), p.cajaId, { vacio: "Elige…" })}</select>` })}
       </div>
-      ${campo({ label: "Ingreso del periodo", nombre: "ingresoCentavos", control: inputMonto("ingreso", p.ingresoCentavos), ayuda: "Lo que recibe esta caja en cada periodo." })}
+      ${campo({ label: "Ingreso del periodo", nombre: "ingresoCentavos", control: inputMonto("ingreso", p.ingresoCentavos), ayuda: modoCuentas() ? "Lo que recibe esta cuenta en cada periodo." : "Lo que recibe esta caja en cada periodo." })}
       <div class="grupo">
         <p class="grupo__titulo">Gastos presupuestados</p>
         <div data-lineas>${p.lineas.map(filaLinea)}</div>
@@ -297,7 +321,7 @@ export function abrirPresupuesto(item = {}) {
       </div>
       <div class="grupo">
         <p class="grupo__titulo">Cobertura del déficit (opcional)</p>
-        <p class="campo__ayuda">Si falta dinero, indica de qué caja saldrá. Registra también esa transferencia en Ingresos → Transferencia programada.</p>
+        <p class="campo__ayuda">Si falta dinero, indica de qué ${modoCuentas() ? "cuenta" : "caja"} saldrá. Registra también esa transferencia en Ingresos → Transferencia programada.</p>
         <div data-coberturas>${p.coberturas.map(filaCobertura)}</div>
         <button type="button" class="btn-texto" data-agregar="cobertura">+ Agregar cobertura</button>
         <span class="campo__error" data-error="coberturas"></span>

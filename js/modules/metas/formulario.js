@@ -12,13 +12,13 @@ import { html } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy, mesDe } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, cajasActivas, bancosActivos } from "../../core/state.js";
+import { getState, cajaPorId, cuentaPorId, cajasActivas, bancosActivos, modoCuentas, cajasElegibles } from "../../core/state.js";
 import { validarMeta, aportacionesDelMes } from "../../domain/metas.js";
-import { validarCaja, COLORES } from "../../domain/catalogos.js";
+import { validarCaja, validarCuenta, COLORES } from "../../domain/catalogos.js";
 import { DIAS_SEMANA } from "../../domain/periodos.js";
 import { validarMovimiento } from "../../domain/movimientos.js";
 import { metasRepo } from "../../data/planRepo.js";
-import { cajasRepo } from "../../data/catalogosRepo.js";
+import { cajasRepo, cuentasRepo } from "../../data/catalogosRepo.js";
 import { movimientosRepo } from "../../data/movimientosRepo.js";
 import { abrirCapa } from "../../components/modal.js";
 import { confirmar } from "../../components/confirmation.js";
@@ -30,12 +30,13 @@ const onError = (err) => toastError(mensajeDeError(err, "No se pudo guardar la m
 const uid = () => getState().user?.uid;
 const NUEVA = "__nueva";
 
+// Modo cuentas: solo tus cuentas (sin tarjetas) y sin «· banco» (la cuenta es el banco).
 const chipsCajas = (nombre, seleccion, { excluir = null, nueva = false } = {}) => html`<div class="chips" role="radiogroup">
-  ${cajasActivas().filter((c) => c.id !== excluir).map((c) => html`<label class="chip">
+  ${(modoCuentas() ? cajasElegibles() : cajasActivas()).filter((c) => c.id !== excluir).map((c) => html`<label class="chip">
     <input type="radio" name="${nombre}" value="${c.id}" ${c.id === seleccion ? "checked" : ""} />
-    <span><i class="punto" style="background:${c.color || "var(--accent)"}"></i>${c.nombre}${cuentaPorId(cuentaDeCaja(c.id))
+    <span><i class="punto" style="background:${c.color || "var(--accent)"}"></i>${c.nombre}${!modoCuentas() && cuentaPorId(cuentaDeCaja(c.id))
       ? html`<small class="chip__banco"> · ${cuentaPorId(cuentaDeCaja(c.id)).nombre}</small>` : ""}</span></label>`)}
-  ${nueva ? html`<label class="chip"><input type="radio" name="${nombre}" value="${NUEVA}" ${seleccion === NUEVA ? "checked" : ""} /><span>＋ Caja nueva</span></label>` : ""}
+  ${nueva ? html`<label class="chip"><input type="radio" name="${nombre}" value="${NUEVA}" ${seleccion === NUEVA ? "checked" : ""} /><span>${modoCuentas() ? "＋ Cuenta nueva" : "＋ Caja nueva"}</span></label>` : ""}
 </div>`;
 
 const valorRadio = (form, nombre) => form.querySelector(`input[name="${nombre}"]:checked`)?.value || "";
@@ -51,7 +52,9 @@ export function abrirMeta(meta = {}) {
   const r = meta.regla || {};
   const cada = r.frecuencia || "mensual";
   const hoyF = hoy();
-  const origen = meta.cajaOrigenId || (cajasActivas().find((c) => c.tipo === "operativa") || cajasActivas()[0])?.id || "";
+  const soloCuentas = modoCuentas();
+  const elegibles = soloCuentas ? cajasElegibles() : cajasActivas();
+  const origen = meta.cajaOrigenId || (elegibles.find((c) => c.tipo === "operativa") || elegibles[0])?.id || "";
   const ahorro = meta.cajaAhorroId || NUEVA;
   const capa = abrirCapa({
     titulo: editando ? meta.nombre : "Nueva meta de ahorro",
@@ -83,19 +86,19 @@ export function abrirMeta(meta = {}) {
       </div>
       <span class="campo__error" data-error="diaMes"></span>
 
-      <div class="campo"><span class="campo__label">¿De qué caja sale?</span>
+      <div class="campo"><span class="campo__label">¿De qué ${soloCuentas ? "cuenta" : "caja"} sale?</span>
         ${chipsCajas("cajaOrigenId", origen)}
         <span class="campo__error" data-error="cajaOrigenId"></span></div>
 
       <div class="campo"><span class="campo__label">¿Dónde se guarda el ahorro?</span>
         ${chipsCajas("cajaAhorroId", ahorro, { nueva: true })}
         <div class="solo-ahorro-nueva grupo">
-          <input name="nombreCaja" maxlength="40" placeholder="Nombre de la caja (ej. Ahorro remodelación)" value="${meta.nombre ? `Ahorro ${meta.nombre}`.slice(0, 40) : ""}" aria-label="Nombre de la caja nueva" />
-          <span class="campo__label">¿En qué banco estará?</span>
+          <input name="nombreCaja" maxlength="40" placeholder="${soloCuentas ? "Nombre de la cuenta (ej. Apartado Mercado Pago)" : "Nombre de la caja (ej. Ahorro remodelación)"}" value="${meta.nombre ? `Ahorro ${meta.nombre}`.slice(0, 40) : ""}" aria-label="${soloCuentas ? "Nombre de la cuenta nueva" : "Nombre de la caja nueva"}" />
+          ${soloCuentas ? html`<p class="campo__ayuda">Una cuenta donde de verdad guardas ese dinero: un apartado o cajita de tu banco, una cuenta de ahorro…</p>` : html`<span class="campo__label">¿En qué banco estará?</span>
           <div class="chips" role="radiogroup">${bancosActivos().map((c, i) => html`<label class="chip">
-            <input type="radio" name="bancoCaja" value="${c.id}" ${i === 0 ? "checked" : ""} /><span>${c.nombre}</span></label>`)}</div>
+            <input type="radio" name="bancoCaja" value="${c.id}" ${i === 0 ? "checked" : ""} /><span>${c.nombre}</span></label>`)}</div>`}
         </div>
-        <p class="campo__ayuda">Lo que tenga esa caja cuenta como lo que llevas juntado.</p>
+        <p class="campo__ayuda">Lo que tenga esa ${soloCuentas ? "cuenta" : "caja"} cuenta como lo que llevas juntado.</p>
         <span class="campo__error" data-error="cajaAhorroId"></span></div>
 
       <p class="campo__error" data-error="general"></p>
@@ -127,7 +130,7 @@ export function abrirMeta(meta = {}) {
       toast(meta.activa === false ? `✓ ${meta.nombre} reanudada` : `✓ ${meta.nombre} en pausa`);
     } else if (accion === "eliminar") {
       const ok = await confirmar({ titulo: `¿Eliminar la meta «${meta.nombre}»?`,
-        mensaje: `El dinero se queda en la caja «${cajaPorId(meta.cajaAhorroId)?.nombre || ""}» y los movimientos en tu historial.`,
+        mensaje: `El dinero se queda en ${modoCuentas() ? "la cuenta" : "la caja"} «${cajaPorId(meta.cajaAhorroId)?.nombre || ""}» y los movimientos en tu historial.`,
         botonConfirmar: "Eliminar meta", peligro: true });
       if (!ok) return;
       metasRepo.eliminar(uid(), meta.id, { onError });
@@ -161,13 +164,28 @@ export function abrirMeta(meta = {}) {
     if (ahorroSel === NUEVA) {
       delete errores.cajaAhorroId;
       cajaNueva = { nombre: form.nombreCaja.value.trim(), tipo: "ahorro" };
-      const v = validarCaja(cajaNueva, s.cajas);
-      if (!v.ok) errores.cajaAhorroId = v.errores.nombre || "Escribe el nombre de la caja nueva.";
-      if (!valorRadio(form, "bancoCaja")) errores.cajaAhorroId = "Elige en qué banco estará la caja nueva.";
+      if (soloCuentas) {
+        // Modo cuentas: es una cuenta nueva (con su caja del mismo id), no una caja dentro de un banco.
+        const v = validarCuenta({ nombre: cajaNueva.nombre, tipo: "debito" }, s.cuentas);
+        const otraCaja = validarCaja(cajaNueva, s.cajas);
+        if (!v.ok || !otraCaja.ok) errores.cajaAhorroId = v.errores.nombre || otraCaja.errores.nombre || "Escribe el nombre de la cuenta nueva.";
+      } else {
+        const v = validarCaja(cajaNueva, s.cajas);
+        if (!v.ok) errores.cajaAhorroId = v.errores.nombre || "Escribe el nombre de la caja nueva.";
+        if (!valorRadio(form, "bancoCaja")) errores.cajaAhorroId = "Elige en qué banco estará la caja nueva.";
+      }
     }
     if (Object.keys(errores).length) { mostrarErrores(form, errores); return; }
 
-    if (cajaNueva) {
+    if (cajaNueva && soloCuentas) {
+      const id = cuentasRepo.guardar(uid(), { nombre: cajaNueva.nombre, institucion: cajaNueva.nombre, tipo: "debito", activa: true, orden: s.cuentas.length }, { onError });
+      cuentasRepo.guardar(uid(), { id, cajaPredeterminadaId: id }, { onError });
+      cajasRepo.guardar(uid(), {
+        id, nombre: cajaNueva.nombre, tipo: "ahorro", color: colorLibre(), cuentaPredeterminadaId: id, disponibleParaGasto: false,
+        activa: true, orden: s.cajas.length, descripcion: `Ahorro para «${datos.nombre}»`,
+      }, { onError });
+      datos.cajaAhorroId = id;
+    } else if (cajaNueva) {
       datos.cajaAhorroId = cajasRepo.guardar(uid(), {
         ...cajaNueva, color: colorLibre(), cuentaPredeterminadaId: valorRadio(form, "bancoCaja"),
         disponibleParaGasto: false, activa: true, orden: s.cajas.length, descripcion: `Ahorro para «${datos.nombre}»`,
@@ -175,7 +193,7 @@ export function abrirMeta(meta = {}) {
     }
     metasRepo.guardar(uid(), datos, { anterior: editando ? meta : null, onError });
     capa.cerrar();
-    toast(editando ? "✓ Meta actualizada" : `✓ Meta «${datos.nombre}» creada${cajaNueva ? ` con la caja «${cajaNueva.nombre}»` : ""}`);
+    toast(editando ? "✓ Meta actualizada" : `✓ Meta «${datos.nombre}» creada${cajaNueva ? ` con ${soloCuentas ? "la cuenta" : "la caja"} «${cajaNueva.nombre}»` : ""}`);
   });
   if (!editando) form.nombre.focus();
   return capa;
@@ -192,7 +210,8 @@ export function abrirAportar(meta, { retiro = false } = {}) {
   const pendiente = aportacionesDelMes({ mes: mesDe(hoyF), metas: [meta], agregados: s.agregados, hoy: hoyF }).find((a) => a.pendiente > 0);
   const de = retiro ? meta.cajaAhorroId : meta.cajaOrigenId;
   const a = retiro ? meta.cajaOrigenId : meta.cajaAhorroId;
-  const nombreCon = (id) => `${cajaPorId(id)?.nombre || "—"}${cuentaPorId(cuentaDeCaja(id)) ? ` · ${cuentaPorId(cuentaDeCaja(id)).nombre}` : ""}`;
+  // Modo cuentas: la caja es la cuenta, así que basta su nombre.
+  const nombreCon = (id) => `${cajaPorId(id)?.nombre || "—"}${!modoCuentas() && cuentaPorId(cuentaDeCaja(id)) ? ` · ${cuentaPorId(cuentaDeCaja(id)).nombre}` : ""}`;
   const capa = abrirCapa({
     titulo: retiro ? `Sacar dinero de «${meta.nombre}»` : `Aportar a «${meta.nombre}»`,
     contenido: html`<form class="form registro" novalidate>
@@ -213,7 +232,8 @@ export function abrirAportar(meta, { retiro = false } = {}) {
     if (!(montoCentavos > 0)) { mostrarErrores(form, { montoCentavos: "Escribe cuánto." }); return; }
     const entrada = {
       tipo: "transferencia", montoCentavos, fecha: hoyF,
-      cajaId: de, cuentaId: cuentaDeCaja(de), cajaDestinoId: a, cuentaDestinoId: cuentaDeCaja(a),
+      // Modo cuentas: la caja ES la cuenta.
+      cajaId: de, cuentaId: modoCuentas() ? de : cuentaDeCaja(de), cajaDestinoId: a, cuentaDestinoId: modoCuentas() ? a : cuentaDeCaja(a),
       nota: `${retiro ? "Retiro" : "Ahorro"}: ${meta.nombre}`, metaId: meta.id,
       ...(!retiro && pendiente ? { metaPeriodo: pendiente.periodo } : {}),
     };

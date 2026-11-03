@@ -12,7 +12,7 @@ import { html, render as renderHtml, on } from "../../core/dom.js";
 import { formatMonto, parseMonto } from "../../core/money.js";
 import { hoy } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, subscribe, catalogosListos, cajaPorId, cuentaPorId, bancosActivos } from "../../core/state.js";
+import { getState, subscribe, catalogosListos, cajaPorId, cuentaPorId, bancosActivos, modoCuentas } from "../../core/state.js";
 import { saldosPor, desgloseCaja, tieneMovimientos } from "../../domain/saldos.js";
 import { validarCaja, validarCuenta, COLORES } from "../../domain/catalogos.js";
 import { validarMovimiento } from "../../domain/movimientos.js";
@@ -211,6 +211,14 @@ export function render(container, ctx) {
   function pintar() {
     const s = getState();
     if (!catalogosListos()) { renderHtml(container, skeletonLista(5)); return; }
+    // Modo cuentas (v2.0.0): ya no hay cajas; si alguien llega aquí (un enlace viejo), lo mandamos a sus cuentas.
+    if (modoCuentas()) {
+      renderHtml(container, html`<div class="card hoja-vacia">
+        <strong>Tu app ya usa solo cuentas</strong>
+        <span>Cada cuenta dice lo mismo que tu banco y lo que debes está en cada tarjeta. Tus cajas viejas quedaron guardadas en $0.</span>
+        <a class="btn btn--primario" href="#/cuentas">Ir a Mis cuentas</a></div>`);
+      return;
+    }
     const saldos = saldosPor(s.agregados, "porCaja");
     const activas = s.cajas.filter((c) => c.activa !== false);
     const inactivas = s.cajas.filter((c) => c.activa === false);

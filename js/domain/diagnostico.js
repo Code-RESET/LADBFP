@@ -25,13 +25,16 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   const tarjetas = new Set(cuentas.filter((c) => c.tipo === "credito").map((c) => c.id));
   const saldoCaja = saldosPor(agregados, "porCaja");
   const saldoCuenta = saldosPor(agregados, "porCuenta");
+  // Modo cuentas (v2.0.0): cada cuenta es su propia caja; lo de cajas no aplica (se revisa por cuenta).
+  const soloCuentas = perfil?.config?.modo === "cuentas";
+  const palabra = soloCuentas ? "cuenta" : "caja";
 
-  if (!cajasActivas.length) out.push({ nivel: "error", titulo: "No tienes cajas activas", detalle: "Crea al menos una caja para registrar dinero.", ruta: "cajas" });
+  if (!cajasActivas.length && !soloCuentas) out.push({ nivel: "error", titulo: "No tienes cajas activas", detalle: "Crea al menos una caja para registrar dinero.", ruta: "cajas" });
   if (!cuentasActivas.length) out.push({ nivel: "error", titulo: "No tienes bancos/cuentas activos", detalle: "Crea al menos una (por ejemplo «Efectivo»).", ruta: "cuentas" });
 
   // Cajas desactivadas que no quedaron en $0: su dinero (o deuda) sigue contando y las cajas no cuadran con los bancos.
   // Casi siempre es una caja repetida (p. ej. una vieja y otra nueva para lo mismo).
-  for (const c of cajas.filter((x) => x.activa === false)) {
+  for (const c of cajas.filter((x) => x.activa === false && !soloCuentas)) {
     const partes = desgloseCaja(agregados, c.id);
     if (!partes.length) continue;
     const nombre = (id) => cuentas.find((x) => x.id === id)?.nombre || "un banco borrado";
@@ -40,7 +43,7 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   }
 
   // Saldos negativos: casi siempre falta el saldo inicial o hay un gasto de más (o se gastó con tarjeta más de lo que hay).
-  for (const c of cajas.filter((x) => x.activa !== false)) {
+  for (const c of cajas.filter((x) => x.activa !== false && !soloCuentas)) {
     if ((saldoCaja[c.id] || 0) < 0) {
       const enTarjetas = desgloseCaja(agregados, c.id).filter((d) => tarjetas.has(d.cuentaId) && d.saldo < 0).reduce((a, d) => a - d.saldo, 0);
       out.push({ nivel: "error", titulo: `${c.nombre} tiene saldo negativo`, ruta: "cajas",
@@ -51,8 +54,10 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   }
   for (const c of cuentas) {
     if (c.tipo !== "credito" && (saldoCuenta[c.id] || 0) < 0) {
-      out.push({ nivel: "aviso", titulo: `El banco ${c.nombre} quedó en negativo`, ruta: "cuentas",
-        detalle: "Un banco de débito o efectivo no puede tener menos de $0. Puede que algún movimiento se registró en el banco equivocado." });
+      out.push({ nivel: soloCuentas ? "error" : "aviso", titulo: soloCuentas ? `${c.nombre} quedó en negativo` : `El banco ${c.nombre} quedó en negativo`, ruta: soloCuentas ? "cuadrar" : "cuentas",
+        detalle: soloCuentas
+          ? "Una cuenta de débito o efectivo no puede tener menos de $0. Puede que algún movimiento se anotó en la cuenta equivocada, o falta lo que ya tenía: en Cuadrar con mis bancos escribe lo que dice tu banco hoy."
+          : "Un banco de débito o efectivo no puede tener menos de $0. Puede que algún movimiento se registró en el banco equivocado." });
     }
   }
 
@@ -63,22 +68,24 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
     ...recurrentes.filter((r) => r.activa !== false).map((r) => ({ ...r })),
   ];
   for (const f of fijos) {
-    const malCaja = !activo(cajas, f.cajaId) || (f.cajaDestinoId && !activo(cajas, f.cajaDestinoId));
+    // Modo cuentas: la caja es la misma cuenta, así que basta revisar la cuenta.
+    const malCaja = !soloCuentas && (!activo(cajas, f.cajaId) || (f.cajaDestinoId && !activo(cajas, f.cajaDestinoId)));
     const malCuenta = !activo(cuentas, f.cuentaId) || (f.cuentaDestinoId && !activo(cuentas, f.cuentaDestinoId));
     const malCategoria = f.categoriaId && !activo(categorias, f.categoriaId);
     if (malCaja || malCuenta || malCategoria) {
-      const que = [malCaja && "su caja", malCuenta && "su banco", malCategoria && "su categoría"].filter(Boolean).join(" y ");
+      const que = [malCaja && "su caja", malCuenta && (soloCuentas ? "su cuenta" : "su banco"), malCategoria && "su categoría"].filter(Boolean).join(" y ");
       out.push({ nivel: "error", titulo: `«${f.nombre}» usa ${que} desactivada o borrada`, ruta: "dashboard",
-        detalle: "Tócalo en Mi mes y elige otra caja, o vuelve a activar la que tenía." });
+        detalle: `Tócalo en Mi mes y elige otra ${palabra}, o vuelve a activar la que tenía.` });
     }
   }
 
   // Metas (Fase 3) que apuntan a una caja desactivada: no se puede aportar.
   for (const m of metas.filter((x) => x.activa !== false)) {
-    const mal = [!activo(cajas, m.cajaOrigenId) && "su caja de origen", !activo(cajas, m.cajaAhorroId) && "su caja de ahorro"].filter(Boolean);
+    const mal = [!activo(cajas, m.cajaOrigenId) && `su ${palabra} de origen`, !activo(cajas, m.cajaAhorroId) && `su ${palabra} de ahorro`].filter(Boolean);
     if (mal.length) {
       out.push({ nivel: "error", titulo: `La meta «${m.nombre}» usa ${mal.join(" y ")} desactivada o borrada`, ruta: "metas",
-        detalle: "Ábrela en Metas de ahorro y elige otra caja, o vuelve a activar la que tenía." });
+        detalle: soloCuentas ? "Ábrela en Metas de ahorro y elige de qué cuenta sale y en cuál guardas el ahorro."
+          : "Ábrela en Metas de ahorro y elige otra caja, o vuelve a activar la que tenía." });
     }
   }
 
@@ -97,7 +104,7 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   }
 
   // Cajas sin banco asignado: se usaría el primer banco de la lista, que puede no ser el correcto.
-  for (const c of cajasActivas) {
+  for (const c of soloCuentas ? [] : cajasActivas) {
     if (!activo(cuentas, c.cuentaPredeterminadaId)) {
       out.push({ nivel: "aviso", titulo: `${c.nombre} no tiene banco asignado`, ruta: "cajas",
         detalle: cuentasActivas[0] ? `Lo que registres ahí se anotará en ${cuentasActivas[0].nombre}. Ábrela en Cajas y elige su banco.` : "Ábrela en Cajas y elige su banco." });
@@ -108,8 +115,11 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   const hayApertura = Object.values(agregados).some((m) => Object.values(m?.porCaja || {}).some((t) => t?.ape));
   const hayMovimientos = Object.values(agregados).some((m) => m?.n);
   if (cajasActivas.length && !hayApertura) {
-    out.push({ nivel: "aviso", titulo: "No has capturado el dinero que ya tenías", ruta: "cajas",
-      detalle: "Tus cajas empiezan en $0. En Cajas → cada caja → «Agregar dinero que ya tenía», escribe lo que hay hoy en el banco." });
+    out.push(soloCuentas
+      ? { nivel: "aviso", titulo: "No has capturado el dinero que ya tenías", ruta: "cuadrar",
+        detalle: "Tus cuentas empiezan en $0. En Cuadrar con mis bancos escribe lo que tiene hoy cada cuenta." }
+      : { nivel: "aviso", titulo: "No has capturado el dinero que ya tenías", ruta: "cajas",
+        detalle: "Tus cajas empiezan en $0. En Cajas → cada caja → «Agregar dinero que ya tenía», escribe lo que hay hoy en el banco." });
   }
 
   // Vencidos sin marcar este mes.
@@ -123,7 +133,7 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   }
 
   // Cajas que nunca se usan: desactivarlas simplifica las listas.
-  if (hayMovimientos) {
+  if (hayMovimientos && !soloCuentas) {
     const usadas = new Set([...fijos.flatMap((f) => [f.cajaId, f.cajaDestinoId]), ...metas.flatMap((m) => [m.cajaOrigenId, m.cajaAhorroId])]);
     const sinUsar = cajasActivas.filter((c) => !usadas.has(c.id) && !Object.values(agregados).some((m) => m?.porCaja?.[c.id]?.n));
     if (sinUsar.length) {

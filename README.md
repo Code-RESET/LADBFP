@@ -16,6 +16,22 @@ Desarrollado por: **Ing. Luis Ángel Díaz Bernal** · Compañía: **CODE-RESET*
 | 3 | **Hecho:** Excel del mes, Revisar mis datos, Metas de ahorro, Respaldo y restauración. **Falta:** reportes con filtros, CSV, PDF, escenarios | 🟡 En curso |
 | Futura | **Hecho:** Tarjetas de crédito con meses sin intereses, aviso «Por pagar» y avisos en el calendario. **Falta:** compartir con otra persona | 🟡 En curso |
 
+## Solo cuentas: «Simplificar mi app» (v2.0)
+
+Para quien las cajas confunden: la app usa **solo cuentas**. Cada cuenta (banco, efectivo, monedero o inversión) dice lo mismo que tu banco y lo que debes se queda en cada tarjeta.
+
+| Antes (cajas) | Ahora (solo cuentas) |
+|---|---|
+| Cada peso tenía caja **y** banco; una caja podía estar en varios bancos y quedar en negativo | Cada peso está en **una cuenta**, igual que en tu banco |
+| Comprar con tarjeta restaba de la caja que la paga | Comprar con tarjeta **solo sube lo que debes** en esa tarjeta; ninguna cuenta baja hasta que la pagas |
+| Anotar: qué, cuánto, caja y con qué pagaste | Anotar: **qué, cuánto y con qué pagaste** |
+| Mi mes con pronóstico, consejo, tarjetas, cajas, gráfica y Excel | Mi mes con **4 cosas**: cómo vas, gastos, ingresos y **Mis cuentas** (para gastar · ahorro, inversión y negocio · tarjetas). Lo demás, plegado en «Más de este mes» |
+
+- **Cómo se activa:** el aviso «Tu app puede ser más simple» en Mi mes, o Más → «Simplificar mi app». La hoja muestra cómo quedará cada cuenta; el botón **descarga primero un respaldo** y luego convierte todo de un toque (con «Deshacer»). Si cancelas el respaldo, no cambia nada.
+- **Qué hace la conversión:** crea una caja por cuenta (mismo id y nombre), pasa lo de cada caja vieja a su cuenta con transferencias dentro del mismo banco (ningún banco ni tarjeta cambia, no es gasto ni ingreso), apunta gastos fijos, deudas, compras a meses, programados, metas y presupuestos a su cuenta y desactiva las cajas viejas (quedan en $0). Lo que ya no aplica (p. ej. un pase fijo entre cajas del mismo banco) se apaga y se avisa.
+- **Mis cuentas** (Más): «+ Nueva cuenta» con «No es para gastar» (ahorro, inversión o negocio, p. ej. *Préstamos HD Crédit*) y «¿Cuánto tiene hoy?». Las que no son para gastar van aparte y no cuentan en lo que puedes gastar.
+- Tarjetas, Cuadrar, Metas, gastos fijos, presupuesto, Revisar mis datos y los avisos hablan de cuentas; una tarjeta en negativo es lo que debes (no un error).
+
 ## Cómo se usa (v1.6 «Mi mes» estilo Clima)
 
 Toda la app cabe en una pantalla, como la plantilla de Excel del usuario:
@@ -85,12 +101,14 @@ tests/
 
 | Qué | Cómo | Resultado actual |
 |---|---|---|
-| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes, metas, respaldo | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 87/87 |
-| Reglas de Firestore (incluye "otro usuario no ve nada", metas) | `cd tests/rules && npm install && npm test` (requiere Java) | 68/68 |
+| Lógica financiera, fechas, dinero, paginación, plan, balance del mes (plantilla), categoría automática, revisión de datos, Excel del mes, metas, respaldo, tarjetas, cuadre, calendario, juntar cajas, **convertir a solo cuentas** | Abrir `tests/index.html` con un servidor local, o `node tests/run.mjs` | 129/129 |
+| Reglas de Firestore (incluye "otro usuario no ve nada", metas, tarjetas) | `cd tests/rules && npm install && npm test` (requiere Java) | 78/78 |
 | Punta a punta (login, asistente, saldos, transferencias, anular, editar, paginación 10/25/50/100 con 320+ movimientos, offline, modo oscuro, desktop) | ver encabezado de `tests/e2e/e2e.mjs` | 34/34 |
 | Punta a punta Fase 2 (presupuesto −$521, deuda 5 pagos, pagar, disponible real, cobertura, proyección) | `tests/e2e/plan.e2e.mjs` | 12/12 |
 | Punta a punta Fase 3 (meta $300,000 a $20,000/mes, ¿te alcanza?, aportar con ☐, aportar/sacar, respaldo y restauración en cuenta vacía con los mismos saldos, sin duplicar) | `tests/e2e/fase3.e2e.mjs` | 11/11 |
 | Punta a punta «Mi mes» (registro nombre + monto, casillas ☐/☑ con deshacer, editar, «ya no se repite», cambiar de mes, Más, revisar datos, nueva caja con banco, Excel con números verificados) | `tests/e2e/simple.e2e.mjs` (con `EXCELJS_FILE`) | 23/23 |
+| Punta a punta **solo cuentas** (v2.0: aviso y hoja, respaldo antes de convertir, cada cuenta = su banco, Deshacer y volver a convertir, anotar con tarjeta, pagarla, mover dinero, «Préstamos HD Crédit» no es para gastar, metas con cuenta nueva, cuadrar sin cajas, editar un movimiento de antes) | `tests/e2e/cuentas.e2e.mjs` | 16/16 |
+| Punta a punta tarjetas, cuadrar, avisos, caja que paga la tarjeta y juntar cajas | `tests/e2e/tarjetas`, `cuadre`, `avisos`, `cajaTarjeta`, `juntar` `.e2e.mjs` | 14/14 · 10/10 · 9/9 · 13/13 · 8/8 |
 
 Pendiente de prueba manual en dispositivos reales: Safari iOS, Samsung Internet e instalación PWA en Android e iOS (checklist en `docs/PUBLICACION.md`).
 

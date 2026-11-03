@@ -15,6 +15,10 @@ import { html, render } from "./core/dom.js";
 import { icon } from "./components/icons.js";
 import { cerrarTodas } from "./components/modal.js";
 import { estadoError, skeletonLista } from "./components/states.js";
+import { modoCuentas } from "./core/state.js";
+
+/** Nombre de la pantalla (puede depender del modo). */
+const etiqueta = (m) => (typeof m.label === "function" ? m.label() : m.label);
 
 // path   -> texto después de #/ en la URL
 // label  -> texto del menú
@@ -23,13 +27,14 @@ import { estadoError, skeletonLista } from "./components/states.js";
 export const MODULES = [
   { path: "dashboard", label: "Mi mes", icon: "inicio", nav: { movil: "tab", desktop: true }, load: () => import("./modules/dashboard/index.js") },
   { path: "movimientos", label: "Todos los movimientos", icon: "movimientos", nav: { movil: "mas", desktop: true }, load: () => import("./modules/movimientos/index.js") },
-  { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/cajas/index.js") },
+  { path: "cajas", label: "Cajas", icon: "cajas", nav: { movil: "mas", desktop: true }, oculto: () => modoCuentas(), load: () => import("./modules/cajas/index.js") },
   { path: "metas", label: "Metas de ahorro", icon: "metas", nav: { movil: "mas", desktop: true }, load: () => import("./modules/metas/index.js") },
   { path: "tarjetas", label: "Tarjetas de crédito", icon: "tarjeta", nav: { movil: "mas", desktop: true }, load: () => import("./modules/tarjetas/index.js") },
   { path: "cuadrar", label: "Cuadrar con mis bancos", icon: "ajuste", nav: { movil: "mas", desktop: false }, load: () => import("./modules/cuadrar/index.js") },
   { path: "mas", label: "Más", icon: "mas", nav: { movil: "tab", desktop: true }, load: () => import("./modules/mas/index.js") },
   { path: "plan", label: "Deudas y proyección", icon: "plan", nav: { movil: "mas", desktop: false }, load: () => import("./modules/plan/index.js") },
-  { path: "cuentas", label: "Bancos", icon: "cuentas", nav: { movil: "mas", desktop: false }, load: () => import("./modules/cuentas/index.js") },
+  // En modo cuentas (v2.0) «Bancos» es «Mis cuentas» y no hay pantalla de cajas.
+  { path: "cuentas", label: () => (modoCuentas() ? "Mis cuentas" : "Bancos"), icon: "cuentas", nav: { movil: "mas", desktop: false }, load: () => import("./modules/cuentas/index.js") },
   { path: "configuracion", label: "Configuración", icon: "config", nav: { movil: "mas", desktop: false }, load: () => import("./modules/configuracion/index.js") },
 ];
 
@@ -61,18 +66,18 @@ export function reemplazarParams(params) {
 
 function pintarNav(actual) {
   const tab = (m) => html`<a href="#/${m.path}" class="tabbar__item ${m.path === actual ? "activo" : ""}"
-      ${m.path === actual ? html`aria-current="page"` : ""}>${icon(m.icon)}<span>${m.label}</span></a>`;
+      ${m.path === actual ? html`aria-current="page"` : ""}>${icon(m.icon)}<span>${etiqueta(m)}</span></a>`;
   const tabs = MODULES.filter((m) => m.nav.movil === "tab");
   const masActivo = MODULES.find((m) => m.path === actual)?.nav.movil === "mas";
   render(document.getElementById("tabbar"), html`
     ${tabs.slice(0, Math.ceil(tabs.length / 2)).map(tab)}
     <button type="button" class="tabbar__nuevo" data-accion="nuevo-movimiento" aria-label="Registrar gasto o ingreso">${icon("plus", { size: 28 })}</button>
     ${tabs.slice(Math.ceil(tabs.length / 2)).map((m) => m.path === "mas" && masActivo
-      ? html`<a href="#/mas" class="tabbar__item activo">${icon(m.icon)}<span>${m.label}</span></a>`
+      ? html`<a href="#/mas" class="tabbar__item activo">${icon(m.icon)}<span>${etiqueta(m)}</span></a>`
       : tab(m))}`);
 
-  render(document.getElementById("sidebar-nav"), html`${MODULES.filter((m) => m.nav.desktop).map((m) => html`
-    <a href="#/${m.path}" class="sidebar__item ${m.path === actual ? "activo" : ""}">${icon(m.icon, { size: 20 })}<span>${m.label}</span></a>`)}`);
+  render(document.getElementById("sidebar-nav"), html`${MODULES.filter((m) => m.nav.desktop && !m.oculto?.()).map((m) => html`
+    <a href="#/${m.path}" class="sidebar__item ${m.path === actual ? "activo" : ""}">${icon(m.icon, { size: 20 })}<span>${etiqueta(m)}</span></a>`)}`);
 }
 
 async function renderRuta() {
@@ -85,8 +90,8 @@ async function renderRuta() {
   cleanupActual?.();
   cleanupActual = null;
   pintarNav(mod.path);
-  document.getElementById("titulo-pantalla").textContent = mod.label;
-  document.title = `${mod.label} · Finanzas Reset`;
+  document.getElementById("titulo-pantalla").textContent = etiqueta(mod);
+  document.title = `${etiqueta(mod)} · Finanzas Reset`;
 
   const contenedor = document.getElementById("app-content");
   render(contenedor, skeletonLista(4));

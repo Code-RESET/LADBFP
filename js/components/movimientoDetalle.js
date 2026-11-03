@@ -9,7 +9,7 @@ import { html, render } from "../core/dom.js";
 import { formatMonto } from "../core/money.js";
 import { formatFecha } from "../core/dates.js";
 import { mensajeDeError } from "../core/errors.js";
-import { getState, cajaPorId, cuentaPorId, categoriaPorId } from "../core/state.js";
+import { getState, cajaPorId, cuentaPorId, categoriaPorId, modoCuentas } from "../core/state.js";
 import { ETIQUETA_TIPO } from "../domain/movimientos.js";
 import { movimientosRepo } from "../data/movimientosRepo.js";
 import { abrirCapa } from "./modal.js";
@@ -43,7 +43,11 @@ function filas(m) {
     ["Tipo", ETIQUETA_TIPO[m.tipo]],
     ["Fecha", formatFecha(m.fecha)],
   ];
-  if (m.tipo === "transferencia") {
+  if (modoCuentas()) {
+    // Modo cuentas (v2.0): solo cuentas.
+    if (m.tipo === "transferencia") f.push(["Desde", nombre(cuentaPorId(m.cuentaId))], ["Hacia", nombre(cuentaPorId(m.cuentaDestinoId))]);
+    else f.push(["Cuenta", nombre(cuentaPorId(m.cuentaId))]);
+  } else if (m.tipo === "transferencia") {
     f.push(["Desde", `${nombre(cajaPorId(m.cajaId))} · ${nombre(cuentaPorId(m.cuentaId))}`]);
     f.push(["Hacia", `${nombre(cajaPorId(m.cajaDestinoId))} · ${nombre(cuentaPorId(m.cuentaDestinoId))}`]);
   } else {

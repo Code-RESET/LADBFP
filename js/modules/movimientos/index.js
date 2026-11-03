@@ -8,7 +8,7 @@
 import { html, render as renderHtml, on } from "../../core/dom.js";
 import { nombreMes, mesDe, hoy } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, subscribe } from "../../core/state.js";
+import { getState, subscribe, modoCuentas } from "../../core/state.js";
 import { tamanoValido } from "../../core/paginacion.js";
 import { TIPOS, ETIQUETA_TIPO } from "../../domain/movimientos.js";
 import { movimientosRepo } from "../../data/movimientosRepo.js";
@@ -38,6 +38,11 @@ export function render(container, ctx) {
     mes: /^\d{4}-\d{2}$/.test(p.get("mes") || "") ? p.get("mes") : "",
     estado: p.get("estado") === "anulado" ? "anulado" : "activo",
   };
+  // Modo cuentas: no hay filtro por caja (un enlace viejo a una caja-cuenta filtra por esa cuenta).
+  if (modoCuentas() && filtros.cajaId) {
+    if (getState().cuentas.some((c) => c.id === filtros.cajaId)) filtros.cuentaId = filtros.cajaId;
+    filtros.cajaId = "";
+  }
   let tamano = tamanoValido(p.get("n") || leerLocal(CLAVE_TAMANO) || getState().perfil?.config?.pageSize);
   let paginador = null;
   let pagina = 1;
@@ -70,6 +75,7 @@ export function render(container, ctx) {
   function pintarFiltros() {
     const s = getState();
     renderHtml(form.caja, opciones(s.cajas, filtros.cajaId, { vacio: "Todas las cajas" }));
+    form.caja.hidden = modoCuentas();
     renderHtml(form.cuenta, opciones(s.cuentas, filtros.cuentaId, { vacio: "Todas las cuentas" }));
     renderHtml(form.mes, html`<option value="">Todos los meses</option>${mesesDisponibles(s.agregados).map((m) =>
       html`<option value="${m}" ${m === filtros.mes ? "selected" : ""}>${nombreMes(m)}</option>`)}`);

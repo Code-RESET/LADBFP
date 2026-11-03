@@ -11,7 +11,7 @@ import { html, render as renderHtml, on } from "../../core/dom.js";
 import { parseMonto, centavosATexto, formatMonto } from "../../core/money.js";
 import { hoy } from "../../core/dates.js";
 import { mensajeDeError } from "../../core/errors.js";
-import { getState, subscribe, catalogosListos, planListo, cajaPorId, cajasActivas } from "../../core/state.js";
+import { getState, subscribe, catalogosListos, planListo, cajaPorId, cajasActivas, modoCuentas } from "../../core/state.js";
 import { cuadreDe, cajaSugerida, enApp, patrimonioReal } from "../../domain/cuadre.js";
 import { esTarjeta } from "../../domain/tarjetas.js";
 import { saldosPor } from "../../domain/saldos.js";
@@ -37,7 +37,8 @@ export function render(container) {
     const v = valores.get(c.id);
     const real = v?.texto?.trim() ? parseMonto(v.texto) : null;
     if (real == null) return v?.texto?.trim() ? { invalido: true } : null;
-    const cajaId = v.cajaId || cajaSugerida({ cuenta: c, agregados: s.agregados, cajas: s.cajas });
+    // Modo cuentas: la diferencia va en la misma cuenta (es su propia caja).
+    const cajaId = modoCuentas() ? c.id : v.cajaId || cajaSugerida({ cuenta: c, agregados: s.agregados, cajas: s.cajas });
     return { ...cuadreDe({ cuenta: c, real, cajaId, agregados: s.agregados, deudas: s.deudas, hoy: hoyF }), cajaId };
   }
 
@@ -50,6 +51,7 @@ export function render(container) {
     const monto = formatMonto(Math.abs(r.diferencia));
     const texto = tarjeta ? (r.diferencia > 0 ? `Debes ${monto} más que en la app` : `Debes ${monto} menos que en la app`)
       : (r.diferencia > 0 ? `Faltan ${monto} en la app` : `Sobran ${monto} en la app`);
+    if (modoCuentas()) return html`<span class="cuadre__diferencia">${texto}${r.movimiento?.tipo === "apertura" ? " (saldo inicial)" : ""}</span>`;
     const saldoCaja = (saldosPor(s.agregados, "porCaja")[r.cajaId] || 0) + r.efectoCaja;
     return html`<span class="cuadre__diferencia">${texto}${r.movimiento?.tipo === "apertura" ? " (saldo inicial)" : ""}</span>
       <label class="cuadre__caja"><span>${r.efectoCaja > 0 ? "Se suman a" : "Se restan de"}</span>
@@ -102,7 +104,7 @@ export function render(container) {
     const tarjetas = cuentas.filter(esTarjeta);
     renderHtml(container, html`
       <p class="texto-sec intro">Abre la app de cada banco y escribe cuánto tienes hoy, <strong>sumando apartados y cajitas</strong>.
-        En cada tarjeta escribe su saldo actual (lo que debes). La app ajusta la diferencia en la caja que elijas.</p>
+        En cada tarjeta escribe su saldo actual (lo que debes). ${modoCuentas() ? "La app ajusta la diferencia en esa misma cuenta." : "La app ajusta la diferencia en la caja que elijas."}</p>
       <div class="card cuadre__resumen" aria-label="Según la app">
         <div><span class="kpi__etiqueta">Tienes</span><strong>${formatMonto(p.tienes)}</strong></div>
         <div><span class="kpi__etiqueta">Debes</span><strong class="${p.debes ? "monto--negativo" : ""}">${formatMonto(p.debes)}</strong></div>
@@ -112,8 +114,8 @@ export function render(container) {
       <h2 class="seccion__titulo">Bancos y ahorros</h2>
       ${bancos.length ? html`<ul class="lista-cuadre">${bancos.map((c) => fila(c, s, hoyF))}</ul>` : html`<p class="texto-sec">Aún no tienes bancos en la app.</p>`}
       <div class="cuadre__agregar">
-        <button type="button" class="btn-texto" data-accion="banco">+ Banco que falta</button>
-        <button type="button" class="btn-texto" data-accion="caja">+ Dinero en una caja nueva</button>
+        <button type="button" class="btn-texto" data-accion="banco">${modoCuentas() ? "+ Cuenta que falta" : "+ Banco que falta"}</button>
+        ${modoCuentas() ? "" : html`<button type="button" class="btn-texto" data-accion="caja">+ Dinero en una caja nueva</button>`}
       </div>
 
       <h2 class="seccion__titulo">Tarjetas de crédito</h2>
@@ -154,7 +156,7 @@ export function render(container) {
     const movs = lista.map((x) => x.r.movimiento);
     const malo = movs.map((m) => validarMovimiento(m)).find((v) => !v.ok);
     if (malo) { toastError(Object.values(malo.errores)[0]); return; }
-    const detalle = lista.map(({ cuenta, r }) => `${cuenta.nombre}: ${r.efectoCaja > 0 ? "+" : "−"}${formatMonto(Math.abs(r.diferencia))} en ${cajaPorId(r.cajaId)?.nombre || "—"}`).join(" · ");
+    const detalle = lista.map(({ cuenta, r }) => `${cuenta.nombre}: ${r.efectoCaja > 0 ? "+" : "−"}${formatMonto(Math.abs(r.diferencia))}${modoCuentas() ? "" : ` en ${cajaPorId(r.cajaId)?.nombre || "—"}`}`).join(" · ");
     const ok = await confirmar({
       titulo: lista.length === 1 ? "¿Cuadrar 1 cuenta?" : `¿Cuadrar ${lista.length} cuentas?`,
       mensaje: `${detalle}. No cuentan como ingreso ni gasto.`,

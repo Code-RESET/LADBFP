@@ -845,3 +845,21 @@ a.fila__texto--boton { text-decoration: none; color: inherit; }
   padding: 0; border: none; background: none; cursor: pointer;
   color: inherit; font: inherit; font-size: 0.9rem; font-weight: 700; text-decoration: underline; text-underline-offset: 3px;
 }
+
+/* ---------- Modo cuentas (v2.0): solo cuentas, sin cajas ---------- */
+.simplificar-aviso { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; font: inherit; color: inherit;
+  border: 1.5px solid var(--accent); background: var(--accent-soft, var(--surface)); cursor: pointer; margin-bottom: 12px; }
+.simplificar-aviso strong { font-size: 1rem; }
+.simplificar-aviso span { color: var(--text-secondary); font-size: 0.88rem; }
+.simplificar__grupo, .cuentas__grupo { margin: 10px 0 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.simplificar__antes { display: block; color: var(--text-secondary); font-size: 0.78rem; }
+.simplificar .sublista li { align-items: flex-start; }
+.cuentas__resumen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
+.cuentas__resumen div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cuentas__resumen small { color: var(--text-secondary); font-size: 0.75rem; }
+.cuentas__resumen strong { font-size: 1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mas-del-mes { margin-top: 8px; }
+.mas-del-mes > summary { cursor: pointer; padding: 12px 4px; font-weight: 600; }
+.mas-del-mes__contenido { display: flex; flex-direction: column; gap: 12px; }
+.registro[data-tipo="ingreso"] .chip--tarjeta { display: none; }
+.otro-tipo small { display: block; color: var(--text-secondary); font-size: 0.8rem; font-weight: 400; }

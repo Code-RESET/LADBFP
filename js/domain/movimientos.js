@@ -22,6 +22,18 @@ export const ETIQUETA_TIPO = {
 const vacio = (v) => v == null || v === "";
 
 /**
+ * Modo cuentas (v2.0): la caja de un movimiento (o de un gasto fijo, deuda o
+ * ingreso programado) es su cuenta, y en una transferencia la de destino es su
+ * cuenta de destino. Así cada cuenta tiene solo su propio dinero.
+ */
+export function enCuentas(m) {
+  if (!m?.cuentaId) return m;
+  const out = { ...m, cajaId: m.cuentaId };
+  if (m.tipo === "transferencia" && m.cuentaDestinoId) out.cajaDestinoId = m.cuentaDestinoId;
+  return out;
+}
+
+/**
  * Valida un movimiento antes de guardarlo (sección 37 del prompt maestro).
  * ctx opcional { cajas, cuentas, categorias } para validar referencias.
  * Devuelve { ok, errores: { campo: mensaje } }.
