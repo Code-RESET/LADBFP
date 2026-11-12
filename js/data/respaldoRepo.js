@@ -49,24 +49,34 @@ function escritor() {
   };
 }
 
+/** Si Firebase rechaza una lectura, anota en el error qué se leía (core/errors.js → mensajeDeLectura lo explica). */
+async function leyendo(que, leer) {
+  try {
+    return await leer();
+  } catch (err) {
+    if (err && typeof err === "object" && !err.lectura) err.lectura = que;
+    throw err;
+  }
+}
+
 export const respaldoRepo = {
   /** Todo lo del usuario, del servidor. onProgreso({ fase, n, total }) */
   async leerTodo(uid, onProgreso) {
     const colecciones = {};
     for (const c of COLECCIONES) {
-      const snap = await getDocs(col(uid, c));
+      const snap = await leyendo(c, () => getDocs(col(uid, c)));
       colecciones[c] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }
     const movimientos = [];
-    await movimientosRepo.recorrerTodos(uid, (lote) => {
+    await leyendo("movimientos", () => movimientosRepo.recorrerTodos(uid, (lote) => {
       movimientos.push(...lote);
       onProgreso?.({ fase: "movimientos", n: movimientos.length });
-    });
+    }));
     for (let i = 0; i < movimientos.length; i += 10) {
-      await Promise.all(movimientos.slice(i, i + 10).map(async (m) => { m.historial = await movimientosRepo.historial(uid, m.id); }));
+      await leyendo("historial", () => Promise.all(movimientos.slice(i, i + 10).map(async (m) => { m.historial = await movimientosRepo.historial(uid, m.id); })));
       onProgreso?.({ fase: "historial", n: Math.min(i + 10, movimientos.length), total: movimientos.length });
     }
-    const perfil = await getDoc(doc(db, "users", uid));
+    const perfil = await leyendo("perfil", () => getDoc(doc(db, "users", uid)));
     return { colecciones, movimientos, config: (perfil.exists() && perfil.data().config) || {} };
   },
 

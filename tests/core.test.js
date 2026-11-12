@@ -3,6 +3,7 @@ import { parseMonto, formatMonto, centavosATexto, esMontoValido, redondear } fro
 import { hoy, esFechaValida, mesSiguiente, sumarDias, etiquetaDia, nombreMes } from "../js/core/dates.js";
 import { rango, textoRango, totalPaginas, paginasVisibles, tamanoValido, TAMANOS_PAGINA } from "../js/core/paginacion.js";
 import { html, escapeHtml } from "../js/core/dom.js";
+import { mensajeDeLectura, mensajeDeError } from "../js/core/errors.js";
 
 // ---------- Dinero ----------
 test("parseMonto: $3,500.00 = 350000 centavos", () => {
@@ -113,4 +114,24 @@ test("html``: escapa lo interpolado (anti-XSS en notas)", () => {
   assert.eq(html`<p>${nota}</p>`.value, `<p>${escapeHtml(nota)}</p>`);
   assert.no(html`<p>${nota}</p>`.value.includes("<img"));
   assert.eq(html`<ul>${[1, 2].map((n) => html`<li>${n}</li>`)}</ul>`.value, "<ul><li>1</li><li>2</li></ul>");
+});
+
+test("errores: si Firebase no deja leer algo para el respaldo, dice qué y qué hacer", () => {
+  const error = (code, lectura) => Object.assign(new Error("Missing or insufficient permissions."), { code, lectura });
+  const silencio = console.error;
+  console.error = () => {}; // los errores técnicos van a la consola; aquí no hacen falta
+  try {
+    // Metas llegó en la v1.8: reglas viejas → publicar las nuevas.
+    const metas = mensajeDeLectura(error("permission-denied", "metas"));
+    assert.ok(metas.startsWith("Firebase no deja leer tus metas") && metas.includes("Firestore Database → Reglas") && metas.includes("Publicar"), metas);
+    // Lo demás casi siempre es la sesión.
+    const movs = mensajeDeLectura(error("permission-denied", "movimientos"));
+    assert.ok(movs.startsWith("Firebase no deja leer tus movimientos.") && movs.includes("Cierra sesión y vuelve a entrar"), movs);
+    // Sin saber qué se leía, u otro error: el mensaje de siempre.
+    assert.eq(mensajeDeLectura(error("permission-denied")), mensajeDeError(error("permission-denied")));
+    assert.eq(mensajeDeLectura(error("unavailable", "metas")), "Sin conexión con el servidor. Los cambios se guardarán al reconectar.");
+    assert.eq(mensajeDeLectura(new Error("x"), "No se pudo crear el respaldo."), "No se pudo crear el respaldo.");
+  } finally {
+    console.error = silencio;
+  }
 });

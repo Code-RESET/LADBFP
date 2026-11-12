@@ -131,3 +131,9 @@ test("diagnóstico: tarjetas de crédito (sin día de corte, compra a meses de t
   assert.ok(t.includes("aviso:La compra a meses «TV» es de una tarjeta desactivada o borrada"), t.join(" | "));
   assert.no(t.some((x) => x.includes("Liverpool quedó en negativo")), "una tarjeta en negativo es normal (es lo que debes)");
 });
+
+test("diagnóstico: Firebase con reglas de antes de Metas (v1.8) → publicar las reglas nuevas", () => {
+  const h = diagnosticar({ ...base(), metasError: "No tienes permiso para esta operación o los datos no son válidos." });
+  assert.eq(h.map((x) => [x.nivel, x.titulo, x.ruta]), [["error", "Firebase tiene reglas de una versión anterior", "metas"]]);
+  assert.ok(h[0].detalle.includes("Firestore Database → Reglas") && h[0].detalle.includes("Publicar"), h[0].detalle);
+});

@@ -9,7 +9,7 @@
 
 import { html, render } from "../../core/dom.js";
 import { hoy, formatFecha } from "../../core/dates.js";
-import { mensajeDeError } from "../../core/errors.js";
+import { mensajeDeError, mensajeDeLectura } from "../../core/errors.js";
 import { getState } from "../../core/state.js";
 import { construirRespaldo, validarRespaldo, planImportacion, nombreArchivo, etiqueta, COLECCIONES } from "../../domain/respaldo.js";
 import { respaldoRepo } from "../../data/respaldoRepo.js";
@@ -68,7 +68,7 @@ export function abrirRespaldo(uid) {
         ${etiqueta("cajas", respaldo.conteos.cajas)}, ${etiqueta("metas", respaldo.conteos.metas)}.</p>`);
       if (r === "descargado") toast("✓ Respaldo descargado");
     } catch (err) {
-      pintarEstado(html`<p class="aviso aviso--error">${mensajeDeError(err, "No se pudo crear el respaldo.")}</p>`);
+      pintarEstado(html`<p class="aviso aviso--error">${mensajeDeLectura(err, "No se pudo crear el respaldo.")}</p>`);
     } finally {
       ocupado = false;
       boton.disabled = false;
