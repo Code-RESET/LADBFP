@@ -14,6 +14,14 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## «Actualizar la app» que sí actualiza (v2.0.2)
+
+En la computadora de Angel, Configuración decía «Versión instalada: v2.0.1» pero la pantalla seguía con los archivos de la v2.0.0: la versión nueva se había instalado sola (el service worker hace `skipWaiting` y toma el control) y la pantalla no se recargó; «Actualizar la app» no encontraba nada nuevo que instalar y decía «Ya tienes la versión más reciente».
+- **`services/actualizacion.js`**: si una versión nueva ya tomó el control después de abrir la pantalla (`controllerchange`), `buscarActualizacion` recarga en lugar de decir «al día». Configuración lo indica («toca para empezar a usarla»).
+- **`service-worker.js`**: el precache baja cada archivo con `cache: "reload"` (del servidor, no de la caché HTTP del navegador), para que la caché de una versión nunca guarde copias viejas. Es preventivo: la prueba no lo reprodujo.
+- `tests/e2e/actualizar.e2e.mjs` (con su propio servidor; sin emuladores): instala la app, publica una «versión nueva», comprueba que su caché tenga el archivo nuevo y que «Actualizar» recargue. Con el código de la v2.0.1 falla con «al-dia».
+- Para salir del paso en un equipo ya afectado: Configuración → «Reinstalar archivos de la app» (no toca los datos).
+
 ## Reglas sin publicar: decirlo claro (v2.0.1)
 
 Angel no pudo simplificar: «No tienes permiso para esta operación o los datos no son válidos». En su Firebase seguían las reglas de antes de la v1.8 (sin `metas`): la app y las reglas se publican por separado. El respaldo (que «Simplificar» descarga primero) lee todo, metas incluidas, y Firebase lo rechazaba; no se cambiaba nada. Reproducido en el emulador con las reglas de `627ff83`.

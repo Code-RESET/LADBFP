@@ -14,7 +14,7 @@ import { perfilRepo } from "../../data/perfilRepo.js";
 import { icon } from "../../components/icons.js";
 import { segmentado, guardarLocal, leerLocal } from "../../components/fields.js";
 import { abrirCategorias } from "./categorias.js";
-import { versionInstalada, buscarActualizacion, reinstalarArchivos, MENSAJE_ACTUALIZACION } from "../../services/actualizacion.js";
+import { versionInstalada, buscarActualizacion, reinstalarArchivos, hayVersionPendiente, MENSAJE_ACTUALIZACION } from "../../services/actualizacion.js";
 import { toast, toastError } from "../../components/toast.js";
 import { confirmar } from "../../components/confirmation.js";
 
@@ -79,7 +79,7 @@ export function render(container, ctx) {
           <li><button type="button" class="fila" data-accion="actualizar">
             <span class="fila__icono">${icon("historial", { size: 18 })}</span>
             <span class="fila__texto"><span class="fila__titulo">Buscar actualizaciones</span>
-              <span class="fila__sub">Versión instalada: ${version || "—"}</span></span>
+              <span class="fila__sub">Versión instalada: ${version || "—"}${hayVersionPendiente() ? " · toca para empezar a usarla" : ""}</span></span>
             ${icon("chevron", { size: 16, clase: "fila__chevron" })}
           </button></li>
           <li><button type="button" class="fila" data-accion="reinstalar">
