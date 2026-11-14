@@ -10,7 +10,7 @@
 import { html } from "../../core/dom.js";
 import { formatMonto } from "../../core/money.js";
 import { hoy } from "../../core/dates.js";
-import { mensajeDeError } from "../../core/errors.js";
+import { mensajeDeError, mensajeDeLectura } from "../../core/errors.js";
 import { getState } from "../../core/state.js";
 import { planConversion } from "../../domain/convertir.js";
 import { conversionRepo } from "../../data/conversionRepo.js";
@@ -73,7 +73,8 @@ export function abrirSimplificar() {
         accion: { label: "Deshacer", onClick: () => conversionRepo.deshacer(uid, final, ids, { onError }) },
       });
     } catch (err) {
-      estado.textContent = mensajeDeError(err, "No se pudo descargar el respaldo. No se cambió nada.");
+      // Falló al leer tus datos para el respaldo (antes de convertir): decir qué y cómo arreglarlo.
+      estado.textContent = `${mensajeDeLectura(err, "No se pudo descargar el respaldo.")} No se cambió nada.`;
     } finally {
       boton.disabled = false;
       boton.textContent = TEXTO_BOTON;

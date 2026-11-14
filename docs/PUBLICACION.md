@@ -11,6 +11,8 @@
 
 ## 2. Reglas e índices de Firestore
 
+> **Las reglas se publican aparte de la app.** Fusionar en GitHub solo publica la app (GitHub Pages); `firestore.rules` hay que volver a publicarlas en Firebase **cada vez que una versión las cambie** (la última que las cambió: v1.9.0). Si no, lo nuevo falla con «No tienes permiso…». Desde la v2.0.1 la app lo detecta: «Revisar mis datos» dice «Firebase tiene reglas de una versión anterior» y el respaldo y «Simplificar mi app» dicen qué no pudieron leer.
+
 Opción A — Consola (sin instalar nada):
 - **Firestore → Reglas** → pegar el contenido de `firestore.rules` → Publicar.
 - **Firestore → Índices → Compuestos** → crear los 6 índices de `firestore.indexes.json` (colección `movimientos`). Si falta uno, la consola del navegador muestra un enlace para crearlo con un clic.

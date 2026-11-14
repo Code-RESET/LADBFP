@@ -14,6 +14,14 @@ Fecha: 2026-10-01 · Repo: `Code-RESET/LADBFP` (parte del boilerplate Code-Reset
 
 ---
 
+## Reglas sin publicar: decirlo claro (v2.0.1)
+
+Angel no pudo simplificar: «No tienes permiso para esta operación o los datos no son válidos». En su Firebase seguían las reglas de antes de la v1.8 (sin `metas`): la app y las reglas se publican por separado. El respaldo (que «Simplificar» descarga primero) lee todo, metas incluidas, y Firebase lo rechazaba; no se cambiaba nada. Reproducido en el emulador con las reglas de `627ff83`.
+- **`data/respaldoRepo.js`**: si Firebase rechaza una lectura, el error lleva `lectura` (qué colección se leía).
+- **`core/errors.js → mensajeDeLectura`**: con `permission-denied` dice qué no se pudo leer y qué hacer (metas → publicar `firestore.rules`; lo demás → cerrar sesión y volver a entrar, o publicar las reglas). Lo usan Simplificar y Respaldo.
+- **`domain/diagnostico.js`**: si el listener de metas falló (`metasError`), «Revisar mis datos» y el consejo de Mi mes dicen «Firebase tiene reglas de una versión anterior» con los pasos.
+- `docs/PUBLICACION.md`: aviso de que las reglas se publican aparte, cada vez que cambian.
+
 ## Solo cuentas: «Simplificar mi app» (v2.0.0)
 
 Angel: «la aplicación aún me confunde mucho». Lo que confundía eran las **dos dimensiones** (caja × banco): una caja podía tener dinero en varios bancos, los saldos por caja dentro de cada banco no se veían, la deuda de la tarjeta vivía dentro de una caja (cajas en negativo) y había cajas repetidas o desactivadas con dinero. v1.12 y v1.13 lo parcharon; v2.0 quita las cajas de la vista: **cada cuenta es su propia caja**.

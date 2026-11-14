@@ -19,6 +19,27 @@ const MENSAJES = {
   "deadline-exceeded": "El servidor tardó demasiado en responder.",
 };
 
+// Qué se estaba leyendo cuando Firebase lo rechazó (data/respaldoRepo.js → err.lectura).
+const LECTURAS = {
+  cajas: "tus cajas", cuentas: "tus cuentas", categorias: "tus categorías", obligaciones: "tus gastos fijos",
+  deudas: "tus deudas", recurrentes: "tus ingresos programados", presupuestos: "tus presupuestos", metas: "tus metas",
+  movimientos: "tus movimientos", historial: "el historial de tus movimientos", perfil: "tu configuración",
+};
+
+/**
+ * Error al leer todos tus datos (respaldo, «Simplificar mi app»): dice qué no se pudo leer y qué hacer.
+ * Metas llegó en la v1.8: si Firebase no deja leerlas, sus reglas son de antes y falta publicar las nuevas.
+ * Si no deja leer lo demás, casi siempre es la sesión (o reglas mucho más viejas).
+ */
+export function mensajeDeLectura(err, porDefecto = "No se pudieron leer tus datos.") {
+  const code = String(err?.code || "").replace(/^firestore\//, "");
+  if (code !== "permission-denied" || !LECTURAS[err?.lectura]) return mensajeDeError(err, porDefecto);
+  console.error(err);
+  return err.lectura === "metas"
+    ? "Firebase no deja leer tus metas: tiene reglas de una versión anterior de la app. En la consola de Firebase → Firestore Database → Reglas, pega el archivo firestore.rules de la app y toca Publicar."
+    : `Firebase no deja leer ${LECTURAS[err.lectura]}. Cierra sesión y vuelve a entrar; si sigue igual, publica las reglas de la app en la consola de Firebase (Firestore Database → Reglas).`;
+}
+
 /** Error de validación propio: su mensaje sí es apto para el usuario. */
 export class ErrorUsuario extends Error {
   constructor(mensaje, campos = {}) {

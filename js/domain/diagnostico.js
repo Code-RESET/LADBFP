@@ -17,7 +17,7 @@ const activo = (lista, id) => lista.some((x) => x.id === id && x.activa !== fals
  * Devuelve [{ nivel: 'error' | 'aviso' | 'info', titulo, detalle, ruta }]
  * ordenados de más a menos grave. Lista vacía = todo bien.
  */
-export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], metas = [], agregados = {}, perfil = null, hoy }) {
+export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obligaciones = [], deudas = [], recurrentes = [], metas = [], agregados = {}, perfil = null, metasError = null, hoy }) {
   const out = [];
   const cajasActivas = cajas.filter((c) => c.activa !== false);
   // Las tarjetas de crédito no guardan dinero: los "bancos" son débito, monedero y efectivo.
@@ -30,6 +30,11 @@ export function diagnosticar({ cajas = [], cuentas = [], categorias = [], obliga
   const palabra = soloCuentas ? "cuenta" : "caja";
 
   if (!cajasActivas.length && !soloCuentas) out.push({ nivel: "error", titulo: "No tienes cajas activas", detalle: "Crea al menos una caja para registrar dinero.", ruta: "cajas" });
+  // Firebase no dejó leer las metas: sus reglas son de antes de la v1.8 (las reglas se publican aparte de la app).
+  if (metasError) {
+    out.push({ nivel: "error", titulo: "Firebase tiene reglas de una versión anterior", ruta: "metas",
+      detalle: "Sin las reglas nuevas no funcionan las metas, las compras a meses, el respaldo ni «Simplificar mi app». En la consola de Firebase → Firestore Database → Reglas, pega el archivo firestore.rules de la app y toca Publicar." });
+  }
   if (!cuentasActivas.length) out.push({ nivel: "error", titulo: "No tienes bancos/cuentas activos", detalle: "Crea al menos una (por ejemplo «Efectivo»).", ruta: "cuentas" });
 
   // Cajas desactivadas que no quedaron en $0: su dinero (o deuda) sigue contando y las cajas no cuadran con los bancos.
