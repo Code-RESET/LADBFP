@@ -10,7 +10,7 @@
 // nueva. tests/ verifica que CORE_ASSETS incluya todos los .js.
 // ============================================================
 
-const CACHE_VERSION = "finanzas-reset-v2.0.1";
+const CACHE_VERSION = "finanzas-reset-v2.0.2";
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const CORE_ASSETS = [
@@ -132,7 +132,9 @@ const HOSTS_CACHEABLES = [self.location.host, "www.gstatic.com", "fonts.googleap
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(CORE_ASSETS))
+    // cache: "reload" → cada archivo se baja del servidor, no de la caché HTTP del navegador
+    // (si no, la versión nueva podía guardar copias viejas de algunos archivos).
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(CORE_ASSETS.map((url) => new Request(url, { cache: "reload" }))))
   );
   self.skipWaiting();
 });

@@ -42,6 +42,8 @@ test("service worker: CORE_ASSETS incluye todos los .js, .css y assets de la app
   assert.eq(faltan, [], "archivos sin precachear");
   const inexistentes = [...listados].filter((p) => !existsSync(join(raiz, p)));
   assert.eq(inexistentes, [], "CORE_ASSETS apunta a archivos que no existen");
+  // Al instalar una versión, cada archivo se baja del servidor (no de la caché HTTP): si no, podía guardar copias viejas.
+  assert.ok(/cache\.addAll\(CORE_ASSETS\.map\(\(url\) => new Request\(url, \{ cache: "reload" \}\)\)\)/.test(sw), "el precache debe usar cache: \"reload\"");
 });
 
 test("versión del SDK de Firebase consistente en todos los archivos", () => {

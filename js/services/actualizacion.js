@@ -20,6 +20,11 @@ export const MENSAJE_ACTUALIZACION = {
 
 let recargando = false;
 let actualizandoManual = false;
+// Una versión nueva ya tomó el control (se instaló sola), pero esta pantalla sigue con los archivos de antes.
+let versionPendiente = false;
+
+/** ¿Hay una versión nueva ya instalada que esta pantalla todavía no usa? (se aplica al recargar) */
+export const hayVersionPendiente = () => versionPendiente;
 
 function recargar() {
   if (recargando) return;
@@ -52,6 +57,7 @@ export function registrarServiceWorker({ onNuevaVersion } = {}) {
   const habiaControlador = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!habiaControlador || recargando) return;
+    versionPendiente = true;
     if (actualizandoManual) recargar();          // lo pidió el usuario: aplicar ya
     else onNuevaVersion?.(recargar);             // llegó sola: ofrecer recargar
   });
@@ -93,7 +99,11 @@ export async function buscarActualizacion() {
     return "sin-conexion";
   }
   const nuevo = reg.installing || reg.waiting;
-  if (!nuevo) return "al-dia";
+  if (!nuevo) {
+    // La versión nueva ya se instaló sola y tomó el control: falta recargar para usarla.
+    if (versionPendiente) { recargar(); return "actualizando"; }
+    return "al-dia";
+  }
   actualizandoManual = true;
   // El service worker hace skipWaiting: al activarse cambia el controlador
   // y "controllerchange" recarga la página. Respaldo por si no ocurre.
